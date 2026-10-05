@@ -3,15 +3,17 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const root = path.resolve('dist');
+const roots = { '/typing/': path.resolve('dist'), '/mock/': path.resolve('dist-mock') };
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
-  if (!url.pathname.startsWith('/typing/')) {
+  const prefix = Object.keys(roots).find((p) => url.pathname.startsWith(p));
+  if (!prefix) {
     res.writeHead(404).end('not found');
     return;
   }
-  let rel = decodeURIComponent(url.pathname.slice('/typing/'.length)) || 'index.html';
+  const root = roots[prefix];
+  let rel = decodeURIComponent(url.pathname.slice(prefix.length)) || 'index.html';
   const file = path.join(root, rel);
   if (!file.startsWith(root)) return res.writeHead(403).end();
   try {

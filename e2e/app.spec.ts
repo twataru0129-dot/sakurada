@@ -7,7 +7,7 @@ async function openSetup(page: Page) {
   await page.getByRole('button', { name: /タイピングモード/ }).click();
 }
 
-async function startPractice(page: Page, kind: 'A' | 'B', method: '実物のキーボード' | RegExp, minutes = '3分') {
+async function startPractice(page: Page, kind: 'A' | 'B', method: string | RegExp, minutes = '3分') {
   await openSetup(page);
   await page.getByLabel(kind === 'A' ? 'A．ローマ字入力' : 'B．文章入力〈変換あり〉').check();
   await page.getByLabel(minutes).check();

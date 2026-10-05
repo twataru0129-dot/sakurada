@@ -15,7 +15,7 @@
     "validate:questions": "tsx scripts/validate-questions.ts",
     "check:readings": "tsx scripts/check-readings.ts",
     "icons": "bash scripts/generate-icons.sh",
-    "create-teacher": "node scripts/create-first-teacher.mjs"
+    "create-teacher": "tsx scripts/create-teacher.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

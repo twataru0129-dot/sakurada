@@ -9,3 +9,4 @@ playwright-report
 .tmp-pg
 supabase/.temp
 supabase/.branches
+dist-mock

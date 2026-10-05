@@ -1,0 +1,50 @@
+# Supabase CLI 用の設定（自分の PC で `npx supabase start` するとき、または本番の設定の目安）
+# 本番のプロジェクトでは、同じ内容をダッシュボードで設定してください（docs/setup.md）。
+project_id = "sakura-type"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+
+[db]
+port = 54322
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = []
+# アクセストークンの有効期間（秒）。短くすると、ログアウト後に古いトークンが使える時間も短くなります
+jwt_expiry = 900
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# 生徒による自由な新規登録はできません（教員が発行します）
+enable_signup = false
+enable_anonymous_sign_ins = false
+minimum_password_length = 8
+password_requirements = "letters_digits"
+
+[auth.rate_limit]
+# 同じ IP アドレスからのログイン試行の上限（5分あたり）。
+# 学校では教室の全員が同じ IP になるため、人数に合わせて増やします。総当たり対策はアカウント単位の制限（フック）で行います。
+sign_in_sign_ups = 200
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+# 同じアカウントで15分以内に5回失敗すると15分ログインできなくする（supabase/migrations の関数）
+[auth.hook.password_verification_attempt]
+enabled = true
+uri = "pg-functions://postgres/public/hook_password_verification_attempt"
+
+[functions.teacher-admin]
+verify_jwt = true
