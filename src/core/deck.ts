@@ -64,7 +64,7 @@ export class Deck {
   private step = 0;
   private lastId: string | null = null;
 
-  constructor(questions: Question[], private readonly mode: DeckMode, private readonly rng: Rng = cryptoRng) {
+  constructor(questions: Question[], private readonly mode: DeckMode, rng: Rng = cryptoRng) {
     if (questions.length === 0) throw new Error('出題できる問題がありません');
     for (const d of [1, 2, 3] as Difficulty[]) {
       const pool = questions.filter((q) => q.difficulty === d);

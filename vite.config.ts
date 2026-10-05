@@ -12,9 +12,9 @@ export default defineConfig({
   // バージョン番号は package.json の version だけで管理します。
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [react()],
-  build: { target: 'es2020', sourcemap: false },
+  build: { target: 'es2020', sourcemap: false, chunkSizeWarningLimit: 1200 },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'supabase/functions/_shared/*.test.ts'],
   },
 });

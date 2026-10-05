@@ -21,9 +21,14 @@ export class ImeInputController {
   private lastCompositionEnd = Number.NEGATIVE_INFINITY;
 
   constructor(
-    private readonly judge: SentenceJudge,
+    private judge: SentenceJudge,
     private readonly now: () => number = () => performance.now(),
   ) {}
+
+  /** 次の問題に切り替えます（変換中かどうかの状態は引き継ぎます） */
+  setJudge(judge: SentenceJudge): void {
+    this.judge = judge;
+  }
 
   get isComposing(): boolean {
     return this.composing;

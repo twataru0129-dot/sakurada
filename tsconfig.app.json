@@ -17,5 +17,5 @@
     "resolveJsonModule": true,
     "types": ["vite/client"]
   },
-  "include": ["src"]
+  "include": ["src", "supabase/functions/_shared/accountRules.ts"]
 }

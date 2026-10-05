@@ -148,3 +148,19 @@ describe('IME の確定と Enter の扱い', () => {
     expect(judge.current.correctChars).toBe(2);
   });
 });
+
+describe('問題の切り替え', () => {
+  it('完成直後に届く古い input イベントで、次の問題にミスが加算されない', () => {
+    const first = new SentenceJudge('あい');
+    const ctl = new ImeInputController(first, () => 10_000);
+    ctl.compositionStart();
+    const ev = ctl.compositionEnd('あい');
+    expect(ev.complete).toBe(true);
+    // 画面側で入力欄を空にしてから次の問題へ
+    const second = new SentenceJudge('うえお');
+    ctl.setJudge(second);
+    // Safari などで遅れて届く input イベント（入力欄の値はすでに空）
+    ctl.input('', false);
+    expect(second.misses).toBe(0);
+  });
+});
