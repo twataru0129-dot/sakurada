@@ -48,6 +48,16 @@ npm run build
 画像・マニフェストは相対パスで参照し、画面の切り替えは `#/home` のようなハッシュで行うため、**サブディレクトリに置いても動きます**（サーバーの書き換え設定は不要です）。
 公開は **HTTPS** で行ってください。
 
+### GitHub Pages で公開する（このリポジトリの設定）
+
+`.github/workflows/deploy-pages.yml` が、main に push されるたびに `npm ci` → `npm test` → `npm run build` を行い、**`dist` の中身だけ**を公開します。
+リポジトリの **Settings → Pages → Build and deployment → Source** を **「GitHub Actions」** にしてください。
+「Deploy from a branch」のままだと、ビルド前の `index.html`（`/src/main.tsx` を読み込もうとする）がそのまま公開され、白い画面になります。
+
+公開 URL：https://twataru0129-dot.github.io/sakurada/
+
+ログインを使う場合は、Settings → Secrets and variables → Actions → **Variables** に `VITE_SUPABASE_URL`・`VITE_SUPABASE_ANON_KEY`（公開用キー）を登録し、Actions の「Deploy to GitHub Pages」を再実行します。未登録ならゲスト版として公開されます。service_role / secret キーは登録しないでください。
+
 > オフライン対応（電波がない場所での利用）はしていません。アイコン（ホーム画面に追加）の設定は、オフライン対応を意味しません。
 
 ---
