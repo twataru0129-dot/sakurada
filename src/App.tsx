@@ -1,0 +1,55 @@
+import { useEffect } from 'react';
+import { AppProvider, useApp } from './state/AppContext';
+import { navigate, useRoute } from './state/router';
+import { Header, IdleWarning } from './ui/common';
+import { Entry } from './screens/Entry';
+import { Login } from './screens/Login';
+import { Home } from './screens/Home';
+import { TypingSetup } from './screens/TypingSetup';
+import { Practice } from './screens/Practice';
+import { Result } from './screens/Result';
+import { MyHistory } from './screens/MyHistory';
+import { TeacherHome } from './screens/teacher/TeacherHome';
+import { StudentDetail } from './screens/teacher/StudentDetail';
+
+function Screens() {
+  const path = useRoute();
+  const { account } = useApp();
+  const needsAccount = !['/', '/login'].includes(path);
+
+  // ゲスト・ログインのどちらも選んでいないときは入口へ
+  useEffect(() => {
+    if (needsAccount && !account) navigate('/');
+  }, [needsAccount, account]);
+
+  if (needsAccount && !account) return null;
+  const practicing = path === '/practice';
+  let screen;
+  if (path === '/') screen = <Entry />;
+  else if (path === '/login') screen = <Login />;
+  else if (path === '/home') screen = <Home />;
+  else if (path === '/typing') screen = <TypingSetup />;
+  else if (path === '/practice') screen = <Practice />;
+  else if (path === '/result') screen = <Result />;
+  else if (path === '/history') screen = <MyHistory />;
+  else if (path === '/teacher') screen = <TeacherHome tab="classes" />;
+  else if (path === '/teacher/materials') screen = <TeacherHome tab="materials" />;
+  else if (path === '/teacher/account') screen = <TeacherHome tab="account" />;
+  else if (path.startsWith('/teacher/student/')) screen = <StudentDetail studentId={path.slice('/teacher/student/'.length)} />;
+  else screen = <Home />;
+  return (
+    <>
+      <Header practicing={practicing} />
+      {screen}
+      <IdleWarning />
+    </>
+  );
+}
+
+export function App() {
+  return (
+    <AppProvider>
+      <Screens />
+    </AppProvider>
+  );
+}
