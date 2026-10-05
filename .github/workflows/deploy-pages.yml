@@ -1,0 +1,61 @@
+# GitHub Pages への公開
+# main に push されるたびに、npm ci → npm run build で作った dist の中身だけを公開します。
+# リポジトリの Settings → Pages → Build and deployment → Source を「GitHub Actions」にしてください。
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          # 未設定ならゲスト版としてビルドされます（ログインは「未設定」と表示）。
+          # 設定する場合は Settings → Secrets and variables → Actions → Variables に登録します。
+          # anon / publishable キーは公開用のキーです。service_role / secret キーは絶対に登録しないでください。
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_LOGIN_EMAIL_DOMAIN: ${{ vars.VITE_LOGIN_EMAIL_DOMAIN }}
+      - name: Check build output
+        run: |
+          test -f dist/index.html
+          if grep -q '/src/main.tsx' dist/index.html; then echo 'dist/index.html がビルド前のままです'; exit 1; fi
+          ls dist/assets/*.js dist/icons/favicon.ico dist/manifest.webmanifest
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
