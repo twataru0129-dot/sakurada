@@ -27,7 +27,7 @@ test.describe('入口画面', () => {
     await expect(guest).toContainText('登録なしですぐ練習');
     await expect(page.getByRole('button', { name: /ログインして練習/ })).toContainText('記録を保存して成長を確認');
     await expect(page.getByRole('button', { name: /ログインして練習/ })).toBeDisabled();
-    await expect(page.getByText('ゲストの記録は保存されません。')).toBeVisible();
+    await expect(page.getByText('ゲストの記録は、この端末・ブラウザに保存されます。').first()).toBeVisible();
     // 注意は短く表示、詳しい説明は折りたたみ（内容は残っている）
     await expect(page.locator('.entry-cautions')).toContainText('本名・住所・電話番号などは入力しないでください。');
     const details = page.locator('details', { hasText: '使い方・記録と個人情報について' });

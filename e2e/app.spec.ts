@@ -59,7 +59,7 @@ test.describe('入口・アイコン・サブディレクトリ', () => {
       expect(overlap, sel).toBe(false);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-    await expect(page.locator('.app-header .version')).toHaveText('v1.0.2');
+    await expect(page.locator('.app-header .version')).toHaveText('v1.0.3');
   });
 
   test('準備中のモードは押せない', async ({ page }) => {
@@ -97,7 +97,7 @@ test.describe('ローマ字入力', () => {
     await expect(page.getByRole('heading', { name: '練習の結果' })).toBeVisible();
     await expect(page.getByText('途中で終わったため')).toBeVisible();
     await expect(page.getByText('参考ランク')).toBeVisible();
-    await expect(page.getByText('ゲストのため、この記録は保存されません')).toBeVisible();
+    await expect(page.getByText('✓ この端末・ブラウザに記録しました（ゲスト）')).toBeVisible();
   });
 
   test('時間切れ（3分）で結果に進み、標準問題の完走は正式ランク', async ({ page }, info) => {
@@ -211,8 +211,9 @@ test.describe('終了とデータの消去', () => {
     await expect(page.getByRole('button', { name: 'ゲストで練習' })).toBeVisible();
     await page.goto('./#/result');
     await expect(page.getByRole('heading', { name: '練習の結果' })).toHaveCount(0);
-    const stored = await page.evaluate(() => ({ l: Object.keys(localStorage).length, s: Object.keys(sessionStorage).length }));
-    expect(stored).toEqual({ l: 0, s: 0 });
+    // ゲストの練習記録（v1.0.3 から端末に保存）だけが残り、ほかの一時データは残らない
+    const stored = await page.evaluate(() => ({ l: Object.keys(localStorage), s: Object.keys(sessionStorage).length }));
+    expect(stored).toEqual({ l: ['sakura-type:guest-history'], s: 0 });
   });
 });
 

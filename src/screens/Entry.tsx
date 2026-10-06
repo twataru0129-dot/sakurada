@@ -1,4 +1,5 @@
 import { DOCS_BASE, isCloudConfigured } from '../config';
+import { GUEST_HISTORY_NOTICE } from '../data/guestHistory';
 import { useApp } from '../state/AppContext';
 import { navigate } from '../state/router';
 import { logoUrl, Notice } from '../ui/common';
@@ -22,7 +23,7 @@ export function Entry() {
             <span className="choice-card-title">ゲストで練習</span>
             <span className="choice-card-desc">登録なしですぐ練習</span>
           </button>
-          <p className="choice-note">ゲストの記録は保存されません。</p>
+          <p className="choice-note">ゲストの記録は、この端末・ブラウザに保存されます。</p>
         </div>
         <div className="entry-choice-wrap">
           <button
@@ -63,7 +64,9 @@ export function Entry() {
           <h3>ゲストで練習</h3>
           <ul>
             <li>IDやパスワードは使いません。</li>
-            <li>結果はその場で見られますが、保存されません。終了すると消えます。</li>
+            <li>{GUEST_HISTORY_NOTICE}</li>
+            <li>ゲストの記録は最新100回分まで残ります。インターネット上（クラウド）には送らず、ほかの端末やブラウザには引き継がれません。ログインしても、ゲストの記録はアカウントに移りません。</li>
+            <li>「練習の記録」の画面で、ゲストの記録をすべて削除できます。</li>
           </ul>
           <h3>ログインして練習</h3>
           <ul>

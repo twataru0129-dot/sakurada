@@ -21,7 +21,7 @@ import type { Minutes } from '../../core/result';
 import { useApp } from '../../state/AppContext';
 import { navigate } from '../../state/router';
 import { BackLink, Toggle } from '../../ui/common';
-import { HistoryView } from '../../ui/HistoryView';
+import { HistoryPanel } from '../../ui/HistoryPanel';
 
 export function StudentDetail({ studentId }: { studentId: string }) {
   const { account } = useApp();
@@ -93,7 +93,7 @@ export function StudentDetail({ studentId }: { studentId: string }) {
 
       <section className="panel">
         <h2>練習の記録と成長</h2>
-        {rows ? <HistoryView rows={rows} /> : <p>読み込んでいます…</p>}
+        {rows ? <HistoryPanel records={rows} /> : <p>読み込んでいます…</p>}
       </section>
 
       <section className="panel">

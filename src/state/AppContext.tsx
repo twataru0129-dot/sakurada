@@ -4,6 +4,8 @@ import { getClient, loadSettings, logoutCloud, saveOwnSettings, saveResult, type
 import type { PracticeConfig, PracticeResult } from '../core/result';
 import { APP_DEFAULT_SETTINGS, effectiveSettings, type LearningSettings } from '../core/settings';
 import { navigate } from './router';
+import { GUEST_HISTORY_KEY, saveGuestRecord } from '../data/guestHistory';
+import { recordFromResult } from '../core/history';
 
 export type Account = { kind: 'guest' } | { kind: 'user'; profile: Profile };
 export type SaveState = 'saving' | 'saved' | 'failed';
@@ -16,7 +18,7 @@ interface AppValue {
   startGuest: () => void;
   startUser: (profile: Profile) => Promise<void>;
   logout: (message?: string) => Promise<void>;
-  /** このログイン中（またはゲストの間）の結果。端末やクラウドには保存しません（ゲスト） */
+  /** このログイン中（またはゲストの間）の結果（画面表示用。保存は doSave でゲストは端末、ログイン利用者はクラウドへ） */
   sessionResults: PracticeResult[];
   saves: Record<string, SaveState>;
   recordResult: (r: PracticeResult) => void;
@@ -26,6 +28,8 @@ interface AppValue {
   setLastConfig: (c: PracticeConfig) => void;
   currentResult: PracticeResult | null;
   setCurrentResult: (r: PracticeResult | null) => void;
+  historyFocus: string | null;
+  setHistoryFocus: (key: string | null) => void;
   notice: string | null;
   setNotice: (s: string | null) => void;
   idleWarning: boolean;
@@ -40,12 +44,18 @@ export function useApp(): AppValue {
   return v;
 }
 
-/** 端末に残っているかもしれない一時データを消します（このアプリは保存しませんが、念のため） */
+/**
+ * 端末に残っているかもしれない一時データ（ログインの情報など）を消します。
+ * ゲストの練習記録（GUEST_HISTORY_KEY）は、ゲストを終了しても残す仕様のため消しません。
+ */
 function clearLocalTraces() {
   for (const store of [safeStorage('sessionStorage'), safeStorage('localStorage')]) {
     if (!store) continue;
     try {
-      for (const k of Object.keys(store)) if (k.startsWith('sakura') || k.startsWith('sb-')) store.removeItem(k);
+      for (const k of Object.keys(store)) {
+        if (k === GUEST_HISTORY_KEY) continue;
+        if (k.startsWith('sakura') || k.startsWith('sb-')) store.removeItem(k);
+      }
     } catch {
       /* 使えない環境では何もしません */
     }
@@ -67,6 +77,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [sessionResults, setSessionResults] = useState<PracticeResult[]>([]);
   const [saves, setSaves] = useState<Record<string, SaveState>>({});
   const [lastConfig, setLastConfig] = useState<PracticeConfig | null>(null);
+  /** 「練習の記録」を開いたときに最初に選ぶ条件（結果画面から開いたときは今回の条件） */
+  const [historyFocus, setHistoryFocus] = useState<string | null>(null);
   const [currentResult, setCurrentResult] = useState<PracticeResult | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [idleWarning, setIdleWarning] = useState(false);
@@ -84,6 +96,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSaves({});
     setLastConfig(null);
     setCurrentResult(null);
+    setHistoryFocus(null);
     setIdleWarning(false);
     window.clearTimeout(settingsTimer.current);
     clearLocalTraces();
@@ -137,6 +150,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const doSave = useCallback(async (r: PracticeResult) => {
+    // ゲスト：この端末（localStorage）に保存します。クラウドには送りません
+    if (accountRef.current?.kind === 'guest') {
+      const outcome = saveGuestRecord(recordFromResult(r));
+      setSaves((s) => ({ ...s, [r.id]: outcome === 'failed' ? 'failed' : 'saved' }));
+      return;
+    }
+    // ログイン利用者：アカウント（クラウド）に保存します。失敗してもゲストの保存場所には切り替えません
     setSaves((s) => ({ ...s, [r.id]: 'saving' }));
     try {
       await saveResult(r);
@@ -150,7 +170,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (r: PracticeResult) => {
       setSessionResults((list) => [r, ...list.filter((x) => x.id !== r.id)]);
       setCurrentResult(r);
-      if (accountRef.current?.kind === 'user') void doSave(r);
+      if (accountRef.current) void doSave(r);
     },
     [doSave],
   );
@@ -158,7 +178,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const retrySave = useCallback(
     (id: string) => {
       const r = sessionResults.find((x) => x.id === id);
-      if (r && accountRef.current?.kind === 'user') void doSave(r);
+      if (r && accountRef.current) void doSave(r);
     },
     [sessionResults, doSave],
   );
@@ -214,9 +234,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       account, settings, settingsSave, updateSettings, startGuest, startUser, logout,
       sessionResults, saves, recordResult, retrySave, unsavedCount,
-      lastConfig, setLastConfig, currentResult, setCurrentResult, notice, setNotice, idleWarning, keepAlive,
+      lastConfig, setLastConfig, currentResult, setCurrentResult, historyFocus, setHistoryFocus, notice, setNotice, idleWarning, keepAlive,
     }),
-    [account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
+    [historyFocus, account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

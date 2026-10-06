@@ -488,3 +488,41 @@ body:has(.entry-main) {
   .miss-text { font-size: 1.15rem; }
   .miss-path { font-size: 1.15rem; }
 }
+
+/* =====================================================================
+   v1.0.3 練習の記録・成長グラフ
+   ===================================================================== */
+.history-source { margin: 0 0 8px; }
+.history-panel .panel { margin-bottom: 16px; }
+.trend { margin: 0 0 12px; min-width: 0; }
+.trend figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-bottom: 4px; }
+.trend-legend { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 0.85rem; color: var(--muted); }
+/* 凡例：色だけでなく線の種類（実線と●／点線）でも区別します */
+.lg-actual, .lg-ma { display: inline-block; width: 28px; height: 0; vertical-align: middle; margin-left: 6px; }
+.lg-actual { border-top: 2px solid #a3173b; position: relative; }
+.lg-actual::after { content: ''; position: absolute; left: 10px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: #a3173b; }
+.lg-ma { border-top: 2px dashed #2f69b3; }
+.trend-point { cursor: pointer; outline: none; }
+.trend-point:focus-visible circle:last-child { stroke: var(--focus); stroke-width: 3; }
+.trend-detail { min-height: 2.6em; font-size: 0.95rem; background: var(--sakura-50); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; margin: 4px 0 0; }
+.growth-msgs { margin: 4px 0 8px; padding-left: 1.2em; font-weight: 700; color: var(--accent-dark); }
+.growth-msgs .hint { font-weight: 400; color: var(--muted); }
+
+.history-table-wrap { overflow-x: auto; }
+.history-table td, .history-table th { white-space: nowrap; }
+.history-table td:nth-child(3) { white-space: normal; min-width: 12em; }
+.history-detail td { background: var(--sakura-50); }
+.history-detail-cell { text-align: right; }
+
+/* スマートフォン：表を1件ずつのカードとして読めるようにします（横スクロールなし） */
+@media (max-width: 700px) {
+  .history-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .history-table, .history-table tbody, .history-table tr, .history-table td { display: block; width: 100%; }
+  .history-table tr.history-row { border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin-top: 10px; background: #fff; }
+  .history-table td { border: none; padding: 2px 0; white-space: normal; text-align: left; }
+  .history-table td.num { text-align: left; }
+  .history-table td[data-label]::before { content: attr(data-label) '：'; color: var(--muted); font-size: 0.85rem; }
+  .history-table td:first-child { font-weight: 700; }
+  .history-detail-cell { text-align: left; }
+  .history-table tr.history-detail { border: 1px dashed var(--border); border-top: none; border-radius: 0 0 12px 12px; padding: 6px 12px; margin-top: -6px; }
+}

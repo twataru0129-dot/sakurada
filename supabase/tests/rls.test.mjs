@@ -267,6 +267,23 @@ export async function runRlsTests(db) {
     check('これまでの記録は時間制として読み込まれる', legacy[0].n >= 3);
   }
 
+  console.log('練習の記録（v1.0.3）');
+  await as(S_A1, 'aal1', async () => {
+    const r1 = result(S_A1, { romaji_style: 'kunrei' });
+    check('ローマ字のお手本を記録に残せる', !(await fails(...ins(r1))));
+    check('お手本に不正な値は保存できない', !!(await fails(...ins(result(S_A1, { romaji_style: 'x' })))));
+    check('文章入力の記録にお手本は保存できない', !!(await fails(...ins(result(S_A1, { kind: 'sentence', romaji_style: 'hepburn', correct_count: 50 })))));
+    check('お手本なし（文章入力・古い記録）も保存できる', !(await fails(...ins(result(S_A1, { kind: 'sentence', correct_count: 50 })))));
+    const latest = await rows('select id, romaji_style from public.practice_results order by started_at desc limit 100');
+    check('本人の記録を新しい順に100件まで取得できる（ほかの人の記録は含まれない）', latest.length > 0 && latest.length <= 100);
+    const others = await rows('select count(*)::int n from public.practice_results where user_id <> $1', [S_A1]);
+    check('取得結果にほかの人の記録が混ざらない', others[0].n === 0);
+  });
+  await as(S_B1, 'aal1', async () => {
+    const mine = await rows('select user_id from public.practice_results');
+    check('別のアカウントでは自分の記録だけが見える', mine.length > 0 && mine.every((r) => r.user_id === S_B1));
+  });
+
   console.log('ランク判定（アプリとデータベースで同じ結果になるか）');
   {
     let mismatch = 0;
