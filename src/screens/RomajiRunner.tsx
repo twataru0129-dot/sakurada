@@ -38,7 +38,11 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
   const [snap, setSnap] = useState<RomajiSnapshot>(() => matcher.current.snapshot());
   const totals = useRef({ correct: 0, miss: 0, completedQuestions: 0 });
   const [missCount, setMissCount] = useState(0);
-  const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  /** 何問目か（問題が変わったら表示を作り直し、前の問題の強調などを残さないため） */
+  const [seq, setSeq] = useState(0);
+  /** 読み上げ用の通知（画面には表示しません） */
+  const [announce, setAnnounce] = useState('');
   const [imeWarning, setImeWarning] = useState(false);
   const [touchNote, setTouchNote] = useState(false);
   const compact = useCompact();
@@ -57,7 +61,7 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
       if (r === 'miss') {
         totals.current.miss++;
         setMissCount(totals.current.miss);
-        setFeedback({ ok: false, text: `× ミス：「${ch}」ではありません。${expected ? `次は「${expected.toUpperCase()}」です。` : ''}` });
+        setFeedback(`× ミス：「${ch}」ではありません。${expected ? `次は「${expected.toUpperCase()}」です。` : ''}`);
         if (settings.sound) sound.miss();
         setSnap(matcher.current.snapshot());
         return;
@@ -67,10 +71,12 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
       if (matcher.current.done) {
         totals.current.completedQuestions++;
         if (settings.sound) sound.complete();
+        // 待ち時間なしで、すぐ次の問題へ（達成状況は上部の「完成 ○問」で伝えます）
         const next = deck.next();
         matcher.current = new RomajiMatcher(next.reading);
         setQuestion(next);
-        setFeedback({ ok: true, text: '○ できました！' });
+        setSeq((n) => n + 1);
+        setAnnounce(`${totals.current.completedQuestions}問完成。次の問題：${next.text}`);
       }
       setSnap(matcher.current.snapshot());
     },
@@ -104,21 +110,23 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
 
   const nextKey = snap.done ? null : (snap.remaining[0] ?? null);
   const target = nextKey ? keyForChar(nextKey) : null;
+  const keyLabel = nextKey === null ? '' : nextKey === '-' ? 'ー（-）' : nextKey.toUpperCase();
+  const showKeyboard = settings.keyboardGuide || touch;
 
   return (
     <>
-      <div className="practice-bar" style={{ gap: 24 }}>
+      <div className="practice-stats">
         <span className="stat">
           完成 <b>{totals.current.completedQuestions}</b> 問
         </span>
         <span className="stat">
-          正しく打った数 <b>{totals.current.correct}</b>
+          正しく打ったキー <b>{totals.current.correct}</b> 回
         </span>
         <span className="stat">
-          ミス <b>{missCount}</b>
+          ミス <b>{missCount}</b> 回
         </span>
       </div>
-      <section className="problem" aria-label="問題">
+      <section className="problem problem-romaji" aria-label="問題" key={seq} data-seq={seq}>
         <div className="problem-text" lang="ja">
           {question.text}
         </div>
@@ -133,18 +141,24 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
             </span>
           ))}
         </div>
-        <div className="romaji-line" aria-label="ローマ字">
-          <span className="romaji-typed">{snap.typed}</span>
-          {settings.romajiGuide && !snap.done && (
-            <>
-              <span className="romaji-next">{snap.remaining[0]}</span>
-              <span className="romaji-rest">{snap.remaining.slice(1)}</span>
-            </>
-          )}
-          {!settings.romajiGuide && <span className="romaji-next">&nbsp;</span>}
-        </div>
-        <div className={`feedback ${feedback?.ok ? 'feedback-ok' : 'feedback-ng'}`} role="status" aria-live="polite">
-          {feedback?.text}
+        {settings.romajiGuide ? (
+          <div className="romaji-line" aria-label={`ローマ字ガイド：入力済み ${snap.typed}、次に ${nextKey ?? ''}`}>
+            <span className="romaji-typed">{snap.typed}</span>
+            {!snap.done && nextKey !== null && (
+              <>
+                <span className={`romaji-next ${target ? `f-${target.key.finger}` : ''}`}>{nextKey}</span>
+                <span className="romaji-rest">{snap.remaining.slice(1)}</span>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="romaji-line romaji-line-off">
+            <span className="romaji-typed" aria-label="入力済み">{snap.typed}</span>
+            <span className="guide-off-note">（ローマ字ガイドは OFF です）</span>
+          </div>
+        )}
+        <div className="feedback feedback-ng" aria-live="polite">
+          {feedback}
         </div>
         {imeWarning && (
           <p className="msg msg-warn" role="alert">
@@ -153,11 +167,14 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
         )}
         {touchNote && <p className="msg msg-info">この練習は「画面のキーをタップ」です。画面のキーを押してください。</p>}
       </section>
+      <div className="sr-only" role="status" aria-live="polite">
+        {announce}
+      </div>
 
-      {(settings.keyboardGuide || settings.fingerGuide || touch) && (
+      {(showKeyboard || settings.fingerGuide) && (
         <div className="guides">
-          {(settings.keyboardGuide || touch) && (
-            <div>
+          {showKeyboard && (
+            <div className="guide-keyboard">
               <Keyboard
                 target={settings.keyboardGuide ? target : null}
                 targetChar={settings.keyboardGuide ? nextKey : null}
@@ -168,7 +185,7 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
               {!compact && <div className="kb-legend">F と J のキーには小さな出っぱり（─）があります。ここに人さし指を置きます。</div>}
             </div>
           )}
-          {settings.fingerGuide && <Hands target={target} />}
+          {settings.fingerGuide && <Hands target={target} keyLabel={keyLabel} />}
         </div>
       )}
     </>

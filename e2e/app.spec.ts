@@ -16,7 +16,7 @@ async function startPractice(page: Page, kind: 'A' | 'B', method: string | RegEx
 }
 
 async function stat(page: Page, label: string): Promise<number> {
-  const t = await page.locator('.practice-bar .stat', { hasText: label }).locator('b').textContent();
+  const t = await page.locator('.practice-stats .stat', { hasText: label }).locator('b').textContent();
   return Number(t);
 }
 
@@ -44,7 +44,7 @@ test.describe('入口・アイコン・サブディレクトリ', () => {
   test('クラウド未設定ではログインを実装済みのように見せない', async ({ page }) => {
     await page.goto('./');
     await expect(page.getByRole('button', { name: 'ログインして練習' })).toBeDisabled();
-    await expect(page.getByText('ログイン機能はまだ設定されていません。')).toBeVisible();
+    await expect(page.getByText('ログイン機能は準備中です。ゲストで練習できます。')).toBeVisible();
   });
 
   test('バージョン表示がほかの要素と重ならず、横スクロールが出ない', async ({ page }) => {
@@ -58,7 +58,7 @@ test.describe('入口・アイコン・サブディレクトリ', () => {
       expect(overlap, sel).toBe(false);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-    await expect(page.locator('.app-header .version')).toHaveText('v1.0.0');
+    await expect(page.locator('.app-header .version')).toHaveText('v1.0.1');
   });
 
   test('準備中のモードは押せない', async ({ page }) => {
@@ -111,7 +111,7 @@ test.describe('ローマ字入力', () => {
     await expect(page.getByRole('heading', { name: '練習の結果' })).toBeVisible();
     await expect(page.getByText('正式ランク')).toBeVisible();
     const speed = Number(await page.locator('.kv > div', { hasText: '1分あたりの速さ' }).locator('.v').evaluate((e) => e.firstChild?.textContent));
-    const correct = Number(await page.locator('.kv > div', { hasText: '正しく打った数' }).locator('.v').textContent());
+    const correct = Number(await page.locator('.kv > div', { hasText: '正しく打ったキー' }).locator('.v').textContent());
     expect(speed).toBeCloseTo(Math.floor((correct / 3) * 10) / 10, 1);
     await expect(page.getByText('打／分（正しい打鍵数）')).toBeVisible();
   });
@@ -134,14 +134,14 @@ test.describe('ローマ字入力', () => {
     const next = (await page.locator('.romaji-next').textContent())!;
     const label = next === '-' ? '-' : next.toUpperCase();
     await page.locator('button.key', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }).first().dispatchEvent('pointerdown');
-    expect(await stat(page, '正しく打った数')).toBe(1);
+    expect(await stat(page, '正しく打ったキー')).toBe(1);
     const active = await page.evaluate(() => document.activeElement?.tagName);
     expect(['BODY', 'HTML']).toContain(active);
     expect(await page.locator('input, textarea').count()).toBe(0);
     // 画面タップの練習中は、実物のキーボードの入力は記録に使わない
-    const before = await stat(page, '正しく打った数');
+    const before = await stat(page, '正しく打ったキー');
     await page.keyboard.press((await page.locator('.romaji-next').textContent())!);
-    expect(await stat(page, '正しく打った数')).toBe(before);
+    expect(await stat(page, '正しく打ったキー')).toBe(before);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   });
 });

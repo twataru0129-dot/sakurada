@@ -66,8 +66,8 @@ export function Result() {
   const save = saves[r.id];
   const nr = nextRank(r.kind, r.rank);
   const unit = speedUnit(r.kind);
-  const countLabel = r.kind === 'romaji' ? '正しく打った数（打鍵）' : '正しく入力した文字数';
-  const missLabel = r.kind === 'romaji' ? 'ミス（打鍵）' : 'ミス（誤って確定した文字数）';
+  const countLabel = r.kind === 'romaji' ? '正しく打ったキー（回）' : '正しく入力した文字数（文字）';
+  const missLabel = r.kind === 'romaji' ? 'ミス（回）' : 'ミス（誤って確定した文字数）';
 
   return (
     <main>

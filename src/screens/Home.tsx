@@ -41,7 +41,7 @@ export function Home() {
       <div className="grid grid-2">
         <section className="panel" aria-labelledby="settings-title">
           <h2 id="settings-title">設定</h2>
-          <Toggle label="ローマ字ガイド" checked={settings.romajiGuide} onChange={(v) => updateSettings({ romajiGuide: v })} />
+          <Toggle label="ローマ字ガイド（文章入力では読み）" checked={settings.romajiGuide} onChange={(v) => updateSettings({ romajiGuide: v })} />
           <br />
           <Toggle label="キーボードガイド" checked={settings.keyboardGuide} onChange={(v) => updateSettings({ keyboardGuide: v })} />
           <br />

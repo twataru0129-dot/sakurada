@@ -24,3 +24,6 @@ export const isCloudConfigured =
 /** 無操作で自動ログアウトするまでの時間 */
 export const IDLE_LOGOUT_MS = 15 * 60 * 1000;
 export const IDLE_WARNING_MS = 14 * 60 * 1000;
+
+/** 先生・管理者向けの説明（リポジトリのドキュメント） */
+export const DOCS_BASE = 'https://github.com/twataru0129-dot/sakurada/blob/main/';

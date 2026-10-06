@@ -65,7 +65,8 @@ export function TypingSetup() {
     navigate('/practice');
   };
 
-  const guideLabel = kind === 'romaji' ? 'ローマ字ガイド' : '読みガイド';
+  // ローマ字ガイドと文章入力の読みガイドは同じ設定です（同じ名前で表示して、知らないうちに OFF にならないようにします）
+  const guideLabel = 'ローマ字ガイド（文章入力では読み）';
 
   return (
     <main>

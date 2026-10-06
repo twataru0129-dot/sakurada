@@ -128,7 +128,7 @@ export function Practice() {
   }・${config.inputMethod === 'keyboard' ? '実物キーボード' : '画面入力'}`;
 
   return (
-    <main>
+    <main className="practice-main">
       <div className="practice-bar">
         <span className={`timer ${sec <= 10 && phase !== 'countdown' ? 'timer-low' : ''}`} aria-label={`残り時間 ${mm}分${ss}秒`}>
           残り {mm}:{ss}

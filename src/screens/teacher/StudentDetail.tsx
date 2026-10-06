@@ -118,7 +118,7 @@ export function StudentDetail({ studentId }: { studentId: string }) {
             <option value="3">むずかしい（3）</option>
           </select>
         </div>
-        <Toggle label="ローマ字ガイド" checked={defaults.romajiGuide} onChange={(v) => setDefaults({ ...defaults, romajiGuide: v })} />
+        <Toggle label="ローマ字ガイド（文章入力では読み）" checked={defaults.romajiGuide} onChange={(v) => setDefaults({ ...defaults, romajiGuide: v })} />
         <br />
         <Toggle label="キーボードガイド" checked={defaults.keyboardGuide} onChange={(v) => setDefaults({ ...defaults, keyboardGuide: v })} />
         <br />

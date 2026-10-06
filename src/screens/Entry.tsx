@@ -1,4 +1,4 @@
-import { isCloudConfigured } from '../config';
+import { DOCS_BASE, isCloudConfigured } from '../config';
 import { useApp } from '../state/AppContext';
 import { navigate } from '../state/router';
 import { logoUrl, Notice } from '../ui/common';
@@ -6,30 +6,60 @@ import { logoUrl, Notice } from '../ui/common';
 export function Entry() {
   const { startGuest } = useApp();
   return (
-    <main>
+    <main className="entry-main">
       <Notice />
-      <section className="entry">
-        <img className="entry-logo" src={logoUrl} alt="桜打 SAKURA TYPE のロゴ" width={168} height={168} />
-        <h1 className="entry-title">桜打 — SAKURA TYPE</h1>
-        <p>日本語のタイピングを練習するアプリです。</p>
-        <div className="entry-actions">
-          <button type="button" className="btn btn-primary" onClick={startGuest}>
-            ゲストで練習
-          </button>
-          <button type="button" className="btn" onClick={() => navigate('/login')} disabled={!isCloudConfigured} aria-describedby={!isCloudConfigured ? 'no-cloud' : undefined}>
-            ログインして練習
-          </button>
+      <section className="entry-hero">
+        <img className="entry-logo" src={logoUrl} alt="桜打 SAKURA TYPE のロゴ" width={240} height={240} />
+        <div className="entry-heading">
+          <h1 className="entry-title">桜打 — SAKURA TYPE</h1>
+          <p className="entry-tagline">自分のペースで、タイピングを練習しよう</p>
         </div>
-        {!isCloudConfigured && (
-          <div id="no-cloud" className="msg msg-warn notice">
-            <b>ログイン機能はまだ設定されていません。</b>
-            いまはゲストでの練習だけが使えます。
-            <br />
-            <span className="hint">先生・管理者の方へ：ログインと記録の保存を使うには、README の「クラウドの設定」の手順で Supabase を設定してください。</span>
-          </div>
-        )}
-        <section className="panel notice" aria-labelledby="about-data">
-          <h2 id="about-data">はじめに読んでください</h2>
+      </section>
+
+      <section className="entry-choices" aria-label="はじめかたをえらぶ">
+        <div className="entry-choice-wrap">
+          <button type="button" className="choice-card choice-card-primary" onClick={startGuest}>
+            <span className="choice-card-title">ゲストで練習</span>
+            <span className="choice-card-desc">登録なしですぐ練習</span>
+          </button>
+          <p className="choice-note">ゲストの記録は保存されません。</p>
+        </div>
+        <div className="entry-choice-wrap">
+          <button
+            type="button"
+            className="choice-card"
+            onClick={() => navigate('/login')}
+            disabled={!isCloudConfigured}
+            aria-describedby={!isCloudConfigured ? 'no-cloud' : undefined}
+          >
+            <span className="choice-card-title">ログインして練習</span>
+            <span className="choice-card-desc">記録を保存して成長を確認</span>
+          </button>
+          {isCloudConfigured ? (
+            <p className="choice-note">先生からもらった ID とパスワードを使います。</p>
+          ) : (
+            <p id="no-cloud" className="choice-note choice-note-warn">
+              ログイン機能は準備中です。ゲストで練習できます。
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="entry-cautions" aria-labelledby="caution-title">
+        <h2 id="caution-title" className="sr-only">大切な注意</h2>
+        <ul>
+          <li>
+            <b>本名・住所・電話番号などは入力しないでください。</b>
+          </li>
+          <li>
+            みんなで使うパソコンでは、終わったら<b>「終了してログアウト」</b>を押してください。
+          </li>
+        </ul>
+      </section>
+
+      <details className="entry-details">
+        <summary>使い方・記録と個人情報について</summary>
+        <div className="entry-details-body">
           <h3>ゲストで練習</h3>
           <ul>
             <li>IDやパスワードは使いません。</li>
@@ -56,8 +86,41 @@ export function Entry() {
             <li>15分間操作がないと、自動でログアウトします。画面を再読み込みしたり閉じたりしても、ログアウトします。</li>
             <li>ブラウザに「パスワードを保存しますか」と出たら、「保存しない」を選んでください。</li>
           </ul>
-        </section>
-      </section>
+        </div>
+      </details>
+
+      <details className="entry-details">
+        <summary>先生・管理者向けの設定案内</summary>
+        <div className="entry-details-body">
+          {!isCloudConfigured && (
+            <p>
+              ログインと記録の保存を使うには、Supabase（認証とデータベースのサービス）の設定が必要です。設定するまでは、ゲストでの練習だけが使えます。
+            </p>
+          )}
+          <ul>
+            <li>
+              <a href={`${DOCS_BASE}README.md`} target="_blank" rel="noopener noreferrer">
+                README（全体の説明・最初の教員アカウント・生徒の発行）
+              </a>
+            </li>
+            <li>
+              <a href={`${DOCS_BASE}docs/setup.md`} target="_blank" rel="noopener noreferrer">
+                初回導入手順（Supabase の設定）
+              </a>
+            </li>
+            <li>
+              <a href={`${DOCS_BASE}docs/teacher-guide.md`} target="_blank" rel="noopener noreferrer">
+                先生向けの使い方
+              </a>
+            </li>
+            <li>
+              <a href={`${DOCS_BASE}docs/security.md`} target="_blank" rel="noopener noreferrer">
+                安全のための設計と設定
+              </a>
+            </li>
+          </ul>
+        </div>
+      </details>
     </main>
   );
 }

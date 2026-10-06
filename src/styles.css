@@ -294,3 +294,141 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) {
   .practice-label { order: 3; flex-basis: 100%; }
 }
+
+/* =====================================================================
+   v1.0.1 入口画面・練習画面の改善
+   ===================================================================== */
+
+/* ---------- 入口 ---------- */
+.entry-main {
+  position: relative;
+  max-width: 1100px;
+  padding-top: 28px;
+  isolation: isolate;
+}
+/* 控えめな桜の装飾（静止画。文字の背後には置かず、四隅にだけ） */
+.entry-main::before,
+.entry-main::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.55;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='%23f6cfdb'%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(72 100 100)'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(144 100 100)'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(216 100 100)'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(288 100 100)'/%3E%3C/g%3E%3Ccircle cx='100' cy='100' r='9' fill='%23eeb0c3'/%3E%3C/svg%3E");
+}
+.entry-main::before { width: 220px; height: 220px; top: -10px; left: -150px; transform: rotate(-12deg); }
+.entry-main::after { width: 170px; height: 170px; bottom: 40px; right: -120px; transform: rotate(18deg); }
+body:has(.entry-main) {
+  background:
+    radial-gradient(circle at 12% 8%, rgba(246, 207, 219, 0.55), transparent 32%),
+    radial-gradient(circle at 92% 88%, rgba(246, 207, 219, 0.45), transparent 30%),
+    var(--bg);
+}
+
+.entry-hero { display: flex; align-items: center; justify-content: center; gap: 32px; flex-wrap: wrap; margin-bottom: 28px; text-align: left; }
+.entry-hero .entry-logo { width: 240px; height: 240px; border-radius: 28px; box-shadow: var(--shadow); }
+.entry-heading .entry-title { font-size: 2.6rem; margin: 0 0 8px; color: var(--accent-dark); }
+.entry-tagline { font-size: 1.45rem; font-weight: 700; color: var(--ink); margin: 0; }
+
+.entry-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-bottom: 20px; }
+.entry-choice-wrap { display: flex; flex-direction: column; gap: 8px; }
+.choice-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  min-height: 150px; padding: 24px; border-radius: 22px;
+  border: 3px solid var(--accent); background: var(--surface); color: var(--accent-dark);
+  font: inherit; cursor: pointer; box-shadow: var(--shadow); text-align: center;
+}
+.choice-card:hover:not(:disabled) { background: var(--sakura-100); }
+.choice-card-primary { background: var(--accent); color: #fff; }
+.choice-card-primary:hover:not(:disabled) { background: var(--accent-dark); }
+.choice-card-title { font-size: 1.9rem; font-weight: 800; line-height: 1.2; }
+.choice-card-desc { font-size: 1.15rem; font-weight: 700; }
+.choice-card:disabled { cursor: not-allowed; border-color: #cdbac1; color: #8a777f; background: #f7f2f4; box-shadow: none; }
+.choice-note { margin: 0; text-align: center; font-weight: 700; color: var(--muted); }
+.choice-note-warn { color: #6b4a00; background: var(--warn-bg); border: 1px solid #ecd48d; border-radius: 10px; padding: 6px 10px; }
+
+.entry-cautions { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 20px; margin-bottom: 16px; font-size: 1.05rem; }
+.entry-cautions ul { margin: 0; padding-left: 1.3em; }
+
+.entry-details { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; }
+.entry-details summary { cursor: pointer; padding: 14px 20px; font-weight: 700; font-size: 1.1rem; min-height: 48px; }
+.entry-details[open] summary { border-bottom: 1px solid var(--border); }
+.entry-details-body { padding: 8px 24px 16px; }
+.entry-details-body ul { padding-left: 1.3em; }
+
+@media (max-width: 760px) {
+  .entry-main::before, .entry-main::after { display: none; }
+  .entry-hero { flex-direction: column; text-align: center; gap: 12px; }
+  .entry-hero .entry-logo { width: 168px; height: 168px; }
+  .entry-heading .entry-title { font-size: 1.8rem; }
+  .entry-tagline { font-size: 1.15rem; }
+  .entry-choices { grid-template-columns: 1fr; gap: 16px; }
+  .choice-card { min-height: 110px; }
+  .choice-card-title { font-size: 1.5rem; }
+}
+
+/* ---------- 練習画面 ---------- */
+.practice-main { max-width: 1500px; padding-top: 12px; padding-bottom: 24px; }
+.practice-bar { padding: 6px 16px; margin-bottom: 8px; }
+.practice-bar .timer { font-size: 2.2rem; line-height: 1.2; }
+.practice-label { color: var(--muted); font-size: 0.85rem; }
+.practice-stats { display: flex; flex-wrap: wrap; gap: 8px 28px; padding: 2px 4px 8px; font-size: 1.1rem; }
+.practice-stats .stat b { font-size: 1.4rem; color: var(--accent-dark); }
+
+.problem { margin-bottom: 10px; }
+.problem-romaji { padding: 14px 24px; }
+.problem-romaji .problem-text { font-size: clamp(2rem, 6vh, 3.4rem); margin-bottom: 2px; }
+.problem-romaji .problem-kana { font-size: clamp(1.4rem, 4vh, 2.2rem); margin-bottom: 4px; }
+.problem-romaji .romaji-line { font-size: clamp(1.6rem, 4.8vh, 2.7rem); line-height: 1.5; letter-spacing: 0.08em; min-height: 1.5em; }
+.problem-romaji .feedback { min-height: 1.6em; font-size: 1.05rem; }
+
+/* 入力済み・次・残りを、色だけでなく形でも区別します */
+.romaji-typed { color: #3d7a5a; text-decoration: none; }
+.romaji-next {
+  display: inline-block; min-width: 0.9em; text-align: center;
+  background: var(--ks, var(--accent)); color: #fff; border: 3px solid var(--ink); border-radius: 6px;
+  padding: 0 4px; margin: 0 2px; box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.35);
+}
+.romaji-rest { color: var(--ink); }
+.romaji-line-off { color: var(--muted); }
+.guide-off-note { font-family: inherit; font-size: 1rem; letter-spacing: 0; color: var(--muted); margin-left: 8px; }
+
+.guides { gap: 24px; align-items: center; }
+.guide-keyboard { display: flex; flex-direction: column; align-items: center; }
+
+/* 指のガイド（大きく） */
+.hands { gap: 6px; }
+.hands svg { width: 340px; }
+.hand-info { background: var(--surface); border: 2px solid var(--border); border-radius: 14px; padding: 8px 16px; min-width: 300px; }
+.hand-info-row { display: flex; align-items: center; gap: 6px; font-size: 1.35rem; font-weight: 700; min-height: 2em; }
+.hand-info-k { color: var(--muted); }
+.hand-info-key {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 2em; height: 1.8em; padding: 0 8px;
+  border-radius: 8px; border: 3px solid var(--ink); background: var(--ks, #fff); color: #fff; font-size: 1.5rem;
+}
+.hand-info-v { color: var(--ink); }
+
+/* 広い画面（PC・Surface）：画面の高さに合わせてキーの大きさを決め、問題とガイドがなるべくスクロールなしで見えるように */
+@media (min-width: 1000px) {
+  .kb { --key: clamp(36px, min(3.3vw, 6.2vh), 58px); }
+  .kb-touch { --key: clamp(40px, min(3.4vw, 6.6vh), 62px); }
+}
+/* 横幅が狭い・拡大表示のときは無理に詰めず、スクロールで見ます */
+@media (max-width: 999px) {
+  .hands svg { width: 280px; }
+  .hand-info { min-width: 0; }
+  .hand-info-row { font-size: 1.15rem; }
+}
+@media (max-width: 760px) {
+  .practice-bar .timer { font-size: 1.7rem; }
+  .practice-stats { font-size: 1rem; gap: 4px 16px; }
+  .problem-romaji { padding: 12px 14px; }
+  .problem-romaji .problem-text { font-size: 1.8rem; }
+  .problem-romaji .problem-kana { font-size: 1.3rem; }
+  .problem-romaji .romaji-line { font-size: 1.5rem; }
+  .hands svg { width: 230px; }
+}
+/* 装飾が画面の外にはみ出しても横スクロールを出さない */
+#root { overflow-x: clip; }
