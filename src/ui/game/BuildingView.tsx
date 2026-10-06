@@ -5,7 +5,20 @@ import { STAGE_ALTS, STAGE_IMAGES } from './stageImages';
  * 建物の画像。6枚を同じ枠に重ね、いまの工程の画像だけを表示します（短いクロスフェード）。
  * 画像は object-fit: contain で、上端・地面を切らず、引き伸ばしません。
  */
-export function BuildingView({ stage, loadState, sparkle, large = false }: { stage: number; loadState: 'loading' | 'ready' | 'error'; sparkle?: number; large?: boolean }) {
+export function BuildingView({
+  stage,
+  loadState,
+  sparkle,
+  large = false,
+  toast = null,
+}: {
+  stage: number;
+  loadState: 'loading' | 'ready' | 'error';
+  sparkle?: number;
+  large?: boolean;
+  /** 工程が変わったときの短い表示（画像の上に重ね、入力文は覆いません） */
+  toast?: { key: number; text: string } | null;
+}) {
   return (
     <div className={`building ${large ? 'building-large' : ''}`} data-testid="building" data-stage={stage}>
       {loadState === 'error' ? (
@@ -30,6 +43,11 @@ export function BuildingView({ stage, loadState, sparkle, large = false }: { sta
       )}
       {loadState === 'loading' && <p className="building-loading">画像を読み込んでいます…</p>}
       {sparkle !== undefined && sparkle > 0 && <span key={sparkle} className="building-sparkle" aria-hidden="true" />}
+      {toast && (
+        <span key={toast.key} className="stage-toast" data-testid="stage-toast" aria-hidden="true">
+          {toast.text}
+        </span>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RomajiMatcher, tokenize } from '../romaji';
-import { GAME_STORIES, GAME_STORY_FILE, pickStory } from '../../data/gameStories';
+import { courseLabelOf, GAME_STORIES, GAME_STORY_FILE, LEGACY_SHORT_STORIES, pickStory, SHORT_STORY_FILE } from '../../data/gameStories';
 import {
   accuracyFor,
   completionYearFor,
@@ -46,8 +46,8 @@ describe('物語データ', () => {
     for (const s of ALL) for (const x of s.sentences) expect(x.text, x.id).not.toMatch(/[0-9０-９]/);
   });
   it('読みの文字数・お手本の打鍵数が JSON の計測値と一致する', () => {
-    for (const raw of [...GAME_STORY_FILE.stories, ...GAME_STORY_FILE.introductoryStories]) {
-      const s = ALL.find((x) => x.id === raw.id)!;
+    for (const raw of [...GAME_STORY_FILE.stories, ...(GAME_STORY_FILE.introductoryStories ?? []), ...SHORT_STORY_FILE.stories]) {
+      const s = [...ALL, ...LEGACY_SHORT_STORIES].find((x) => x.id === raw.id)!;
       expect(totalReadingOf(s)).toBe(raw.metrics!.readingCharacters);
       for (const style of ['hepburn', 'kunrei'] as const) {
         const keys = s.sentences.reduce((n, x) => n + new RomajiMatcher(x.reading, style).remaining().length, 0);
@@ -65,6 +65,49 @@ describe('物語データ', () => {
     expect(pickStory('standard', () => 0.5).id).toBe(GAME_STORIES.standard[1]!.id);
     expect(pickStory('standard', () => 0.9999).id).toBe(GAME_STORIES.standard[2]!.id);
     expect(pickStory('short', () => 0.4).courseId).toBe('short');
+  });
+});
+
+describe('短縮コース（v1.3.0：標準の約半分）', () => {
+  const parentOf = (id: string) => GAME_STORIES.standard.find((s) => s.id === `${id.replace(/-short$/, '')}`)!;
+  const jp = (s: GameStory) => s.sentences.reduce((n, x) => n + [...x.text].length, 0);
+  const keys = (s: GameStory, style: 'hepburn' | 'kunrei') => s.sentences.reduce((n, x) => n + new RomajiMatcher(x.reading, style).remaining().length, 0);
+  it('3本とも、対応する標準版の日本語文字数の50〜55％・お手本の打鍵数が約半分（900〜1000）', () => {
+    expect(GAME_STORIES.short.map((s) => s.id)).toEqual(['inherited-dream-short', 'gaudi-and-nature-short', 'visit-barcelona-short']);
+    for (const s of GAME_STORIES.short) {
+      const ratio = jp(s) / jp(parentOf(s.id));
+      expect(ratio, s.id).toBeGreaterThanOrEqual(0.5);
+      expect(ratio, s.id).toBeLessThanOrEqual(0.55);
+      expect(jp(s)).toBeGreaterThanOrEqual(380);
+      expect(jp(s)).toBeLessThanOrEqual(430);
+      expect(keys(s, 'hepburn')).toBeGreaterThanOrEqual(900);
+      expect(keys(s, 'hepburn')).toBeLessThanOrEqual(1000);
+    }
+  });
+  it('3本の入力量の差は3％以内（ヘボン式・訓令式とも）', () => {
+    for (const style of ['hepburn', 'kunrei'] as const) {
+      const list = GAME_STORIES.short.map((s) => keys(s, style));
+      expect((Math.max(...list) - Math.min(...list)) / Math.min(...list), style).toBeLessThanOrEqual(0.03);
+    }
+  });
+  it('短縮版の文は標準版の文から作り、新しい事実を加えていない（各文の内容語が標準版に含まれる）', () => {
+    for (const s of GAME_STORIES.short) {
+      const parentText = parentOf(s.id).sentences.map((x) => x.text).join('');
+      for (const x of s.sentences) {
+        // 漢字・カタカナの語がすべて標準版に出てくること
+        for (const w of x.text.match(/[一-龯々ァ-ヴー・]{2,}/g) ?? []) expect(parentText, `${x.id}: ${w}`).toContain(w);
+      }
+    }
+  });
+  it('新しい短縮版は物語の版・ID を変え、旧短縮版（約50打鍵）・標準版と区別する', () => {
+    for (const s of GAME_STORIES.short) expect(s.storySetVersion).toBe('sakurada-stories-v2');
+    for (const s of GAME_STORIES.standard) expect(s.storySetVersion).toBe('sakurada-stories-v1');
+    expect(LEGACY_SHORT_STORIES.map((s) => s.id)).toEqual(['inherited-dream-intro', 'gaudi-and-nature-intro', 'visit-barcelona-intro']);
+    for (const s of LEGACY_SHORT_STORIES) expect(s.legacy).toBe(true);
+    expect(courseLabelOf({ courseId: 'short', storyId: 'inherited-dream-intro' })).toBe('旧短縮コース（約50打鍵）');
+    expect(courseLabelOf({ courseId: 'short', storyId: 'inherited-dream-short' })).toBe('短縮コース');
+    // 旧短縮版は遊べる物語の候補に入らない
+    for (let i = 0; i < 20; i++) expect(pickStory('short', () => i / 20).id).toMatch(/-short$/);
   });
 });
 
@@ -95,6 +138,7 @@ describe('別の打ち方でも正解・進み具合は同じ', () => {
     id: 't',
     title: 't',
     courseId: 'short',
+    storySetVersion: 'test',
     sentences: [
       { id: 'a', text: '', reading: 'しんぶん、きゃく。' },
       { id: 'b', text: '', reading: 'がっこうで、ちず。' },

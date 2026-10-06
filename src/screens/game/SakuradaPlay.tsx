@@ -3,7 +3,7 @@ import { keyForChar } from '../../core/keyboardLayout';
 import { newResultId } from '../../core/result';
 import { buildGameResult } from '../../core/game/result';
 import { completionYearFor, formatGameTime, GameClock, penaltyMsFor, recordTimeMsFor, SakuradaGame, type GameSnapshot } from '../../core/game/sakurada';
-import { COURSE_LABEL, findStory, STORY_SET_VERSION } from '../../data/gameStories';
+import { COURSE_LABEL, findStory } from '../../data/gameStories';
 import { useApp } from '../../state/AppContext';
 import { navigate } from '../../state/router';
 import { sound } from '../../sound';
@@ -16,6 +16,14 @@ import { isStartKey } from '../Practice';
 import { useCompact } from '../RomajiRunner';
 
 type Phase = 'ready' | 'running' | 'paused' | 'confirmQuit' | 'finished';
+
+/** 工程が変わったときに短く表示する言葉 */
+const STAGE_START_MESSAGE: Record<number, string> = {
+  1: '基礎工事が始まった！',
+  2: '壁の建築が始まった！',
+  3: '本体の建築が始まった！',
+  4: '塔の工事が始まった！',
+};
 
 /** 開始のスペースを、ボタンや入力欄の操作から奪わないための判定 */
 function isControl(el: EventTarget | null): boolean {
@@ -56,12 +64,25 @@ function Play() {
   const [snap, setSnap] = useState<GameSnapshot>(() => game.snapshot());
   const [now, setNow] = useState(0);
   const [penaltyPop, setPenaltyPop] = useState(0);
+  /** ミスの軽い強調（入力枠・ミスの表示）。続けてミスしても、表示は1つだけで重なりません */
+  const [missFx, setMissFx] = useState(false);
+  const missFxTimer = useRef<number | undefined>(undefined);
+  /** 工程が変わったときの短い表示（入力文は覆いません） */
+  const [stageToast, setStageToast] = useState<{ key: number; text: string } | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
   const [sparkle, setSparkle] = useState(0);
   const [imeWarning, setImeWarning] = useState(false);
   const [touchNote, setTouchNote] = useState(false);
   const loadState = usePreloadStages();
   const compact = useCompact();
   const finished = useRef(false);
+  useEffect(
+    () => () => {
+      window.clearTimeout(missFxTimer.current);
+      window.clearTimeout(toastTimer.current);
+    },
+    [],
+  );
 
   const finish = useCallback(() => {
     if (finished.current) return;
@@ -72,7 +93,7 @@ function Play() {
     recordGame(
       buildGameResult({
         id: resultId.current,
-        storySetVersion: STORY_SET_VERSION,
+        storySetVersion: story.storySetVersion,
         storyId: story.id,
         courseId: story.courseId,
         inputMethod: session.inputMethod,
@@ -104,12 +125,22 @@ function Play() {
       const before = game.snapshot().stage.index;
       const r = game.input(ch);
       if (r === 'ignored') return;
+      // ミスの判定と5秒の加算は game.input の中で1回だけ行います（ここからは表示と音だけ）
       if (r === 'miss') {
         setPenaltyPop((n) => n + 1);
-        if (settings.sound) sound.miss();
+        setMissFx(true);
+        window.clearTimeout(missFxTimer.current);
+        missFxTimer.current = window.setTimeout(() => setMissFx(false), 800);
+        if (settings.sound) sound.gameMiss();
       } else {
         setSparkle((n) => n + 1);
-        if (settings.sound && game.snapshot().stage.index > before && !game.done) sound.complete();
+        const after = game.snapshot().stage.index;
+        if (after > before && !game.done) {
+          if (settings.sound) sound.complete();
+          setStageToast({ key: after, text: STAGE_START_MESSAGE[after] ?? '' });
+          window.clearTimeout(toastTimer.current);
+          toastTimer.current = window.setTimeout(() => setStageToast(null), 2600);
+        }
       }
       setSnap(game.snapshot());
       if (game.done) finish();
@@ -188,40 +219,44 @@ function Play() {
   const ms = snap.matcher.snapshot();
 
   return (
-    <main className="game-main">
-      <div className="game-bar">
-        <span className="game-title-small">サクラダファミリアを完成させよ・{COURSE_LABEL[story.courseId]}</span>
-        <span className="game-time" data-testid="game-time">
-          入力時間 <strong>{formatGameTime(elapsed)}</strong>
-        </span>
-        <span className="game-penalty" data-testid="game-penalty">
-          ミス {snap.missCount}回（＋{penalty / 1000}秒）
-          {penaltyPop > 0 && (
-            <span key={penaltyPop} className="penalty-pop" aria-hidden="true">
-              ＋5秒
-            </span>
+    <main className="game-main game-fit" data-testid="game-main">
+      <div className="game-top">
+        <div className="game-bar">
+          <span className="game-title-small">サクラダファミリアを完成させよ・{COURSE_LABEL[story.courseId]}</span>
+          <span className="game-time" data-testid="game-time">
+            入力時間 <strong>{formatGameTime(elapsed)}</strong>
+          </span>
+          <span className={`game-penalty ${missFx ? 'is-miss' : ''}`} data-testid="game-penalty">
+            ミス {snap.missCount}回（＋{penalty / 1000}秒）
+            {missFx && (
+              <span key={penaltyPop} className="penalty-pop" aria-hidden="true" data-testid="penalty-pop">
+                ＋5秒
+              </span>
+            )}
+          </span>
+          <span className="game-year hint" data-testid="game-year">
+            ゲーム内の年：{completionYearFor(recordTimeMsFor(elapsed, snap.missCount))}年
+          </span>
+          <span className="spacer" />
+          {phase === 'running' && (
+            <button type="button" className="btn btn-small" onClick={pause} data-testid="game-pause">
+              一時停止
+            </button>
           )}
-        </span>
-        <span className="game-year hint" data-testid="game-year">
-          ゲーム内の年：{completionYearFor(recordTimeMsFor(elapsed, snap.missCount))}年
-        </span>
-        <span className="spacer" />
-        {phase === 'running' && (
-          <button type="button" className="btn btn-small" onClick={pause} data-testid="game-pause">
-            一時停止
-          </button>
-        )}
-        {(phase === 'ready' || phase === 'running') && (
-          <button type="button" className="btn btn-quiet btn-small" onClick={() => setPhase('confirmQuit')}>
-            やめる
-          </button>
-        )}
+          {(phase === 'ready' || phase === 'running') && (
+            <button type="button" className="btn btn-quiet btn-small" onClick={() => setPhase('confirmQuit')}>
+              やめる
+            </button>
+          )}
+        </div>
+        <ProgressGauge completed={snap.completedReadingCharacters} total={snap.totalReadingCharacters} stage={snap.stage} inline />
       </div>
 
-      <div className="game-layout">
-        <div className="game-visual">
-          <BuildingView stage={snap.stage.index} loadState={loadState} sparkle={sparkle} />
-          <ProgressGauge completed={snap.completedReadingCharacters} total={snap.totalReadingCharacters} stage={snap.stage} />
+      <div className="game-stage">
+        <div className="game-left">
+          <div className="building-wrap">
+            <BuildingView stage={snap.stage.index} loadState={loadState} sparkle={sparkle} toast={stageToast} />
+          </div>
           {settings.fingerGuide && (
             <div className="game-hands">
               <Hands target={target} keyLabel={keyLabel} />
@@ -229,60 +264,57 @@ function Play() {
           )}
         </div>
 
-        <div className="game-input-col">
-        <section className="game-sentence panel" aria-label="入力する文" data-testid="game-sentence">
-          <p className="hint game-count">
-            {Math.min(snap.sentenceIndex + 1, story.sentences.length)} / {story.sentences.length} 文目・{story.title}
-          </p>
-          <div className="game-text" lang="ja" data-testid="game-text">
-            {snap.sentence.text}
-          </div>
-          <div className="game-kana" aria-label={`読み ${snap.sentence.reading}`}>
-            {ms.units.map((u, i) => (
-              <span key={`${snap.sentenceIndex}-${i}`} className={`kana-unit ${i < ms.index ? 'kana-done' : ''}`}>
-                {u.kana}
-              </span>
-            ))}
-          </div>
-          {settings.romajiGuide ? (
-            <div className="romaji-line game-romaji" data-testid="game-romaji" aria-label={`ローマ字ガイド：入力済み ${ms.typed}、次に ${nextKey ?? ''}`}>
-              <span className="romaji-typed">{ms.typed}</span>
-              {nextKey !== null && (
-                <>
-                  <span className="romaji-next">{nextKey}</span>
-                  <span className="romaji-rest">{ms.remaining.slice(1)}</span>
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="romaji-line romaji-line-off game-romaji">
-              <span className="romaji-typed">{ms.typed}</span>
-              <span className="guide-off-note">（ローマ字ガイドは OFF です）</span>
-            </div>
-          )}
-          {imeWarning && (
-            <p className="msg msg-warn" role="alert">
-              日本語入力がオンになっているようです。「半角/全角」キーで英字の入力にしてください。（ミスには数えていません）
+        <div className="game-right">
+          <section className={`game-sentence panel ${missFx ? 'is-miss' : ''}`} aria-label="入力する文" data-testid="game-sentence">
+            <p className="hint game-count">
+              {Math.min(snap.sentenceIndex + 1, story.sentences.length)} / {story.sentences.length} 文目・{story.title}
             </p>
-          )}
-          {touchNote && <p className="msg msg-info">「画面のキーをタップ」で遊んでいます。画面のキーを押してください。</p>}
-        </section>
+            <div className="game-text" lang="ja" data-testid="game-text">
+              {snap.sentence.text}
+            </div>
+            <div className="game-kana" aria-label={`読み ${snap.sentence.reading}`}>
+              {ms.units.map((u, i) => (
+                <span key={`${snap.sentenceIndex}-${i}`} className={`kana-unit ${i < ms.index ? 'kana-done' : ''}`}>
+                  {u.kana}
+                </span>
+              ))}
+            </div>
+            {settings.romajiGuide ? (
+              <div className="romaji-line game-romaji" data-testid="game-romaji" aria-label={`ローマ字ガイド：入力済み ${ms.typed}、次に ${nextKey ?? ''}`}>
+                <span className="romaji-typed">{ms.typed}</span>
+                {nextKey !== null && (
+                  <>
+                    <span className="romaji-next">{nextKey}</span>
+                    <span className="romaji-rest">{ms.remaining.slice(1)}</span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="romaji-line romaji-line-off game-romaji">
+                <span className="romaji-typed">{ms.typed}</span>
+                <span className="guide-off-note">（ローマ字ガイドは OFF です）</span>
+              </div>
+            )}
+            {imeWarning && (
+              <p className="msg msg-warn game-inline-msg" role="alert">
+                日本語入力がオンになっているようです。「半角/全角」キーで英字の入力にしてください。（ミスには数えていません）
+              </p>
+            )}
+            {touchNote && <p className="msg msg-info game-inline-msg">「画面のキーをタップ」で遊んでいます。画面のキーを押してください。</p>}
+          </section>
           {showKeyboard && (
-        <div className="guides game-guides">
-          {showKeyboard && (
-            <div className="guide-keyboard">
-              <Keyboard
-                target={settings.keyboardGuide ? target : null}
-                targetChar={settings.keyboardGuide ? nextKey : null}
-                colored={settings.fingerGuide || settings.keyboardGuide}
-                onType={touch ? feed : undefined}
-                compact={compact}
-              />
+            <div className="guides game-guides">
+              <div className="guide-keyboard">
+                <Keyboard
+                  target={settings.keyboardGuide ? target : null}
+                  targetChar={settings.keyboardGuide ? nextKey : null}
+                  colored={settings.fingerGuide || settings.keyboardGuide}
+                  onType={touch ? feed : undefined}
+                  compact={compact}
+                />
+              </div>
             </div>
           )}
-        </div>
-      )}
-
         </div>
       </div>
 

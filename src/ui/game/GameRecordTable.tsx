@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { GameResult } from '../../core/game/result';
 import { formatGameTime } from '../../core/game/sakurada';
 import { formatNumber1 } from '../../core/rank';
-import { COURSE_LABEL, findStory } from '../../data/gameStories';
+import { courseLabelOf, findStory } from '../../data/gameStories';
 import { formatDate } from '../common';
 
 const PAGE = 20;
@@ -43,7 +43,7 @@ export function GameRecordTable({ records, unsaved }: { records: GameResult[]; u
                   {findStory(r.storyId)?.title ?? r.storyId}
                   {r.pauseCount > 0 && <div className="hint">一時停止 {r.pauseCount}回</div>}
                 </td>
-                <td data-label="コース">{COURSE_LABEL[r.courseId]}</td>
+                <td data-label="コース">{courseLabelOf(r)}</td>
                 <td data-label="記録タイム" className="num">
                   {formatGameTime(r.recordTimeMs)}
                 </td>

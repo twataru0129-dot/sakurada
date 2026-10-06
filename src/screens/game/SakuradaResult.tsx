@@ -3,13 +3,14 @@ import { compareGame, type GameComparison, type GameResult } from '../../core/ga
 import { completionYearFor, formatGameTime } from '../../core/game/sakurada';
 import { formatNumber1 } from '../../core/rank';
 import { fetchGameBests, fetchGameResultsOf } from '../../data/cloud';
-import { COURSE_LABEL, findStory, pickStory } from '../../data/gameStories';
+import { COURSE_LABEL, courseLabelOf, findStory, pickStory } from '../../data/gameStories';
 import { loadGuestGameBests, loadGuestGameHistory } from '../../data/guestGameHistory';
 import { GUEST_HISTORY_NOTICE } from '../../data/guestHistory';
 import { useApp } from '../../state/AppContext';
 import { navigate } from '../../state/router';
 import { BuildingView } from '../../ui/game/BuildingView';
 import { IMAGE_NOTE, usePreloadStages } from '../../ui/game/stageImages';
+import { MemorialPanel } from '../../ui/game/MemorialPanel';
 
 function diffText(ms: number): string {
   const s = Math.abs(ms) / 1000;
@@ -130,7 +131,7 @@ export function SakuradaResult() {
           </div>
         </div>
         <p className="hint">
-          物語：「{story?.title ?? r.storyId}」・{COURSE_LABEL[r.courseId]}・{r.inputMethod === 'keyboard' ? '実物のキーボード' : '画面のキー'}
+          物語：「{story?.title ?? r.storyId}」・{courseLabelOf(r)}・{r.inputMethod === 'keyboard' ? '実物のキーボード' : '画面のキー'}
           {r.pauseCount > 0 && `・一時停止 ${r.pauseCount}回`}
           。記録タイム ＝ 入力時間 ＋ ミス回数 × 5秒。
         </p>
@@ -164,6 +165,15 @@ export function SakuradaResult() {
         <p className="hint">比べるのは、同じゲーム・ルール・コース・物語・入力のしかたで、一時停止の有無も同じ記録です。</p>
         {cmpError && <p className="hint">アカウントの記録を読み込めなかったため、このログイン中の記録だけで比べています。</p>}
       </section>
+
+      <div className="memorial-row">
+        <MemorialPanel
+          result={r}
+          storyTitle={story?.title ?? r.storyId}
+          courseLabel={courseLabelOf(r)}
+          displayName={account?.kind === 'user' ? account.profile.displayName : null}
+        />
+      </div>
 
       <section className="panel" aria-live="polite">
         <p className="save-state" data-testid="game-save-state">
