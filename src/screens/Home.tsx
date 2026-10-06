@@ -28,10 +28,10 @@ export function Home() {
           <span>ローマ字入力と、漢字に変換する文章入力を練習します。3分・5分・10分。</span>
           <span className="badge badge-ok">練習できます</span>
         </button>
-        <button type="button" className="card-button" disabled aria-describedby="quest-soon">
-          <span className="title">② 桜打クエスト</span>
-          <span>（準備中です）</span>
-          <span id="quest-soon" className="badge badge-soon">準備中</span>
+        <button type="button" className="card-button" onClick={() => navigate('/game')} data-testid="home-game">
+          <span className="title">② ゲームモード</span>
+          <span>タイピングで遊べるゲーム。「サクラダファミリアを完成させよ」：物語を打つと建物が完成していきます。</span>
+          <span className="badge badge-ok">遊べます</span>
         </button>
         <button type="button" className="card-button" onClick={() => navigate('/exam')} data-testid="home-exam">
           <span className="title">③ 検定モード</span>

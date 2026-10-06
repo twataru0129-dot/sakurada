@@ -385,6 +385,89 @@ export async function runRlsTests(db) {
     });
   }
 
+  console.log('ゲームの記録（game_results）');
+  {
+    const gm = (user, extra = {}) => ({
+      id: id(), user_id: user, game_id: 'sakurada-familia', rule_version: 'sakurada-rule-v1', story_set_version: 'sakurada-stories-v1',
+      story_id: 'inherited-dream', course_id: 'standard', input_method: 'keyboard', romaji_style: 'hepburn',
+      started_at: new Date(Date.now() - 300000).toISOString(), finished_at: new Date().toISOString(),
+      elapsed_ms: 180000, miss_count: 6, correct_keystrokes: 1800, completed_reading_characters: 967, total_reading_characters: 967,
+      pause_count: 0, finished: true, ...extra,
+    });
+    const insG = (r) => {
+      const cols = Object.keys(r);
+      return [`insert into public.game_results (${cols.join(',')}) values (${cols.map((_, i) => `$${i + 1}`).join(',')})`, cols.map((c) => r[c])];
+    };
+    for (const u of [S_A1, S_B1]) await db.query(...insG(gm(u)));
+    await as(S_A1, 'aal1', async () => {
+      const r = await rows('select user_id from public.game_results');
+      check('生徒A1は自分のゲーム記録だけ見える', r.length === 1 && r[0].user_id === S_A1, JSON.stringify(r));
+      check('生徒A1が生徒B1のゲーム記録をIDで指定しても見えない', (await rows('select * from public.game_results where user_id = $1', [S_B1])).length === 0);
+      check('生徒A1は生徒B1としてゲーム記録を追加できない', !!(await fails(...insG(gm(S_B1)))));
+      const mine = gm(S_A1, { penalty_ms: 0, record_time_ms: 1, completion_year: 1882, accuracy: 100 });
+      await db.query(...insG(mine));
+      const saved = (await rows('select penalty_ms, record_time_ms, completion_year, accuracy from public.game_results where id = $1', [mine.id]))[0];
+      check(
+        'ミス加算・記録タイム・完成年・正確率はサーバー側で計算し直す（6ミス・3分 → 3分30秒・1987年）',
+        Number(saved?.penalty_ms) === 30000 && Number(saved?.record_time_ms) === 210000 && saved?.completion_year === 1987 && Math.abs(Number(saved?.accuracy) - 99.6678) < 0.001,
+        JSON.stringify(saved),
+      );
+      const y = gm(S_A1, { elapsed_ms: 226000, miss_count: 0 });
+      await db.query(...insG(y));
+      check('記録3分46秒 → 1995年', (await rows('select completion_year from public.game_results where id = $1', [y.id]))[0]?.completion_year === 1995);
+      const y2 = gm(S_A1, { elapsed_ms: 266000, miss_count: 6 });
+      await db.query(...insG(y2));
+      check('入力4分26秒＋ミス6回 → 4分56秒 → 2030年', (await rows('select completion_year from public.game_results where id = $1', [y2.id]))[0]?.completion_year === 2030);
+      check('同じIDのゲーム記録の再送は重複しない', (await fails(...insG(mine))) === '23505');
+      check('完成なのに読みの文字数が足りない記録は拒否', !!(await fails(...insG(gm(S_A1, { completed_reading_characters: 500 })))));
+      check('物語と読みの総数が合わない記録は拒否', !!(await fails(...insG(gm(S_A1, { total_reading_characters: 100, completed_reading_characters: 100 })))));
+      check('物語とコースが合わない記録は拒否', !!(await fails(...insG(gm(S_A1, { course_id: 'short' })))));
+      check('知らない物語の記録は拒否', !!(await fails(...insG(gm(S_A1, { story_id: 'unknown-story' })))));
+      check('負のミス数は拒否', !!(await fails(...insG(gm(S_A1, { miss_count: -1 })))));
+      check('ありえない速さは拒否', !!(await fails(...insG(gm(S_A1, { elapsed_ms: 1000 })))));
+      check('終了が開始より前の記録は拒否', !!(await fails(...insG(gm(S_A1, { finished_at: new Date(Date.now() - 600000).toISOString() })))));
+      check('知らないルールの版は拒否', !!(await fails(...insG(gm(S_A1, { rule_version: 'v99' })))));
+      const unfinished = gm(S_A1, { finished: false, completed_reading_characters: 300 });
+      await db.query(...insG(unfinished));
+      // 自己ベスト：古い記録を含めて、条件ごとに最も良い完成記録。途中終了は含めない
+      const fast = gm(S_A1, { elapsed_ms: 150000, miss_count: 0, started_at: '2026-01-01T00:00:00Z', finished_at: '2026-01-01T00:03:00Z' });
+      await db.query(...insG(fast));
+      const paused = gm(S_A1, { elapsed_ms: 140000, miss_count: 0, pause_count: 2 });
+      await db.query(...insG(paused));
+      const bests = await rows('select id, pause_count from public.game_bests($1)', [S_A1]);
+      check('自己ベストは古い記録を含め、一時停止の有無で分けて取得できる', bests.length === 2 && bests.some((b) => b.id === fast.id) && bests.some((b) => b.id === paused.id), JSON.stringify(bests));
+      check('自己ベストに途中終了は含めない', !bests.some((b) => b.id === unfinished.id));
+      check('他人の自己ベストは取得できない', (await rows('select * from public.game_bests($1)', [S_B1])).length === 0);
+      check('ゲーム記録を書き換えられない', !!(await fails('update public.game_results set miss_count = 0 where user_id = $1', [S_A1])));
+      check('ゲーム記録を削除できない', !!(await fails('delete from public.game_results where user_id = $1', [S_A1])));
+      check('ゲーム記録はタイピング・検定の記録に混ざらない', (await rows('select id from public.practice_results where id = $1 union all select id from public.exam_results where id = $1', [mine.id])).length === 0);
+    });
+    await as(S_SUSP, 'aal1', async () => {
+      check('停止中の生徒はゲーム記録を追加できない', !!(await fails(...insG(gm(S_SUSP)))));
+    });
+    await as(T_A, 'aal2', async () => {
+      const r = await rows('select distinct user_id from public.game_results');
+      check('教員A（二段階認証済み）は担当の生徒のゲーム記録だけ見える', r.length === 1 && r[0].user_id === S_A1, JSON.stringify(r));
+      check('教員Aは担当生徒の自己ベストを取得できる', (await rows('select * from public.game_bests($1)', [S_A1])).length === 1);
+      check('教員Aは担当外の生徒B1のゲーム記録を見られない', (await rows('select * from public.game_results where user_id = $1', [S_B1])).length === 0);
+      check('教員Aは担当外の生徒B1の自己ベストを取得できない', (await rows('select * from public.game_bests($1)', [S_B1])).length === 0);
+      check('教員は生徒のゲーム記録を書き換えられない', !!(await fails('update public.game_results set miss_count = 0 where user_id = $1', [S_A1])));
+      check('教員は生徒としてゲーム記録を追加できない', !!(await fails(...insG(gm(S_A1)))));
+    });
+    await as(T_A, 'aal1', async () => {
+      check('教員Aは二段階認証なしでは生徒のゲーム記録を見られない', (await rows('select * from public.game_results where user_id = $1', [S_A1])).length === 0);
+    });
+    await as(T_B, 'aal2', async () => {
+      const r = await rows('select distinct user_id from public.game_results');
+      check('教員Bは担当の生徒B1のゲーム記録だけ見える', r.length === 1 && r[0].user_id === S_B1, JSON.stringify(r));
+    });
+    await as('anon', null, async () => {
+      check('未ログインではゲーム記録を読めない', !!(await fails('select * from public.game_results')));
+      check('未ログインではゲーム記録を追加できない', !!(await fails(...insG(gm(S_A1)))));
+      check('未ログインでは自己ベストの関数を使えない', !!(await fails('select * from public.game_bests($1)', [S_A1])));
+    });
+  }
+
   console.log('アカウント削除');
   await db.query('delete from auth.users where id = $1', [S_A2]);
   check('アカウントを削除すると記録も消える', (await rows('select * from public.practice_results where user_id = $1', [S_A2])).length === 0);

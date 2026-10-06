@@ -1,0 +1,648 @@
+{
+  "schemaVersion": 1,
+  "storySetVersion": "sakurada-stories-v1",
+  "gameId": "sakurada-familia",
+  "displayName": "サクラダファミリアを完成させよ",
+  "note": "ゲーム名はサクラダ、本文中の実在の建物名はサグラダ・ファミリア。本文は独自作成。歴史・自然は事実をもとにした読み物、旅行は架空の主人公による創作。",
+  "stories": [
+    {
+      "id": "inherited-dream",
+      "title": "夢をつないだ建築物",
+      "genre": "事実をもとにした読み物",
+      "sentences": [
+        {
+          "id": "inherited-dream-01",
+          "text": "スペインのバルセロナに、大きな教会があります。",
+          "reading": "すぺいんのばるせろなに、おおきなきょうかいがあります。"
+        },
+        {
+          "id": "inherited-dream-02",
+          "text": "その名前は、サグラダ・ファミリアです。",
+          "reading": "そのなまえは、さぐらだ・ふぁみりあです。"
+        },
+        {
+          "id": "inherited-dream-03",
+          "text": "工事が始まったのは、千八百八十二年でした。",
+          "reading": "こうじがはじまったのは、せんはっぴゃくはちじゅうにねんでした。"
+        },
+        {
+          "id": "inherited-dream-04",
+          "text": "最初の石が置かれ、長い建築の歩みが始まりました。",
+          "reading": "さいしょのいしがおかれ、ながいけんちくのあゆみがはじまりました。"
+        },
+        {
+          "id": "inherited-dream-05",
+          "text": "翌年、建築家のアントニ・ガウディが仕事を引き継ぎます。",
+          "reading": "よくねん、けんちくかのあんとに・がうでぃがしごとをひきつぎます。"
+        },
+        {
+          "id": "inherited-dream-06",
+          "text": "ガウディは、建物の計画を大きく変えていきました。",
+          "reading": "がうでぃは、たてもののけいかくをおおきくかえていきました。"
+        },
+        {
+          "id": "inherited-dream-07",
+          "text": "目指したのは、自然の美しさを感じられる教会です。",
+          "reading": "めざしたのは、しぜんのうつくしさをかんじられるきょうかいです。"
+        },
+        {
+          "id": "inherited-dream-08",
+          "text": "高い塔や、枝のように分かれる柱を考えました。",
+          "reading": "たかいとうや、えだのようにわかれるはしらをかんがえました。"
+        },
+        {
+          "id": "inherited-dream-09",
+          "text": "図面だけでなく、模型を使って形を確かめました。",
+          "reading": "ずめんだけでなく、もけいをつかってかたちをたしかめました。"
+        },
+        {
+          "id": "inherited-dream-10",
+          "text": "小さな形を調べることが、大きな建物につながります。",
+          "reading": "ちいさなかたちをしらべることが、おおきなたてものにつながります。"
+        },
+        {
+          "id": "inherited-dream-11",
+          "text": "工事の現場では、たくさんの人が力を合わせます。",
+          "reading": "こうじのげんばでは、たくさんのひとがちからをあわせます。"
+        },
+        {
+          "id": "inherited-dream-12",
+          "text": "石を切る人、運ぶ人、積み上げる人がいます。",
+          "reading": "いしをきるひと、はこぶひと、つみあげるひとがいます。"
+        },
+        {
+          "id": "inherited-dream-13",
+          "text": "一つの石にも、それぞれの人の仕事がつまっています。",
+          "reading": "ひとつのいしにも、それぞれのひとのしごとがつまっています。"
+        },
+        {
+          "id": "inherited-dream-14",
+          "text": "大きな建物は、一日では完成しません。",
+          "reading": "おおきなたてものは、いちにちではかんせいしません。"
+        },
+        {
+          "id": "inherited-dream-15",
+          "text": "少しずつ積み重ねることで、景色が変わっていきます。",
+          "reading": "すこしずつつみかさねることで、けしきがかわっていきます。"
+        },
+        {
+          "id": "inherited-dream-16",
+          "text": "ガウディは、完成した全体の姿を見ることなく亡くなりました。",
+          "reading": "がうでぃは、かんせいしたぜんたいのすがたをみることなくなくなりました。"
+        },
+        {
+          "id": "inherited-dream-17",
+          "text": "しかし、建築の仕事は、その後も引き継がれました。",
+          "reading": "しかし、けんちくのしごとは、そのごもひきつがれました。"
+        },
+        {
+          "id": "inherited-dream-18",
+          "text": "残された資料や模型を調べ、次の世代が工事を進めます。",
+          "reading": "のこされたしりょうやもけいをしらべ、つぎのせだいがこうじをすすめます。"
+        },
+        {
+          "id": "inherited-dream-19",
+          "text": "昔の知恵と新しい技術が、一つの建物で出会います。",
+          "reading": "むかしのちえとあたらしいぎじゅつが、ひとつのたてものでであいます。"
+        },
+        {
+          "id": "inherited-dream-20",
+          "text": "塔を見上げると、長い時間の積み重ねが感じられます。",
+          "reading": "とうをみあげると、ながいじかんのつみかさねがかんじられます。"
+        },
+        {
+          "id": "inherited-dream-21",
+          "text": "サグラダ・ファミリアは、人から人へ続く仕事の物語です。",
+          "reading": "さぐらだ・ふぁみりあは、ひとからひとへつづくしごとのものがたりです。"
+        },
+        {
+          "id": "inherited-dream-22",
+          "text": "このゲームでは、あなたも建築の一歩を進めます。",
+          "reading": "このげーむでは、あなたもけんちくのいっぽをすすめます。"
+        },
+        {
+          "id": "inherited-dream-23",
+          "text": "工事には、形を考える仕事と、それを形にする仕事があります。",
+          "reading": "こうじには、かたちをかんがえるしごとと、それをかたちにするしごとがあります。"
+        },
+        {
+          "id": "inherited-dream-24",
+          "text": "大きさを測り、石を合わせ、次の作業につなげます。",
+          "reading": "おおきさをはかり、いしをあわせ、つぎのさぎょうにつなげます。"
+        },
+        {
+          "id": "inherited-dream-25",
+          "text": "目立たない場所の仕事も、建物を支える大切な一歩です。",
+          "reading": "めだたないばしょのしごとも、たてものをささえるたいせつないっぽです。"
+        },
+        {
+          "id": "inherited-dream-26",
+          "text": "一人では届かない高さにも、協力すれば近づけます。",
+          "reading": "ひとりではとどかないたかさにも、きょうりょくすればちかづけます。"
+        },
+        {
+          "id": "inherited-dream-27",
+          "text": "進み方がゆっくりでも、積み上げた仕事は残ります。",
+          "reading": "すすみかたがゆっくりでも、つみあげたしごとはのこります。"
+        },
+        {
+          "id": "inherited-dream-28",
+          "text": "遠くから見える塔にも、足元の石が欠かせません。",
+          "reading": "とおくからみえるとうにも、あしもとのいしがかかせません。"
+        },
+        {
+          "id": "inherited-dream-29",
+          "text": "完成の景色には、長い道のりを進んだ喜びがつまっています。",
+          "reading": "かんせいのけしきには、ながいみちのりをすすんだよろこびがつまっています。"
+        },
+        {
+          "id": "inherited-dream-30",
+          "text": "あなたの歩みも、一つずつ形になっていくはずです。",
+          "reading": "あなたのあゆみも、ひとつずつかたちになっていくはずです。"
+        },
+        {
+          "id": "inherited-dream-31",
+          "text": "正しく打った文字が、完成へ向かう力になります。",
+          "reading": "ただしくうったもじが、かんせいへむかうちからになります。"
+        },
+        {
+          "id": "inherited-dream-32",
+          "text": "最後の一文字まで進み、あなたの大聖堂を完成させましょう。",
+          "reading": "さいごのひともじまですすみ、あなたのだいせいどうをかんせいさせましょう。"
+        }
+      ],
+      "sourceUrls": [
+        "https://sagradafamilia.org/en/web/guest/history-of-the-temple",
+        "https://blog.sagradafamilia.org/en/sagrada-familia-144-anys-historia-compartida/",
+        "https://patrimoni.sagradafamilia.org/en/architectural-project/"
+      ],
+      "metrics": {
+        "japaneseCharacters": 775,
+        "readingCharacters": 967,
+        "guideKeystrokes": {
+          "hepburn": 1808,
+          "kunrei": 1731
+        }
+      }
+    },
+    {
+      "id": "gaudi-and-nature",
+      "title": "ガウディと自然のひみつ",
+      "genre": "事実をもとにした読み物",
+      "sentences": [
+        {
+          "id": "gaudi-and-nature-01",
+          "text": "サグラダ・ファミリアには、自然を思わせる形があります。",
+          "reading": "さぐらだ・ふぁみりあには、しぜんをおもわせるかたちがあります。"
+        },
+        {
+          "id": "gaudi-and-nature-02",
+          "text": "そのひみつを知るために、建築家ガウディの工夫を見てみましょう。",
+          "reading": "そのひみつをしるために、けんちくかがうでぃのくふうをみてみましょう。"
+        },
+        {
+          "id": "gaudi-and-nature-03",
+          "text": "ガウディは、自然の中にある形を建築に生かしました。",
+          "reading": "がうでぃは、しぜんのなかにあるかたちをけんちくにいかしました。"
+        },
+        {
+          "id": "gaudi-and-nature-04",
+          "text": "木の幹は、上へ伸びると枝に分かれます。",
+          "reading": "きのみきは、うえへのびるとえだにわかれます。"
+        },
+        {
+          "id": "gaudi-and-nature-05",
+          "text": "枝は広がり、その先にたくさんの葉がつきます。",
+          "reading": "えだはひろがり、そのさきにたくさんのはがつきます。"
+        },
+        {
+          "id": "gaudi-and-nature-06",
+          "text": "教会の中に入ると、木のような柱が並んでいます。",
+          "reading": "きょうかいのなかにはいると、きのようなはしらがならんでいます。"
+        },
+        {
+          "id": "gaudi-and-nature-07",
+          "text": "柱の上の部分は、枝のように分かれています。",
+          "reading": "はしらのうえのぶぶんは、えだのようにわかれています。"
+        },
+        {
+          "id": "gaudi-and-nature-08",
+          "text": "その枝が、頭の上に広がる天井を支えます。",
+          "reading": "そのえだが、あたまのうえにひろがるてんじょうをささえます。"
+        },
+        {
+          "id": "gaudi-and-nature-09",
+          "text": "見上げると、石でできた森の中にいるようです。",
+          "reading": "みあげると、いしでできたもりのなかにいるようです。"
+        },
+        {
+          "id": "gaudi-and-nature-10",
+          "text": "美しい形には、建物を支える役割もあります。",
+          "reading": "うつくしいかたちには、たてものをささえるやくわりもあります。"
+        },
+        {
+          "id": "gaudi-and-nature-11",
+          "text": "見た目と強さを、一緒に考える工夫なのです。",
+          "reading": "みためとつよさを、いっしょにかんがえるくふうなのです。"
+        },
+        {
+          "id": "gaudi-and-nature-12",
+          "text": "窓からは、色のついた光が差し込みます。",
+          "reading": "まどからは、いろのついたひかりがさしこみます。"
+        },
+        {
+          "id": "gaudi-and-nature-13",
+          "text": "光は柱や床に広がり、室内の表情を変えます。",
+          "reading": "ひかりははしらやゆかにひろがり、しつないのひょうじょうをかえます。"
+        },
+        {
+          "id": "gaudi-and-nature-14",
+          "text": "同じ場所でも、光によって違う景色に見えます。",
+          "reading": "おなじばしょでも、ひかりによってちがうけしきにみえます。"
+        },
+        {
+          "id": "gaudi-and-nature-15",
+          "text": "建物の外側にも、植物や動物の姿を見つけられます。",
+          "reading": "たてもののそとがわにも、しょくぶつやどうぶつのすがたをみつけられます。"
+        },
+        {
+          "id": "gaudi-and-nature-16",
+          "text": "大きな塔だけでなく、小さな飾りにも目を向けましょう。",
+          "reading": "おおきなとうだけでなく、ちいさなかざりにもめをむけましょう。"
+        },
+        {
+          "id": "gaudi-and-nature-17",
+          "text": "近くから見ると、遠くでは気づかない工夫が見えてきます。",
+          "reading": "ちかくからみると、とおくではきづかないくふうがみえてきます。"
+        },
+        {
+          "id": "gaudi-and-nature-18",
+          "text": "ガウディは、図面や模型で建物の形を考えました。",
+          "reading": "がうでぃは、ずめんやもけいでたてもののかたちをかんがえました。"
+        },
+        {
+          "id": "gaudi-and-nature-19",
+          "text": "考えた形を実際につくるには、職人たちの技術も必要です。",
+          "reading": "かんがえたかたちをじっさいにつくるには、しょくにんたちのぎじゅつもひつようです。"
+        },
+        {
+          "id": "gaudi-and-nature-20",
+          "text": "自然から学んだ発想を、みんなの仕事が形にしていきます。",
+          "reading": "しぜんからまなんだはっそうを、みんなのしごとがかたちにしていきます。"
+        },
+        {
+          "id": "gaudi-and-nature-21",
+          "text": "サグラダ・ファミリアは、自然と建築を結ぶ場所です。",
+          "reading": "さぐらだ・ふぁみりあは、しぜんとけんちくをむすぶばしょです。"
+        },
+        {
+          "id": "gaudi-and-nature-22",
+          "text": "身近な木や葉も、見方を変えると発見の入り口になります。",
+          "reading": "みぢかなきやはも、みかたをかえるとはっけんのいりぐちになります。"
+        },
+        {
+          "id": "gaudi-and-nature-23",
+          "text": "自然の形を眺めると、同じように見えるものにも違いがあります。",
+          "reading": "しぜんのかたちをながめると、おなじようにみえるものにもちがいがあります。"
+        },
+        {
+          "id": "gaudi-and-nature-24",
+          "text": "枝の向きや幹の太さに、目を向けてみましょう。",
+          "reading": "えだのむきやみきのふとさに、めをむけてみましょう。"
+        },
+        {
+          "id": "gaudi-and-nature-25",
+          "text": "形の理由を考えることが、新しい工夫につながります。",
+          "reading": "かたちのりゆうをかんがえることが、あたらしいくふうにつながります。"
+        },
+        {
+          "id": "gaudi-and-nature-26",
+          "text": "石でできた柱にも、自然の形を学ぶ面白さがあります。",
+          "reading": "いしでできたはしらにも、しぜんのかたちをまなぶおもしろさがあります。"
+        },
+        {
+          "id": "gaudi-and-nature-27",
+          "text": "遠くから全体を見て、近くから細かな形を見てみます。",
+          "reading": "とおくからぜんたいをみて、ちかくからこまかなかたちをみてみます。"
+        },
+        {
+          "id": "gaudi-and-nature-28",
+          "text": "すると、一つの建物の中に、いくつもの発見が生まれます。",
+          "reading": "すると、ひとつのたてもののなかに、いくつものはっけんがうまれます。"
+        },
+        {
+          "id": "gaudi-and-nature-29",
+          "text": "美しいと感じた場所を、自分の言葉で伝えてみましょう。",
+          "reading": "うつくしいとかんじたばしょを、じぶんのことばでつたえてみましょう。"
+        },
+        {
+          "id": "gaudi-and-nature-30",
+          "text": "建物を知る楽しさは、よく見ることから始まります。",
+          "reading": "たてものをしるたのしさは、よくみることからはじまります。"
+        },
+        {
+          "id": "gaudi-and-nature-31",
+          "text": "あなたの文字も、少しずつ建物の形を変えていきます。",
+          "reading": "あなたのもじも、すこしずつたてもののかたちをかえていきます。"
+        },
+        {
+          "id": "gaudi-and-nature-32",
+          "text": "最後まで打ち進め、石の森を持つ大聖堂を完成させましょう。",
+          "reading": "さいごまでうちすすめ、いしのもりをもつだいせいどうをかんせいさせましょう。"
+        }
+      ],
+      "sourceUrls": [
+        "https://blog.sagradafamilia.org/en/columns-sagrada-familia-geometry-mechanics-materials-stone-forest/",
+        "https://patrimoni.sagradafamilia.org/en/architectural-project/",
+        "https://blog.sagradafamilia.org/en/sagrada-familia-144-anys-historia-compartida/"
+      ],
+      "metrics": {
+        "japaneseCharacters": 777,
+        "readingCharacters": 978,
+        "guideKeystrokes": {
+          "hepburn": 1823,
+          "kunrei": 1756
+        }
+      }
+    },
+    {
+      "id": "visit-barcelona",
+      "title": "バルセロナで出会った大聖堂",
+      "genre": "創作の旅行物語。建物の基本情報は事実に基づく。",
+      "sentences": [
+        {
+          "id": "visit-barcelona-01",
+          "text": "私は、スペインのバルセロナを訪れました。",
+          "reading": "わたしは、すぺいんのばるせろなをおとずれました。"
+        },
+        {
+          "id": "visit-barcelona-02",
+          "text": "今日の目的は、サグラダ・ファミリアを見ることです。",
+          "reading": "きょうのもくてきは、さぐらだ・ふぁみりあをみることです。"
+        },
+        {
+          "id": "visit-barcelona-03",
+          "text": "街を歩くと、建物の向こうに高い塔が見えてきました。",
+          "reading": "まちをあるくと、たてもののむこうにたかいとうがみえてきました。"
+        },
+        {
+          "id": "visit-barcelona-04",
+          "text": "写真で見た景色が、目の前に広がっています。",
+          "reading": "しゃしんでみたけしきが、めのまえにひろがっています。"
+        },
+        {
+          "id": "visit-barcelona-05",
+          "text": "近づくほど、塔の高さと石の細かな飾りに驚きました。",
+          "reading": "ちかづくほど、とうのたかさといしのこまかなかざりにおどろきました。"
+        },
+        {
+          "id": "visit-barcelona-06",
+          "text": "私は少し立ち止まり、建物を下から上まで見上げます。",
+          "reading": "わたしはすこしたちどまり、たてものをしたからうえまでみあげます。"
+        },
+        {
+          "id": "visit-barcelona-07",
+          "text": "入り口の近くには、たくさんの彫刻がありました。",
+          "reading": "いりぐちのちかくには、たくさんのちょうこくがありました。"
+        },
+        {
+          "id": "visit-barcelona-08",
+          "text": "一つずつ見ると、石の表情が違って見えます。",
+          "reading": "ひとつずつみると、いしのひょうじょうがちがってみえます。"
+        },
+        {
+          "id": "visit-barcelona-09",
+          "text": "案内を読み、この教会の工事が千八百八十二年に始まったと知りました。",
+          "reading": "あんないをよみ、このきょうかいのこうじがせんはっぴゃくはちじゅうにねんにはじまったとしりました。"
+        },
+        {
+          "id": "visit-barcelona-10",
+          "text": "長い年月をかけ、たくさんの人が建築に関わってきたのです。",
+          "reading": "ながいねんげつをかけ、たくさんのひとがけんちくにかかわってきたのです。"
+        },
+        {
+          "id": "visit-barcelona-11",
+          "text": "中に入ると、外とは違う景色が待っていました。",
+          "reading": "なかにはいると、そととはちがうけしきがまっていました。"
+        },
+        {
+          "id": "visit-barcelona-12",
+          "text": "高い柱が並び、その上で枝のように分かれています。",
+          "reading": "たかいはしらがならび、そのうえでえだのようにわかれています。"
+        },
+        {
+          "id": "visit-barcelona-13",
+          "text": "まるで、大きな森の中を歩いているようでした。",
+          "reading": "まるで、おおきなもりのなかをあるいているようでした。"
+        },
+        {
+          "id": "visit-barcelona-14",
+          "text": "窓から差し込む光が、床に美しい色を広げています。",
+          "reading": "まどからさしこむひかりが、ゆかにうつくしいいろをひろげています。"
+        },
+        {
+          "id": "visit-barcelona-15",
+          "text": "私は静かに見上げ、しばらくその光を眺めました。",
+          "reading": "わたしはしずかにみあげ、しばらくそのひかりをながめました。"
+        },
+        {
+          "id": "visit-barcelona-16",
+          "text": "この建物を考えたガウディは、自然を建築に生かした人です。",
+          "reading": "このたてものをかんがえたがうでぃは、しぜんをけんちくにいかしたひとです。"
+        },
+        {
+          "id": "visit-barcelona-17",
+          "text": "身近な木の形が、大聖堂の柱につながっていると知りました。",
+          "reading": "みぢかなきのかたちが、だいせいどうのはしらにつながっているとしりました。"
+        },
+        {
+          "id": "visit-barcelona-18",
+          "text": "その工夫を形にした職人たちの仕事も、想像してみます。",
+          "reading": "そのくふうをかたちにしたしょくにんたちのしごとも、そうぞうしてみます。"
+        },
+        {
+          "id": "visit-barcelona-19",
+          "text": "外へ出ると、街の音と明るい空が戻ってきました。",
+          "reading": "そとへでると、まちのおととあかるいそらがもどってきました。"
+        },
+        {
+          "id": "visit-barcelona-20",
+          "text": "振り返って見た塔は、来たときよりも特別に感じられます。",
+          "reading": "ふりかえってみたとうは、きたときよりもとくべつにかんじられます。"
+        },
+        {
+          "id": "visit-barcelona-21",
+          "text": "美しい姿の向こうに、人々の長い仕事が見えたからです。",
+          "reading": "うつくしいすがたのむこうに、ひとびとのながいしごとがみえたからです。"
+        },
+        {
+          "id": "visit-barcelona-22",
+          "text": "私は今日の発見を、旅のノートに書き留めました。",
+          "reading": "わたしはきょうのはっけんを、たびののーとにかきとめました。"
+        },
+        {
+          "id": "visit-barcelona-23",
+          "text": "ノートには、高い塔と枝のような柱の絵も添えました。",
+          "reading": "のーとには、たかいとうとえだのようなはしらのえもそえました。"
+        },
+        {
+          "id": "visit-barcelona-24",
+          "text": "写真だけでは伝えきれない気持ちを、言葉にしてみます。",
+          "reading": "しゃしんだけではつたえきれないきもちを、ことばにしてみます。"
+        },
+        {
+          "id": "visit-barcelona-25",
+          "text": "大きさに驚いたことや、光の色に見とれたことを書きました。",
+          "reading": "おおきさにおどろいたことや、ひかりのいろにみとれたことをかきました。"
+        },
+        {
+          "id": "visit-barcelona-26",
+          "text": "帰ったら、今日見つけた工夫を家族にも伝えたいと思いました。",
+          "reading": "かえったら、きょうみつけたくふうをかぞくにもつたえたいとおもいました。"
+        },
+        {
+          "id": "visit-barcelona-27",
+          "text": "長い時間をかける仕事にも、一日ごとの積み重ねがあります。",
+          "reading": "ながいじかんをかけるしごとにも、いちにちごとのつみかさねがあります。"
+        },
+        {
+          "id": "visit-barcelona-28",
+          "text": "私も、新しいことを少しずつ続けてみたくなりました。",
+          "reading": "わたしも、あたらしいことをすこしずつつづけてみたくなりました。"
+        },
+        {
+          "id": "visit-barcelona-29",
+          "text": "このゲームでも、一文字ずつ建築の旅を進めてみましょう。",
+          "reading": "このげーむでも、ひともじずつけんちくのたびをすすめてみましょう。"
+        },
+        {
+          "id": "visit-barcelona-30",
+          "text": "最後に完成した大聖堂は、あなたの努力がつくった景色です。",
+          "reading": "さいごにかんせいしただいせいどうは、あなたのどりょくがつくったけしきです。"
+        }
+      ],
+      "sourceUrls": [
+        "https://sagradafamilia.org/en/web/guest/history-of-the-temple",
+        "https://blog.sagradafamilia.org/en/columns-sagrada-familia-geometry-mechanics-materials-stone-forest/"
+      ],
+      "metrics": {
+        "japaneseCharacters": 758,
+        "readingCharacters": 951,
+        "guideKeystrokes": {
+          "hepburn": 1786,
+          "kunrei": 1705
+        }
+      }
+    }
+  ],
+  "introductoryStories": [
+    {
+      "id": "inherited-dream-intro",
+      "parentStoryId": "inherited-dream",
+      "title": "夢をつないだ建築物（短縮版）",
+      "genre": "物語のテーマに合わせた短縮練習",
+      "sentences": [
+        {
+          "id": "inherited-dream-intro-01",
+          "text": "石をつむ。",
+          "reading": "いしをつむ。"
+        },
+        {
+          "id": "inherited-dream-intro-02",
+          "text": "壁ができる。",
+          "reading": "かべができる。"
+        },
+        {
+          "id": "inherited-dream-intro-03",
+          "text": "塔がのびる。",
+          "reading": "とうがのびる。"
+        },
+        {
+          "id": "inherited-dream-intro-04",
+          "text": "ついに完成。",
+          "reading": "ついにかんせい。"
+        }
+      ],
+      "metrics": {
+        "japaneseCharacters": 23,
+        "readingCharacters": 28,
+        "guideKeystrokes": {
+          "hepburn": 51,
+          "kunrei": 48
+        }
+      }
+    },
+    {
+      "id": "gaudi-and-nature-intro",
+      "parentStoryId": "gaudi-and-nature",
+      "title": "ガウディと自然のひみつ（短縮版）",
+      "genre": "物語のテーマに合わせた短縮練習",
+      "sentences": [
+        {
+          "id": "gaudi-and-nature-intro-01",
+          "text": "木を見る。",
+          "reading": "きをみる。"
+        },
+        {
+          "id": "gaudi-and-nature-intro-02",
+          "text": "柱を立てる。",
+          "reading": "はしらをたてる。"
+        },
+        {
+          "id": "gaudi-and-nature-intro-03",
+          "text": "光が入る。",
+          "reading": "ひかりがはいる。"
+        },
+        {
+          "id": "gaudi-and-nature-intro-04",
+          "text": "完成です。",
+          "reading": "かんせいです。"
+        }
+      ],
+      "metrics": {
+        "japaneseCharacters": 21,
+        "readingCharacters": 28,
+        "guideKeystrokes": {
+          "hepburn": 51,
+          "kunrei": 50
+        }
+      }
+    },
+    {
+      "id": "visit-barcelona-intro",
+      "parentStoryId": "visit-barcelona",
+      "title": "バルセロナで出会った大聖堂（短縮版）",
+      "genre": "物語のテーマに合わせた短縮練習",
+      "sentences": [
+        {
+          "id": "visit-barcelona-intro-01",
+          "text": "街を歩こう。",
+          "reading": "まちをあるこう。"
+        },
+        {
+          "id": "visit-barcelona-intro-02",
+          "text": "塔を見る。",
+          "reading": "とうをみる。"
+        },
+        {
+          "id": "visit-barcelona-intro-03",
+          "text": "中に入ろう。",
+          "reading": "なかにはいろう。"
+        },
+        {
+          "id": "visit-barcelona-intro-04",
+          "text": "ついに完成。",
+          "reading": "ついにかんせい。"
+        }
+      ],
+      "metrics": {
+        "japaneseCharacters": 23,
+        "readingCharacters": 30,
+        "guideKeystrokes": {
+          "hepburn": 51,
+          "kunrei": 49
+        }
+      }
+    }
+  ]
+}

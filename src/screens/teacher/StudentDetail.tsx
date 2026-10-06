@@ -24,6 +24,9 @@ import { navigate } from '../../state/router';
 import { BackLink, Toggle } from '../../ui/common';
 import { HistoryPanel } from '../../ui/HistoryPanel';
 import { ExamRecordTable } from '../../ui/exam/ExamRecordTable';
+import { GameRecordTable } from '../../ui/game/GameRecordTable';
+import { CloudTableMissingError, fetchGameResultsOf } from '../../data/cloud';
+import type { GameResult } from '../../core/game/result';
 import type { ExamRecord } from '../../core/examResult';
 
 export function StudentDetail({ studentId }: { studentId: string }) {
@@ -36,6 +39,8 @@ export function StudentDetail({ studentId }: { studentId: string }) {
   const [rows, setRows] = useState<HistoryRow[] | null>(null);
   const [examRows, setExamRows] = useState<ExamRecord[] | null>(null);
   const [examError, setExamError] = useState<string | null>(null);
+  const [gameRows, setGameRows] = useState<GameResult[] | null>(null);
+  const [gameError, setGameError] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [newPw, setNewPw] = useState<string | null>(null);
 
@@ -66,6 +71,16 @@ export function StudentDetail({ studentId }: { studentId: string }) {
         (e as Error)?.message === 'exam_results_missing'
           ? '検定モードの記録の表が、まだデータベースにありません（v1.1.0 のマイグレーションを適用してください）。'
           : '検定モードの記録を読み込めませんでした。',
+      );
+    }
+    // ゲームの記録（RLS により、担当している生徒の分だけが返ります）
+    try {
+      setGameRows(await fetchGameResultsOf(studentId));
+      setGameError(null);
+    } catch (e) {
+      setGameRows([]);
+      setGameError(
+        e instanceof CloudTableMissingError ? 'ゲームの記録の表が、まだデータベースにありません（v1.2.0 のマイグレーションを適用してください）。' : 'ゲームの記録を読み込めませんでした。',
       );
     }
   }, [studentId, teacherId]);
@@ -119,6 +134,13 @@ export function StudentDetail({ studentId }: { studentId: string }) {
         <p className="hint">タイピングのランクとは別の記録です。問題の改訂番号と、そのときの成績をそのまま表示します。</p>
         {examError && <p className="msg msg-ng">{examError}</p>}
         {examRows ? <ExamRecordTable records={examRows} /> : <p>読み込んでいます…</p>}
+      </section>
+
+      <section className="panel" data-testid="teacher-game-records">
+        <h2>ゲームの記録</h2>
+        <p className="hint">タイピングのランク・検定モードとは別の記録です（新しい順に100件）。</p>
+        {gameError && <p className="msg msg-ng">{gameError}</p>}
+        {gameRows ? <GameRecordTable records={gameRows} /> : <p>読み込んでいます…</p>}
       </section>
 
       <section className="panel">

@@ -15,6 +15,10 @@ import { ExamSelect } from './screens/exam/ExamSelect';
 import { ExamPractice } from './screens/exam/ExamPractice';
 import { ExamResult } from './screens/exam/ExamResult';
 import { ExamManage } from './screens/exam/ExamManage';
+import { GameSelect } from './screens/game/GameSelect';
+import { SakuradaIntro } from './screens/game/SakuradaIntro';
+import { SakuradaPlay } from './screens/game/SakuradaPlay';
+import { SakuradaResult } from './screens/game/SakuradaResult';
 
 function Screens() {
   const path = useRoute();
@@ -27,7 +31,7 @@ function Screens() {
   }, [needsAccount, account]);
 
   if (needsAccount && !account) return null;
-  const practicing = path === '/practice' || path === '/exam/practice';
+  const practicing = path === '/practice' || path === '/exam/practice' || path === '/game/sakurada/play';
   let screen;
   if (path === '/') screen = <Entry />;
   else if (path === '/login') screen = <Login />;
@@ -40,6 +44,10 @@ function Screens() {
   else if (path === '/exam/practice') screen = <ExamPractice />;
   else if (path === '/exam/result') screen = <ExamResult />;
   else if (path === '/exam/manage') screen = <ExamManage />;
+  else if (path === '/game') screen = <GameSelect />;
+  else if (path === '/game/sakurada') screen = <SakuradaIntro />;
+  else if (path === '/game/sakurada/play') screen = <SakuradaPlay />;
+  else if (path === '/game/sakurada/result') screen = <SakuradaResult />;
   else if (path === '/teacher') screen = <TeacherHome tab="classes" />;
   else if (path === '/teacher/materials') screen = <TeacherHome tab="materials" />;
   else if (path === '/teacher/account') screen = <TeacherHome tab="account" />;
