@@ -169,12 +169,10 @@ legend { font-weight: 700; padding: 0 6px; }
 .problem-kana { font-size: 1.35rem; letter-spacing: 0.04em; margin-bottom: 4px; word-break: break-word; }
 .kana-unit { padding: 0 1px; border-radius: 4px; }
 .kana-done { color: var(--muted); }
-.kana-current { background: var(--sakura-200); outline: 2px solid var(--sakura-500); }
 .kana-miss { text-decoration: underline wavy var(--ng); text-underline-offset: 5px; }
 .miss-mark { color: var(--ng); font-size: 0.75em; vertical-align: super; font-weight: 800; }
 .romaji-line { font-family: ui-monospace, 'Cascadia Mono', Consolas, 'BIZ UDGothic', monospace; font-size: 1.55rem; letter-spacing: 0.06em; word-break: break-all; }
 .romaji-typed { color: var(--ok); }
-.romaji-next { background: var(--accent); color: #fff; border-radius: 4px; padding: 0 2px; }
 .romaji-rest { color: var(--ink); }
 .feedback { min-height: 2.2em; font-weight: 700; }
 .feedback-ng { color: var(--ng); }
@@ -386,11 +384,6 @@ body:has(.entry-main) {
 
 /* 入力済み・次・残りを、色だけでなく形でも区別します */
 .romaji-typed { color: #3d7a5a; text-decoration: none; }
-.romaji-next {
-  display: inline-block; min-width: 0.9em; text-align: center;
-  background: var(--ks, var(--accent)); color: #fff; border: 3px solid var(--ink); border-radius: 6px;
-  padding: 0 4px; margin: 0 2px; box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.35);
-}
 .romaji-rest { color: var(--ink); }
 .romaji-line-off { color: var(--muted); }
 .guide-off-note { font-family: inherit; font-size: 1rem; letter-spacing: 0; color: var(--muted); margin-left: 8px; }
@@ -432,3 +425,66 @@ body:has(.entry-main) {
 }
 /* 装飾が画面の外にはみ出しても横スクロールを出さない */
 #root { overflow-x: clip; }
+
+/* =====================================================================
+   v1.0.2 問題表示の簡素化・開始待ち・ミス詳細
+   ===================================================================== */
+/* 問題：上に読み（小さめ）、中央に問題（最大）、下にローマ字。枠や背景は付けません */
+.problem-romaji { text-align: center; padding: 18px 20px 10px; }
+.problem-romaji .problem-kana { order: 1; font-size: clamp(1.2rem, 3.2vh, 1.7rem); color: var(--ink); letter-spacing: 0.06em; margin: 0 0 2px; }
+.problem-romaji .problem-text { font-size: clamp(2.4rem, 7.5vh, 4rem); line-height: 1.25; margin: 0 0 6px; }
+.problem-romaji .romaji-line { font-size: clamp(1.7rem, 5vh, 2.8rem); line-height: 1.4; letter-spacing: 0.04em; min-height: 1.4em; white-space: pre-wrap; }
+.kana-unit { position: relative; padding: 0; border-radius: 0; }
+.kana-done { color: #8a7d83; }
+.kana-miss { text-decoration: underline wavy var(--ng); text-underline-offset: 6px; }
+/* ×は文字の上に重ねて表示し、文字の位置をずらしません */
+.kana-unit .miss-mark { position: absolute; top: -0.85em; left: 50%; transform: translateX(-50%); font-size: 0.6em; line-height: 1; vertical-align: baseline; }
+
+/* ローマ字：入力済み（薄めのグレー・読める濃さ）／次の文字（はっきりした色＋下線）／残り（濃い文字）
+   枠・余白・太さの変化を付けないため、強調が移っても文字の位置や行の高さは変わりません */
+.romaji-typed { color: #7d7177; }
+.romaji-next {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.18em;
+  text-decoration-skip-ink: none;
+}
+.romaji-rest { color: var(--ink); }
+.romaji-line-off .romaji-typed { color: #7d7177; }
+
+/* 開始待ち */
+.ready-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 42vh; text-align: center; padding: 24px 12px; }
+.ready-message { font-size: clamp(1.4rem, 3.4vw, 2rem); font-weight: 800; color: var(--accent-dark); margin: 0; }
+.ready-button { min-width: 240px; min-height: 64px; font-size: 1.4rem; }
+
+.count-done { font-size: 1.3rem; font-weight: 800; color: var(--ok); margin: 0 0 8px; }
+
+/* ミスした問題の詳細 */
+.miss-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.miss-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--sakura-50); min-width: 0; }
+.miss-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 4px; }
+.miss-seq { color: var(--muted); font-size: 0.9rem; }
+.miss-text { font-size: 1.35rem; font-weight: 800; }
+.miss-reading { color: var(--muted); }
+.miss-path { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 1.35rem; letter-spacing: 0.05em; word-break: break-all; margin: 4px 0; }
+.path-rest { color: #9a8f94; text-decoration: underline dotted #b9aeb3; text-underline-offset: 4px; }
+.path-miss { color: var(--ng); font-weight: 800; text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 4px; text-decoration-skip-ink: none; }
+.path-mark { font-size: 0.65em; vertical-align: super; margin-left: 1px; }
+.miss-explain { margin: 4px 0 6px; padding-left: 1.2em; }
+.miss-stats { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; }
+.miss-stats div { display: flex; gap: 6px; }
+.miss-stats dt { color: var(--muted); }
+.miss-stats dd { margin: 0; font-weight: 700; }
+
+/* 結果画面の操作ボタンは、ミス詳細が長くても使えるよう画面の下に固定します */
+.result-actions { position: sticky; bottom: 0; background: rgba(253, 245, 247, 0.96); padding: 10px 0; border-top: 1px solid var(--border); z-index: 5; }
+
+@media (max-width: 760px) {
+  .problem-romaji { padding: 14px 10px 8px; }
+  .problem-romaji .problem-kana { font-size: 1.15rem; }
+  .problem-romaji .problem-text { font-size: 2rem; }
+  .problem-romaji .romaji-line { font-size: 1.5rem; }
+  .miss-text { font-size: 1.15rem; }
+  .miss-path { font-size: 1.15rem; }
+}

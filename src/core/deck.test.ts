@@ -66,7 +66,7 @@ describe('計時', () => {
 });
 
 describe('結果と記録の区別', () => {
-  const base: PracticeConfig = { kind: 'romaji', minutes: 3, inputMethod: 'keyboard', setType: 'standard', theme: 'all', difficulty: 'mixed', questionSetVersion: 'v' };
+  const base: PracticeConfig = { kind: 'romaji', endMode: 'time', minutes: 3, targetCount: null, inputMethod: 'keyboard', setType: 'standard', theme: 'all', difficulty: 'mixed', questionSetVersion: 'v' };
   const totals = { correct: 300, miss: 10, completedQuestions: 20, elapsedMs: 180_000, finished: true };
 
   it('標準問題を完走したときだけ正式ランク', () => {

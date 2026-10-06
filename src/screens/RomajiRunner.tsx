@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { keyForChar } from '../core/keyboardLayout';
 import { RomajiMatcher, type RomajiSnapshot } from '../core/romaji';
+import type { QuestionAttempt } from '../core/result';
 import type { Question } from '../core/questions';
 import { useApp } from '../state/AppContext';
 import { sound } from '../sound';
@@ -29,14 +30,40 @@ function useCompact(): boolean {
   return c;
 }
 
-export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerProps) {
+function newAttempt(seq: number, q: Question, m: RomajiMatcher, startMs: number): QuestionAttempt {
+  return {
+    seq,
+    questionId: q.id,
+    text: q.text,
+    reading: q.reading,
+    units: m.units.map((u) => u.kana),
+    startMs,
+    endMs: startMs,
+    completed: false,
+    correct: 0,
+    miss: 0,
+    typed: '',
+    remainingGuide: m.remaining(),
+    misses: [],
+  };
+}
+
+export function RomajiRunner({ deck, config, isActive, elapsedMs, registerTotals, targetCount, onGoalReached }: RunnerProps) {
   const { settings } = useApp();
+  const style = config.romajiStyle ?? settings.romajiStyle;
   const activeRef = useRef(isActive);
   activeRef.current = isActive;
+  const elapsedRef = useRef(elapsedMs);
+  elapsedRef.current = elapsedMs;
+  const goalRef = useRef(onGoalReached);
+  goalRef.current = onGoalReached;
   const [question, setQuestion] = useState<Question>(() => deck.next());
-  const matcher = useRef(new RomajiMatcher(question.reading));
+  const matcher = useRef(new RomajiMatcher(question.reading, style));
   const [snap, setSnap] = useState<RomajiSnapshot>(() => matcher.current.snapshot());
   const totals = useRef({ correct: 0, miss: 0, completedQuestions: 0 });
+  /** 出題回ごとの記録（判定したその場で記録します） */
+  const attempts = useRef<QuestionAttempt[]>([]);
+  const current = useRef<QuestionAttempt>(newAttempt(1, question, matcher.current, elapsedMs()));
   const [missCount, setMissCount] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
   /** 何問目か（問題が変わったら表示を作り直し、前の問題の強調などを残さないため） */
@@ -47,42 +74,78 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
   const [touchNote, setTouchNote] = useState(false);
   const compact = useCompact();
   const touch = config.inputMethod === 'touch';
+  const finishedRef = useRef(false);
 
   useEffect(() => {
-    registerTotals(() => ({ ...totals.current }));
+    registerTotals(() => {
+      const list = [...attempts.current];
+      const cur = current.current;
+      // 時間切れ・途中終了の「入力途中」の問題も、入力があれば記録に含めます
+      if (!cur.completed && cur.correct + cur.miss > 0) {
+        list.push({ ...cur, endMs: elapsedRef.current(), typed: matcher.current.typedText, remainingGuide: matcher.current.remaining() });
+      }
+      return { ...totals.current, attempts: list };
+    });
   }, [registerTotals]);
 
   const feed = useCallback(
     (ch: string) => {
-      if (!activeRef.current()) return;
-      const expected = matcher.current.nextKey();
-      const r = matcher.current.input(ch);
+      if (finishedRef.current || !activeRef.current()) return;
+      const m = matcher.current;
+      const typedBefore = m.typedText;
+      const unitIndex = m.unitIndex;
+      const guideChar = m.nextKey() ?? '';
+      const r = m.input(ch);
       if (r === 'ignored') return;
+      const cur = current.current;
       if (r === 'miss') {
         totals.current.miss++;
+        cur.miss++;
+        // ミスの時点の状態は変わらないので、ここで正しいキーの一覧（別の正しい打ち方も含む）を記録します
+        cur.misses.push({
+          position: typedBefore.length,
+          unitIndex,
+          kana: m.units[unitIndex]?.kana ?? '',
+          typedBefore,
+          guideChar,
+          acceptable: m.acceptableKeys(),
+          pressed: ch.toLowerCase(),
+        });
         setMissCount(totals.current.miss);
-        setFeedback(`× ミス：「${ch}」ではありません。${expected ? `次は「${expected.toUpperCase()}」です。` : ''}`);
+        setFeedback(`× ミス：「${ch}」ではありません。${guideChar ? `次は「${guideChar.toUpperCase()}」です。` : ''}`);
         if (settings.sound) sound.miss();
-        setSnap(matcher.current.snapshot());
+        setSnap(m.snapshot());
         return;
       }
       totals.current.correct++;
+      cur.correct++;
       setFeedback(null);
-      if (matcher.current.done) {
+      if (m.done) {
         totals.current.completedQuestions++;
+        cur.completed = true;
+        cur.endMs = elapsedRef.current();
+        cur.typed = m.typedText;
+        cur.remainingGuide = '';
+        attempts.current.push(cur);
         if (settings.sound) sound.complete();
+        // 問題数制：最後の問題を完成したら、次の問題を取り出す前に終わります
+        if (targetCount !== null && totals.current.completedQuestions >= targetCount) {
+          finishedRef.current = true;
+          goalRef.current();
+          return;
+        }
         // 待ち時間なしで、すぐ次の問題へ（達成状況は上部の「完成 ○問」で伝えます）
         const next = deck.next();
-        matcher.current = new RomajiMatcher(next.reading);
+        matcher.current = new RomajiMatcher(next.reading, style);
+        current.current = newAttempt(cur.seq + 1, next, matcher.current, elapsedRef.current());
         setQuestion(next);
         setSeq((n) => n + 1);
         setAnnounce(`${totals.current.completedQuestions}問完成。次の問題：${next.text}`);
       }
       setSnap(matcher.current.snapshot());
     },
-    [deck, settings.sound],
+    [deck, settings.sound, style, targetCount],
   );
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // 日本語入力がオンのとき（ミスには数えません）
@@ -117,7 +180,8 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
     <>
       <div className="practice-stats">
         <span className="stat">
-          完成 <b>{totals.current.completedQuestions}</b> 問
+          完成 <b>{totals.current.completedQuestions}</b>
+          {targetCount !== null ? `／${targetCount}` : ''} 問
         </span>
         <span className="stat">
           正しく打ったキー <b>{totals.current.correct}</b> 回
@@ -127,33 +191,36 @@ export function RomajiRunner({ deck, config, isActive, registerTotals }: RunnerP
         </span>
       </div>
       <section className="problem problem-romaji" aria-label="問題" key={seq} data-seq={seq}>
-        <div className="problem-text" lang="ja">
-          {question.text}
-        </div>
         <div className="problem-kana" aria-label={`読み ${question.reading}`}>
           {snap.units.map((u, i) => (
-            <span
-              key={i}
-              className={`kana-unit ${i < snap.index ? 'kana-done' : ''} ${i === snap.index ? 'kana-current' : ''} ${snap.missAt[i] ? 'kana-miss' : ''}`}
-            >
+            <span key={i} className={`kana-unit ${i < snap.index ? 'kana-done' : ''} ${snap.missAt[i] ? 'kana-miss' : ''}`}>
               {u.kana}
-              {snap.missAt[i] && <span className="miss-mark" aria-label="ミスした場所">×</span>}
+              {snap.missAt[i] && (
+                <span className="miss-mark" aria-label="ミスした場所">
+                  ×
+                </span>
+              )}
             </span>
           ))}
+        </div>
+        <div className="problem-text" lang="ja">
+          {question.text}
         </div>
         {settings.romajiGuide ? (
           <div className="romaji-line" aria-label={`ローマ字ガイド：入力済み ${snap.typed}、次に ${nextKey ?? ''}`}>
             <span className="romaji-typed">{snap.typed}</span>
             {!snap.done && nextKey !== null && (
               <>
-                <span className={`romaji-next ${target ? `f-${target.key.finger}` : ''}`}>{nextKey}</span>
+                <span className="romaji-next">{nextKey}</span>
                 <span className="romaji-rest">{snap.remaining.slice(1)}</span>
               </>
             )}
           </div>
         ) : (
           <div className="romaji-line romaji-line-off">
-            <span className="romaji-typed" aria-label="入力済み">{snap.typed}</span>
+            <span className="romaji-typed" aria-label="入力済み">
+              {snap.typed}
+            </span>
             <span className="guide-off-note">（ローマ字ガイドは OFF です）</span>
           </div>
         )}

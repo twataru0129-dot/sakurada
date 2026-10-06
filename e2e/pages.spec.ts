@@ -38,6 +38,7 @@ test('/sakurada/ 配下で JS・CSS・アイコンが読み込まれ、ゲスト
   await page.getByRole('button', { name: /タイピングモード/ }).click();
   await page.getByLabel('実物のキーボード').check();
   await page.getByRole('button', { name: '練習をはじめる' }).click();
+  await page.getByRole('button', { name: 'スタート' }).click();
   await expect(page.locator('.romaji-next')).toBeVisible({ timeout: 6000 });
   expect(failed).toEqual([]);
   expect(errors).toEqual([]);

@@ -3,7 +3,7 @@ import { BUILTIN_QUESTIONS } from '../data/builtinQuestions';
 import { deckModeFor, selectQuestions } from './questionSource';
 import type { PracticeConfig } from './result';
 
-const base: PracticeConfig = { kind: 'romaji', minutes: 3, inputMethod: 'keyboard', setType: 'standard', theme: 'all', difficulty: 'mixed', questionSetVersion: 'x' };
+const base: PracticeConfig = { kind: 'romaji', endMode: 'time', minutes: 3, targetCount: null, inputMethod: 'keyboard', setType: 'standard', theme: 'all', difficulty: 'mixed', questionSetVersion: 'x' };
 
 describe('出題する問題の選択', () => {
   it('標準問題は一般問題の全難易度から、決まった配分で出題', () => {

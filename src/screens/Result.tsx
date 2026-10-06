@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react';
 import { compareWithHistory, type Comparable, type Comparison } from '../core/compare';
 import { DIFFICULTY_LABEL, themeLabel } from '../core/questions';
 import { formatNumber1, nextRank, RANK_NONE } from '../core/rank';
-import { speedUnit, type PracticeResult } from '../core/result';
+import { endLabel, speedUnit, type PracticeResult } from '../core/result';
+import { MissDetails } from '../ui/MissDetails';
+
+/** 時間の表示（例：2分05秒） */
+export function formatDuration(ms: number): string {
+  const sec = Math.floor(ms / 1000);
+  const m = Math.floor(sec / 60);
+  return m > 0 ? `${m}分${String(sec % 60).padStart(2, '0')}秒` : `${sec}秒`;
+}
 import { fetchSameCondition } from '../data/cloud';
 import { useApp } from '../state/AppContext';
 import { navigate } from '../state/router';
@@ -74,11 +82,20 @@ export function Result() {
       <h1>練習の結果</h1>
       <section className="panel">
         <p>
-          {r.kind === 'romaji' ? 'ローマ字入力' : '文章入力〈変換あり〉'}・{setTypeLabel(r)}・{r.minutes}分・
+          {r.kind === 'romaji' ? 'ローマ字入力' : '文章入力〈変換あり〉'}・{setTypeLabel(r)}・{endLabel(r)}・
           {r.inputMethod === 'keyboard' ? '実物のキーボード' : r.kind === 'romaji' ? '画面のキーをタップ' : '画面のキーボード'}
         </p>
+        {r.endMode === 'count' && r.finished && (
+          <p className="count-done" data-testid="count-done">
+            {r.targetCount}問完了（かかった時間：{formatDuration(r.elapsedMs)}）
+          </p>
+        )}
         {!r.finished && (
-          <p className="msg msg-warn">途中で終わったため、完走の記録・正式ランクには使いません（練習した時間：{Math.floor(r.elapsedMs / 1000)}秒）。</p>
+          <p className="msg msg-warn">
+            {r.endMode === 'count'
+              ? `途中で終わったため、${r.targetCount}問の完了としては扱いません（${r.completedQuestions}問完成・かかった時間：${formatDuration(r.elapsedMs)}）。`
+              : `途中で終わったため、完走の記録・正式ランクには使いません（練習した時間：${Math.floor(r.elapsedMs / 1000)}秒）。`}
+          </p>
         )}
         <div className="result-rank">
           <div className="rank-big" aria-label={`ランク ${r.rank}`}>
@@ -124,6 +141,12 @@ export function Result() {
               {r.accuracy !== null && <span className="u"> ％</span>}
             </div>
           </div>
+          {r.endMode === 'count' && (
+            <div>
+              <div className="k">かかった時間</div>
+              <div className="v">{formatDuration(r.elapsedMs)}</div>
+            </div>
+          )}
           <div>
             <div className="k">1分あたりの速さ</div>
             <div className="v">
@@ -142,6 +165,8 @@ export function Result() {
         )}
         {!nr && r.rank !== RANK_NONE && <p>最高のランクです。</p>}
       </section>
+
+      {r.kind === 'romaji' && <MissDetails attempts={r.missDetails} />}
 
       <section className="panel" aria-labelledby="cmp-title">
         <h2 id="cmp-title">同じ条件の前回と比べて</h2>
@@ -193,13 +218,25 @@ export function Result() {
         )}
       </section>
 
-      <div className="btn-row">
+      <div className="btn-row result-actions">
         <button
           type="button"
           className="btn btn-primary"
           autoFocus
           onClick={() => {
-            setLastConfig({ kind: r.kind, minutes: r.minutes, inputMethod: r.inputMethod, setType: r.setType, theme: r.theme, difficulty: r.difficulty, questionSetVersion: r.questionSetVersion });
+            // 終了条件・問題数・ローマ字のお手本も引き継ぎます（開始待ちの画面に戻ります）
+            setLastConfig({
+              kind: r.kind,
+              endMode: r.endMode,
+              minutes: r.minutes,
+              targetCount: r.targetCount,
+              ...(r.romajiStyle ? { romajiStyle: r.romajiStyle } : {}),
+              inputMethod: r.inputMethod,
+              setType: r.setType,
+              theme: r.theme,
+              difficulty: r.difficulty,
+              questionSetVersion: r.questionSetVersion,
+            });
             navigate('/practice');
           }}
         >

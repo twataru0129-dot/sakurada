@@ -133,8 +133,32 @@ export class UnsupportedCharError extends Error {
   }
 }
 
+/**
+ * ガイドに優先して表示する表記（お手本）。判定には影響しません。どちらを選んでも、すべての正しい打ち方を受け付けます。
+ * - hepburn（ヘボン式）：shi / chi / tsu / fu / ji、sha / cha / ja など（候補表の先頭がヘボン式です）
+ * - kunrei（訓令式）：si / ti / tu / hu / zi、sya / tya / zya など
+ * 「ぢ・づ」は、訓令式の正式な表記（zi / zu）で打つと「じ・ず」になってしまうため、
+ * 入力用のお手本としてはどちらの方式でも di / du を使います。「を」も wo です。長音は「-」のままです。
+ */
+export type RomajiStyle = 'hepburn' | 'kunrei';
+
+const KUNREI_PREFERRED: Record<string, string> = {
+  し: 'si', ち: 'ti', つ: 'tu', ふ: 'hu', じ: 'zi',
+  しゃ: 'sya', しゅ: 'syu', しょ: 'syo', しぇ: 'sye',
+  ちゃ: 'tya', ちゅ: 'tyu', ちょ: 'tyo', ちぇ: 'tye',
+  じゃ: 'zya', じゅ: 'zyu', じょ: 'zyo', じぇ: 'zye',
+};
+
+/** お手本の表記を候補の先頭にします（候補そのものは変えません） */
+function preferStyle(kana: string, cands: string[], style: RomajiStyle): string[] {
+  if (style !== 'kunrei') return cands;
+  const p = KUNREI_PREFERRED[kana];
+  if (!p || !cands.includes(p)) return cands;
+  return [p, ...cands.filter((c) => c !== p)];
+}
+
 /** 読みを入力単位に分けます。対応していない文字があれば例外を投げます。 */
-export function tokenize(reading: string): RomajiUnit[] {
+export function tokenize(reading: string, style: RomajiStyle = 'hepburn'): RomajiUnit[] {
   const chars = [...normalizeReading(reading)];
   const base: RomajiUnit[] = [];
   for (let i = 0; i < chars.length; i++) {
@@ -145,13 +169,13 @@ export function tokenize(reading: string): RomajiUnit[] {
     }
     const next = chars[i + 1];
     if (next && SMALL.has(next) && DOUBLE[ch + next]) {
-      base.push({ kana: ch + next, cands: candsOf(ch + next)!, isN: false });
+      base.push({ kana: ch + next, cands: preferStyle(ch + next, candsOf(ch + next)!, style), isN: false });
       i++;
       continue;
     }
     const c = candsOf(ch);
     if (!c) throw new UnsupportedCharError(ch);
-    base.push({ kana: ch, cands: c, isN: false });
+    base.push({ kana: ch, cands: preferStyle(ch, c, style), isN: false });
   }
   // 促音を次の単位とまとめます（次が子音で始まる場合のみ）
   const units: RomajiUnit[] = [];
@@ -204,9 +228,33 @@ export class RomajiMatcher {
   private typed = '';
   private missAt: boolean[];
 
-  constructor(reading: string) {
-    this.units = tokenize(reading);
+  constructor(reading: string, style: RomajiStyle = 'hepburn') {
+    this.units = tokenize(reading, style);
     this.missAt = this.units.map(() => false);
+  }
+
+  /** 状態をそのまま写した別の判定器（試しに打ってみるため） */
+  clone(): RomajiMatcher {
+    const c = Object.create(RomajiMatcher.prototype) as RomajiMatcher;
+    Object.assign(c, { units: this.units, index: this.index, buffer: this.buffer, typed: this.typed, missAt: [...this.missAt] });
+    return c;
+  }
+
+  /** いま正しいと判定されるキーの一覧（ガイドに表示中の文字以外の、別の正しい打ち方も含みます） */
+  acceptableKeys(): string[] {
+    if (this.done) return [];
+    const keys = "abcdefghijklmnopqrstuvwxyz-,.!?[]/~'0123456789";
+    return [...keys].filter((k) => this.clone().input(k) === 'correct');
+  }
+
+  /** 現在入力中の単位の番号 */
+  get unitIndex(): number {
+    return this.index;
+  }
+
+  /** これまでに正しく入力した文字列 */
+  get typedText(): string {
+    return this.typed;
   }
 
   get done(): boolean {
