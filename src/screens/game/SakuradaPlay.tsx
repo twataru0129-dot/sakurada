@@ -1,0 +1,339 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { keyForChar } from '../../core/keyboardLayout';
+import { newResultId } from '../../core/result';
+import { buildGameResult } from '../../core/game/result';
+import { completionYearFor, formatGameTime, GameClock, penaltyMsFor, recordTimeMsFor, SakuradaGame, type GameSnapshot } from '../../core/game/sakurada';
+import { COURSE_LABEL, findStory, STORY_SET_VERSION } from '../../data/gameStories';
+import { useApp } from '../../state/AppContext';
+import { navigate } from '../../state/router';
+import { sound } from '../../sound';
+import { Hands } from '../../ui/Hands';
+import { Keyboard } from '../../ui/Keyboard';
+import { BuildingView } from '../../ui/game/BuildingView';
+import { ProgressGauge } from '../../ui/game/ProgressGauge';
+import { usePreloadStages } from '../../ui/game/stageImages';
+import { isStartKey } from '../Practice';
+import { useCompact } from '../RomajiRunner';
+
+type Phase = 'ready' | 'running' | 'paused' | 'confirmQuit' | 'finished';
+
+/** 開始のスペースを、ボタンや入力欄の操作から奪わないための判定 */
+function isControl(el: EventTarget | null): boolean {
+  const t = el as HTMLElement | null;
+  return !!t?.closest?.('button, input, select, textarea, a, [contenteditable="true"], label');
+}
+
+export function SakuradaPlay() {
+  const { gameSession } = useApp();
+  const story = gameSession ? findStory(gameSession.storyId) : null;
+  if (!gameSession || !story) {
+    return (
+      <main>
+        <p>ゲームの設定がありません。</p>
+        <button type="button" className="btn" onClick={() => navigate('/game/sakurada')}>
+          ゲームの紹介へ
+        </button>
+      </main>
+    );
+  }
+  return <Play key={`${story.id}:${gameSession.courseId}`} />;
+}
+
+function Play() {
+  const { gameSession, settings, recordGame } = useApp();
+  const session = gameSession!;
+  const story = findStory(session.storyId)!;
+  const touch = session.inputMethod === 'touch';
+  // 開始したときのローマ字のお手本で最後まで続けます
+  const [style] = useState(settings.romajiStyle);
+  const game = useMemo(() => new SakuradaGame(story, style), [story, style]);
+  const clock = useMemo(() => new GameClock(), []);
+  const resultId = useRef(newResultId());
+  const startedAt = useRef(new Date());
+  const [phase, setPhase] = useState<Phase>('ready');
+  const phaseRef = useRef<Phase>('ready');
+  phaseRef.current = phase;
+  const [snap, setSnap] = useState<GameSnapshot>(() => game.snapshot());
+  const [now, setNow] = useState(0);
+  const [penaltyPop, setPenaltyPop] = useState(0);
+  const [sparkle, setSparkle] = useState(0);
+  const [imeWarning, setImeWarning] = useState(false);
+  const [touchNote, setTouchNote] = useState(false);
+  const loadState = usePreloadStages();
+  const compact = useCompact();
+  const finished = useRef(false);
+
+  const finish = useCallback(() => {
+    if (finished.current) return;
+    finished.current = true;
+    clock.stop();
+    setPhase('finished');
+    if (settings.sound) sound.finish();
+    recordGame(
+      buildGameResult({
+        id: resultId.current,
+        storySetVersion: STORY_SET_VERSION,
+        storyId: story.id,
+        courseId: story.courseId,
+        inputMethod: session.inputMethod,
+        romajiStyle: style,
+        startedAt: startedAt.current,
+        finishedAt: new Date(),
+        elapsedMs: clock.elapsedMs(),
+        missCount: game.missCount,
+        correctKeystrokes: game.correctKeystrokes,
+        completedReadingCharacters: game.completedReadingCharacters,
+        totalReadingCharacters: game.totalReadingCharacters,
+        pauseCount: clock.pauseCount,
+        finished: true,
+      }),
+    );
+    navigate('/game/sakurada/result');
+  }, [clock, game, recordGame, session.inputMethod, settings.sound, story, style]);
+
+  const start = useCallback(() => {
+    if (clock.started) return;
+    startedAt.current = new Date();
+    clock.start();
+    setPhase('running');
+  }, [clock]);
+
+  const feed = useCallback(
+    (ch: string) => {
+      if (phaseRef.current !== 'running' || finished.current) return;
+      const before = game.snapshot().stage.index;
+      const r = game.input(ch);
+      if (r === 'ignored') return;
+      if (r === 'miss') {
+        setPenaltyPop((n) => n + 1);
+        if (settings.sound) sound.miss();
+      } else {
+        setSparkle((n) => n + 1);
+        if (settings.sound && game.snapshot().stage.index > before && !game.done) sound.complete();
+      }
+      setSnap(game.snapshot());
+      if (game.done) finish();
+    },
+    [finish, game, settings.sound],
+  );
+
+  // キーの受け付け
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const p = phaseRef.current;
+      if (p === 'ready') {
+        if (e.key !== ' ' && e.code !== 'Space') return;
+        // ボタン・入力欄などを操作しているときのスペースは、その操作に使います
+        if (isControl(e.target)) return;
+        e.preventDefault();
+        if (isStartKey(e)) start();
+        return;
+      }
+      if (p !== 'running') return;
+      // 日本語入力（IME）の変換中・修飾キーつき・押しっぱなしのくり返しはミスに数えません
+      if (e.isComposing || e.key === 'Process' || e.keyCode === 229) {
+        if (!touch) setImeWarning(true);
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        pause();
+        return;
+      }
+      if ([...e.key].length !== 1) return; // Shift・Enter・Tab・矢印・ファンクションキーなど
+      if (e.key === ' ') {
+        if (!isControl(e.target)) e.preventDefault();
+        return;
+      }
+      if ((e.target as HTMLElement)?.closest?.('.modal')) return;
+      e.preventDefault();
+      if (e.repeat) return;
+      if (touch) {
+        setTouchNote(true);
+        return;
+      }
+      setImeWarning(false);
+      feed(e.key);
+    };
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => window.removeEventListener('keydown', onKey, { capture: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feed, start, touch]);
+
+  // 時間の表示（計測そのものは時計で行い、表示の更新回数は時間に使いません）
+  useEffect(() => {
+    if (phase !== 'running') return;
+    const t = window.setInterval(() => setNow(clock.elapsedMs()), 200);
+    return () => window.clearInterval(t);
+  }, [phase, clock]);
+
+  const pause = () => {
+    if (phaseRef.current !== 'running') return;
+    clock.pause();
+    setNow(clock.elapsedMs());
+    setPhase('paused');
+  };
+  const resume = () => {
+    clock.resume();
+    setPhase('running');
+  };
+
+  const elapsed = phase === 'ready' ? 0 : now;
+  const penalty = penaltyMsFor(snap.missCount);
+  const nextKey = snap.done ? null : snap.matcher.nextKey();
+  const target = nextKey ? keyForChar(nextKey) : null;
+  const keyLabel = nextKey === null ? '' : nextKey === '-' ? 'ー（-）' : nextKey.toUpperCase();
+  const showKeyboard = settings.keyboardGuide || touch;
+  const ms = snap.matcher.snapshot();
+
+  return (
+    <main className="game-main">
+      <div className="game-bar">
+        <span className="game-title-small">サクラダファミリアを完成させよ・{COURSE_LABEL[story.courseId]}</span>
+        <span className="game-time" data-testid="game-time">
+          入力時間 <strong>{formatGameTime(elapsed)}</strong>
+        </span>
+        <span className="game-penalty" data-testid="game-penalty">
+          ミス {snap.missCount}回（＋{penalty / 1000}秒）
+          {penaltyPop > 0 && (
+            <span key={penaltyPop} className="penalty-pop" aria-hidden="true">
+              ＋5秒
+            </span>
+          )}
+        </span>
+        <span className="game-year hint" data-testid="game-year">
+          ゲーム内の年：{completionYearFor(recordTimeMsFor(elapsed, snap.missCount))}年
+        </span>
+        <span className="spacer" />
+        {phase === 'running' && (
+          <button type="button" className="btn btn-small" onClick={pause} data-testid="game-pause">
+            一時停止
+          </button>
+        )}
+        {(phase === 'ready' || phase === 'running') && (
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => setPhase('confirmQuit')}>
+            やめる
+          </button>
+        )}
+      </div>
+
+      <div className="game-layout">
+        <div className="game-visual">
+          <BuildingView stage={snap.stage.index} loadState={loadState} sparkle={sparkle} />
+          <ProgressGauge completed={snap.completedReadingCharacters} total={snap.totalReadingCharacters} stage={snap.stage} />
+          {settings.fingerGuide && (
+            <div className="game-hands">
+              <Hands target={target} keyLabel={keyLabel} />
+            </div>
+          )}
+        </div>
+
+        <div className="game-input-col">
+        <section className="game-sentence panel" aria-label="入力する文" data-testid="game-sentence">
+          <p className="hint game-count">
+            {Math.min(snap.sentenceIndex + 1, story.sentences.length)} / {story.sentences.length} 文目・{story.title}
+          </p>
+          <div className="game-text" lang="ja" data-testid="game-text">
+            {snap.sentence.text}
+          </div>
+          <div className="game-kana" aria-label={`読み ${snap.sentence.reading}`}>
+            {ms.units.map((u, i) => (
+              <span key={`${snap.sentenceIndex}-${i}`} className={`kana-unit ${i < ms.index ? 'kana-done' : ''}`}>
+                {u.kana}
+              </span>
+            ))}
+          </div>
+          {settings.romajiGuide ? (
+            <div className="romaji-line game-romaji" data-testid="game-romaji" aria-label={`ローマ字ガイド：入力済み ${ms.typed}、次に ${nextKey ?? ''}`}>
+              <span className="romaji-typed">{ms.typed}</span>
+              {nextKey !== null && (
+                <>
+                  <span className="romaji-next">{nextKey}</span>
+                  <span className="romaji-rest">{ms.remaining.slice(1)}</span>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="romaji-line romaji-line-off game-romaji">
+              <span className="romaji-typed">{ms.typed}</span>
+              <span className="guide-off-note">（ローマ字ガイドは OFF です）</span>
+            </div>
+          )}
+          {imeWarning && (
+            <p className="msg msg-warn" role="alert">
+              日本語入力がオンになっているようです。「半角/全角」キーで英字の入力にしてください。（ミスには数えていません）
+            </p>
+          )}
+          {touchNote && <p className="msg msg-info">「画面のキーをタップ」で遊んでいます。画面のキーを押してください。</p>}
+        </section>
+          {showKeyboard && (
+        <div className="guides game-guides">
+          {showKeyboard && (
+            <div className="guide-keyboard">
+              <Keyboard
+                target={settings.keyboardGuide ? target : null}
+                targetChar={settings.keyboardGuide ? nextKey : null}
+                colored={settings.fingerGuide || settings.keyboardGuide}
+                onType={touch ? feed : undefined}
+                compact={compact}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+        </div>
+      </div>
+
+      {phase === 'ready' && (
+        <div className="game-ready" role="dialog" aria-modal="false" aria-labelledby="game-ready-title">
+          <h2 id="game-ready-title">準備ができたら、スペースキーかスタートボタンで工事開始</h2>
+          <p className="hint">
+            物語：「{story.title}」（{COURSE_LABEL[story.courseId]}）。日本語入力はオフ（半角英数）にしてください。
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary btn-large"
+            onClick={start}
+            onKeyDown={(e) => {
+              if (e.key === ' ') e.preventDefault();
+            }}
+            data-testid="game-go"
+          >
+            スタート
+          </button>
+        </div>
+      )}
+
+      {phase === 'paused' && (
+        <div className="modal-back" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+          <div className="modal">
+            <h2 id="pause-title">一時停止中</h2>
+            <p>時間は止まっています。入力も受け付けません。一時停止した記録は、一時停止しなかった記録とは別に比べます。</p>
+            <button type="button" className="btn btn-primary" autoFocus onClick={resume} data-testid="game-resume">
+              再開する
+            </button>
+          </div>
+        </div>
+      )}
+
+      {phase === 'confirmQuit' && (
+        <div className="modal-back" role="dialog" aria-modal="true" aria-labelledby="gquit-title">
+          <div className="modal">
+            <h2 id="gquit-title">ゲームをやめますか？</h2>
+            <p>完成する前にやめると、このプレイは記録しません。{clock.started && '時間は止まりません。'}</p>
+            <div className="btn-row">
+              <button type="button" className="btn btn-danger" onClick={() => navigate('/game/sakurada')}>
+                やめる
+              </button>
+              <button type="button" className="btn btn-primary" autoFocus onClick={() => setPhase(clock.started ? 'running' : 'ready')}>
+                続ける
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

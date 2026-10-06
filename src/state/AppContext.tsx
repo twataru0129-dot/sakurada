@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { IDLE_LOGOUT_MS, IDLE_WARNING_MS } from '../config';
-import { getClient, loadSettings, logoutCloud, saveExamResult, saveOwnSettings, saveResult, type Profile } from '../data/cloud';
+import { CloudTableMissingError, getClient, loadSettings, logoutCloud, saveExamResult, saveGameResult, saveOwnSettings, saveResult, type Profile } from '../data/cloud';
 import type { PracticeConfig, PracticeResult } from '../core/result';
 import { APP_DEFAULT_SETTINGS, effectiveSettings, type LearningSettings } from '../core/settings';
 import { navigate } from './router';
@@ -9,6 +9,19 @@ import { recordFromResult } from '../core/history';
 import type { ExamProblem } from '../core/exam';
 import type { ExamOutcome } from '../core/examResult';
 import { GUEST_EXAM_HISTORY_KEY, saveGuestExamRecord } from '../data/guestExamHistory';
+import { GUEST_GAME_BESTS_KEY, GUEST_GAME_HISTORY_KEY, saveGuestGameResult } from '../data/guestGameHistory';
+import type { GameResult } from '../core/game/result';
+import type { CourseId } from '../core/game/sakurada';
+
+/** ゲームで始めるプレイ（コース。物語は開始時に1回だけ選びます） */
+export interface GameSession {
+  courseId: CourseId;
+  storyId: string;
+  inputMethod: 'keyboard' | 'touch';
+}
+
+/** 保存できなかった理由（画面の表示を分けるため） */
+export type SaveFailure = 'missing_table' | 'network' | 'device';
 
 /** 検定モードで始める練習（問題・時間・プレビューか） */
 export interface ExamSession {
@@ -48,6 +61,14 @@ interface AppValue {
   currentExam: ExamOutcome | null;
   recordExam: (o: ExamOutcome) => void;
   retryExamSave: (id: string) => void;
+  gameSession: GameSession | null;
+  setGameSession: (s: GameSession | null) => void;
+  /** このログイン中（またはゲストの間）のゲームの結果。保存できなかった記録もここに残し、再送できます */
+  gameResults: GameResult[];
+  currentGame: GameResult | null;
+  recordGame: (r: GameResult) => void;
+  retryGameSave: (id: string) => void;
+  saveFailures: Record<string, SaveFailure>;
   notice: string | null;
   setNotice: (s: string | null) => void;
   idleWarning: boolean;
@@ -71,7 +92,7 @@ function clearLocalTraces() {
     if (!store) continue;
     try {
       for (const k of Object.keys(store)) {
-        if (k === GUEST_HISTORY_KEY || k === GUEST_EXAM_HISTORY_KEY) continue;
+        if (k === GUEST_HISTORY_KEY || k === GUEST_EXAM_HISTORY_KEY || k === GUEST_GAME_HISTORY_KEY || k === GUEST_GAME_BESTS_KEY) continue;
         if (k.startsWith('sakura') || k.startsWith('sb-')) store.removeItem(k);
       }
     } catch {
@@ -101,6 +122,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [examSession, setExamSession] = useState<ExamSession | null>(null);
   const [examOutcomes, setExamOutcomes] = useState<ExamOutcome[]>([]);
   const [currentExam, setCurrentExam] = useState<ExamOutcome | null>(null);
+  const [gameSession, setGameSession] = useState<GameSession | null>(null);
+  const [gameResults, setGameResults] = useState<GameResult[]>([]);
+  const [currentGame, setCurrentGame] = useState<GameResult | null>(null);
+  const [saveFailures, setSaveFailures] = useState<Record<string, SaveFailure>>({});
+  const gameIds = useRef(new Set<string>());
   const [notice, setNotice] = useState<string | null>(null);
   const [idleWarning, setIdleWarning] = useState(false);
   const accountRef = useRef<Account | null>(null);
@@ -123,6 +149,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setExamOutcomes([]);
     setCurrentExam(null);
     examIds.current = new Set();
+    setGameSession(null);
+    setGameResults([]);
+    setCurrentGame(null);
+    setSaveFailures({});
+    gameIds.current = new Set();
     setIdleWarning(false);
     window.clearTimeout(settingsTimer.current);
     clearLocalTraces();
@@ -247,6 +278,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [examOutcomes, doSaveExam],
   );
 
+  // ゲームの記録：ゲストはこの端末、ログイン利用者はアカウント（クラウド）。失敗してもゲストの保存場所には切り替えません
+  const doSaveGame = useCallback(async (r: GameResult) => {
+    const fail = (why: SaveFailure) => {
+      setSaves((s) => ({ ...s, [r.id]: 'failed' }));
+      setSaveFailures((f) => ({ ...f, [r.id]: why }));
+    };
+    if (accountRef.current?.kind === 'guest') {
+      const outcome = saveGuestGameResult(r);
+      if (outcome === 'failed') fail('device');
+      else setSaves((s) => ({ ...s, [r.id]: 'saved' }));
+      return;
+    }
+    const owner = accountRef.current?.kind === 'user' ? accountRef.current.profile.id : null;
+    setSaves((s) => ({ ...s, [r.id]: 'saving' }));
+    try {
+      await saveGameResult(r);
+      // 送っている間に別のアカウントに変わっていたら、表示を更新しません（記録は送った本人の分です）
+      if (accountRef.current?.kind === 'user' && accountRef.current.profile.id === owner) setSaves((s) => ({ ...s, [r.id]: 'saved' }));
+    } catch (e) {
+      if (accountRef.current?.kind === 'user' && accountRef.current.profile.id === owner) fail(e instanceof CloudTableMissingError ? 'missing_table' : 'network');
+    }
+  }, []);
+
+  const recordGame = useCallback(
+    (r: GameResult) => {
+      // 1回のプレイ（同じ ID）は1回だけ保存します
+      if (gameIds.current.has(r.id)) return;
+      gameIds.current.add(r.id);
+      setCurrentGame(r);
+      setGameResults((list) => [r, ...list]);
+      if (accountRef.current) void doSaveGame(r);
+    },
+    [doSaveGame],
+  );
+
+  const retryGameSave = useCallback(
+    (id: string) => {
+      const r = gameResults.find((x) => x.id === id);
+      if (r && accountRef.current) void doSaveGame(r);
+    },
+    [gameResults, doSaveGame],
+  );
+
   // 認証基盤側でセッションが終わったとき（停止・期限切れなど）は入口に戻ります
   useEffect(() => {
     const c = getClient();
@@ -300,8 +374,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       sessionResults, saves, recordResult, retrySave, unsavedCount,
       lastConfig, setLastConfig, currentResult, setCurrentResult, historyFocus, setHistoryFocus, notice, setNotice, idleWarning, keepAlive,
       examSession, setExamSession, examOutcomes, currentExam, recordExam, retryExamSave,
+      gameSession, setGameSession, gameResults, currentGame, recordGame, retryGameSave, saveFailures,
     }),
-    [examSession, examOutcomes, currentExam, recordExam, retryExamSave, historyFocus, account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
+    [gameSession, gameResults, currentGame, recordGame, retryGameSave, saveFailures, examSession, examOutcomes, currentExam, recordExam, retryExamSave, historyFocus, account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

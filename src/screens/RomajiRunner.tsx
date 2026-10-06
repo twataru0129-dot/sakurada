@@ -17,7 +17,7 @@ function isTypingKey(e: KeyboardEvent): boolean {
   return true;
 }
 
-function useCompact(): boolean {
+export function useCompact(): boolean {
   const q = '(max-width: 600px)';
   const [c, setC] = useState(() => window.matchMedia?.(q).matches ?? false);
   useEffect(() => {

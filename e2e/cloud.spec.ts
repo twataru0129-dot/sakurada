@@ -31,6 +31,10 @@ interface MockState {
   /** 検定モードの記録（exam_results） */
   examBodies?: Record<string, unknown>[];
   examRows?: Map<string, Record<string, unknown>[]>;
+  /** ゲームの記録（game_results） */
+  gameBodies?: Record<string, unknown>[];
+  gameRows?: Map<string, Record<string, unknown>[]>;
+  gameMode?: 'ok' | 'fail-first' | 'missing';
 }
 
 async function mockSupabase(page: Page, opts: { failFirstSave?: boolean; state?: MockState; noRomajiStyleColumn?: boolean } = {}): Promise<MockState> {
@@ -110,6 +114,34 @@ async function mockSupabase(page: Page, opts: { failFirstSave?: boolean; state?:
         return json(route, null, 201);
       }
       return json(route, [...(st.examRows.get(st.current) ?? [])]);
+    }
+    if (url.pathname === '/rest/v1/game_results' || url.pathname === '/rest/v1/rpc/game_bests') {
+      st.gameBodies ??= [];
+      st.gameRows ??= new Map();
+      if (st.gameMode === 'missing') return json(route, { code: 'PGRST205', message: "Could not find the table 'public.game_results' in the schema cache" }, 404);
+      const mine = st.gameRows.get(st.current) ?? [];
+      if (url.pathname.endsWith('/game_bests')) {
+        const best = new Map<string, Record<string, unknown>>();
+        for (const r of mine) {
+          const k = `${r.course_id}|${r.story_id}|${Number(r.pause_count) > 0}`;
+          if (!best.has(k) || Number(r.record_time_ms) < Number(best.get(k)!.record_time_ms)) best.set(k, r);
+        }
+        return json(route, [...best.values()]);
+      }
+      if (req.method() === 'POST') {
+        const b = req.postDataJSON() as Record<string, unknown>;
+        st.gameBodies.push(b);
+        if (st.gameMode === 'fail-first' && st.gameBodies.length === 1) return json(route, { message: 'server error' }, 503);
+        if (mine.some((r) => r.id === b.id)) return json(route, { code: '23505', message: 'duplicate key' }, 409);
+        const penalty = Number(b.miss_count) * 5000;
+        const rec = Number(b.elapsed_ms) + penalty;
+        const c = Number(b.correct_keystrokes);
+        const m = Number(b.miss_count);
+        mine.push({ ...b, user_id: USERS[st.current]!.id, penalty_ms: penalty, record_time_ms: rec, completion_year: 1882 + Math.floor(rec / 2000), accuracy: c + m === 0 ? null : (c * 100) / (c + m) });
+        st.gameRows.set(st.current, mine);
+        return json(route, null, 201);
+      }
+      return json(route, [...mine].sort((a, b) => String(b.started_at).localeCompare(String(a.started_at))));
     }
     if (url.pathname === '/rest/v1/materials') return json(route, []);
     return json(route, { message: 'not mocked' }, 404);
@@ -328,4 +360,94 @@ test('検定モード：ログイン機能が設定済みのとき、生徒は�
   await expect(page.getByRole('button', { name: '先生の追加問題を管理する' })).toHaveCount(0);
   await page.evaluate(() => (window.location.hash = '#/exam/manage'));
   await expect(page.getByText('この画面は先生のアカウントでログインしたときだけ使えます。')).toBeVisible();
+});
+
+async function playShortGame(page: Page) {
+  await page.getByTestId('home-game').click();
+  await page.getByTestId('game-card-sakurada-familia').click();
+  await page.getByRole('radio', { name: /短縮コース/ }).check();
+  await page.getByTestId('game-start').click();
+  await page.getByTestId('game-go').click();
+  await page.keyboard.press('q');
+  for (let i = 0; i < 20; i++) {
+    if (!(await page.locator('.game-romaji .romaji-next').count())) break;
+    const g = ((await page.locator('.game-romaji .romaji-next').textContent()) ?? '') + ((await page.locator('.game-romaji .romaji-rest').textContent()) ?? '');
+    await page.keyboard.type(g);
+  }
+  await expect(page.getByTestId('game-complete-title')).toBeVisible();
+}
+
+test('ゲーム：ログイン利用者の記録はアカウントに保存し、別の端末でも見える。別のアカウント・ゲストとは混ざらない', async ({ page, browser }, info) => {
+  test.skip(info.project.name !== 'pc');
+  const st = await mockSupabase(page);
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'さくらさん、こんにちは' })).toBeVisible();
+  await playShortGame(page);
+  await expect(page.getByTestId('game-save-state')).toContainText('✓ 記録をアカウントに保存しました');
+  expect(st.gameBodies).toHaveLength(1);
+  const body = st.gameBodies![0]!;
+  // 計算する値（ミス加算・記録タイム・完成年・正確率）と入力の文章は送らない。本人の ID も送らない（認証で決まる）
+  for (const k of ['penalty_ms', 'record_time_ms', 'completion_year', 'accuracy', 'user_id']) expect(body).not.toHaveProperty(k);
+  expect(body).toMatchObject({ game_id: 'sakurada-familia', rule_version: 'sakurada-rule-v1', course_id: 'short', miss_count: 1, finished: true });
+  expect(st.resultPosts).toBe(0);
+  expect(await page.evaluate(() => Object.keys(localStorage))).not.toContain('sakura-type:guest-game-history:v1');
+  // 別の端末（新しいブラウザ環境）で同じ人がログイン → 同じ記録
+  const other = await browser.newContext({ baseURL: 'http://localhost:5179/mock/', locale: 'ja-JP' });
+  const p2 = await other.newPage();
+  await mockSupabase(p2, { state: st });
+  await login(p2);
+  await expect(p2.getByRole('heading', { name: 'さくらさん、こんにちは' })).toBeVisible();
+  await p2.getByRole('button', { name: '練習の記録' }).click();
+  await p2.getByTestId('tab-game').click();
+  await expect(p2.getByTestId('game-history-source')).toContainText('アカウント');
+  await expect(p2.getByTestId('game-history-row')).toHaveCount(1);
+  // 同じ人の2回目：自己ベスト（アカウントの記録）と比べる
+  await p2.getByRole('button', { name: 'ホームにもどる' }).click();
+  await playShortGame(p2);
+  await expect(p2.getByTestId('game-compare')).not.toContainText('初めての完成');
+  await other.close();
+  // 別のアカウント
+  await page.getByRole('button', { name: 'ゲーム選択へ' }).click();
+  await page.getByRole('button', { name: 'ホームにもどる' }).click();
+  await page.getByRole('button', { name: '終了してログアウト' }).click();
+  await login(page, 'pass1234', 'stu02');
+  await expect(page.getByRole('heading', { name: 'もみじさん、こんにちは' })).toBeVisible();
+  await page.getByRole('button', { name: '練習の記録' }).click();
+  await page.getByTestId('tab-game').click();
+  await expect(page.getByTestId('game-history-empty')).toBeVisible();
+});
+
+test('ゲーム：保存に失敗したら「クラウドに保存できていません」と表示し、再送しても1件だけ', async ({ page }, info) => {
+  test.skip(info.project.name !== 'pc');
+  const st = await mockSupabase(page);
+  st.gameMode = 'fail-first';
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'さくらさん、こんにちは' })).toBeVisible();
+  await playShortGame(page);
+  await expect(page.getByTestId('game-save-state')).toContainText('クラウドに保存できていません');
+  await expect(page.getByTestId('game-save-state')).toContainText('通信を確認');
+  // 結果は消えない
+  await expect(page.getByTestId('record-time')).toBeVisible();
+  await page.getByTestId('game-retry').click();
+  await expect(page.getByTestId('game-save-state')).toContainText('✓ 記録をアカウントに保存しました');
+  expect(st.gameBodies!.length).toBe(2);
+  expect(new Set(st.gameBodies!.map((b) => b.id)).size).toBe(1);
+  expect(st.gameRows!.get('stu01')).toHaveLength(1);
+  // ゲストの保存場所には切り替えない
+  expect(await page.evaluate(() => Object.keys(localStorage))).not.toContain('sakura-type:guest-game-history:v1');
+});
+
+test('ゲーム：データベースに表がない（マイグレーション未適用）ときは、その旨を表示する', async ({ page }, info) => {
+  test.skip(info.project.name !== 'pc');
+  const st = await mockSupabase(page);
+  st.gameMode = 'missing';
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'さくらさん、こんにちは' })).toBeVisible();
+  await playShortGame(page);
+  await expect(page.getByTestId('game-save-state')).toContainText('クラウドに保存できていません');
+  await expect(page.getByTestId('game-save-state')).toContainText('マイグレーション');
+  await page.getByRole('button', { name: 'ゲームの記録' }).click();
+  await expect(page.getByText('ゲームの記録を保存する表が、まだデータベースにありません')).toBeVisible();
+  // 保存できていない今回の記録は「未保存」として一覧に残る
+  await expect(page.getByTestId('game-history-row')).toContainText('未保存');
 });

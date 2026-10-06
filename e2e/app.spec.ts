@@ -59,14 +59,16 @@ test.describe('入口・アイコン・サブディレクトリ', () => {
       expect(overlap, sel).toBe(false);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-    await expect(page.locator('.app-header .version')).toHaveText('v1.1.0');
+    await expect(page.locator('.app-header .version')).toHaveText('v1.2.0');
   });
 
-  test('準備中のモードは押せない（検定モードは v1.1.0 から使える）', async ({ page }) => {
+  test('3つのモードが使える（v1.2.0：② ゲームモード）', async ({ page }) => {
     await page.goto('./');
     await page.getByRole('button', { name: 'ゲストで練習' }).click();
-    await expect(page.getByRole('button', { name: /桜打クエスト/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /タイピングモード/ })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /ゲームモード/ })).toBeEnabled();
     await expect(page.getByRole('button', { name: /検定モード/ })).toBeEnabled();
+    await expect(page.getByText('準備中')).toHaveCount(0);
   });
 });
 

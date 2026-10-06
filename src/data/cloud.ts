@@ -14,6 +14,7 @@ import type { Question } from '../core/questions';
 import { HISTORY_LIMIT, type HistoryRecord } from '../core/history';
 import { sanitizeSettings, settingsToJson, type LearningSettings } from '../core/settings';
 import { EXAM_HISTORY_LIMIT, parseExamRecord, type ExamRecord } from '../core/examResult';
+import { GAME_HISTORY_LIMIT, parseGameResult, type GameResult } from '../core/game/result';
 
 const memory = new Map<string, string>();
 const memoryStorage = {
@@ -578,4 +579,89 @@ export async function fetchExamResultsOf(userId: string, limit = EXAM_HISTORY_LI
     .limit(limit);
   if (error) throw new Error(error.code === '42P01' || error.code === 'PGRST205' ? 'exam_results_missing' : error.message);
   return ((data ?? []) as Record<string, unknown>[]).map(mapExam).filter((x): x is ExamRecord => x !== null);
+}
+
+// ---------------------------------------------------------------------
+// ゲームモードの記録（game_results。タイピング・検定モードの記録とは別の表）
+// ---------------------------------------------------------------------
+/** データベースに表・関数がまだない（マイグレーション未適用）ときのエラー */
+export class CloudTableMissingError extends Error {
+  constructor() {
+    super('クラウドの記録の表がまだありません（データベースにマイグレーションを適用してください）');
+  }
+}
+const isMissingTable = (e: { code?: string } | null) => !!e && ['42P01', 'PGRST205', 'PGRST202', '42883'].includes(e.code ?? '');
+
+/**
+ * ゲームの記録を保存します。入力した文章・打鍵の記録は送りません。
+ * ミス加算・記録タイム・完成年・正確率はデータベース側でルールに従って計算し直します（送りません）。
+ */
+export async function saveGameResult(r: GameResult): Promise<void> {
+  const row = {
+    id: r.id,
+    game_id: r.gameId,
+    rule_version: r.ruleVersion,
+    story_set_version: r.storySetVersion,
+    story_id: r.storyId,
+    course_id: r.courseId,
+    input_method: r.inputMethod,
+    romaji_style: r.romajiStyle,
+    started_at: r.startedAt,
+    finished_at: r.finishedAt,
+    elapsed_ms: r.elapsedMs,
+    miss_count: r.missCount,
+    correct_keystrokes: r.correctKeystrokes,
+    completed_reading_characters: r.completedReadingCharacters,
+    total_reading_characters: r.totalReadingCharacters,
+    pause_count: r.pauseCount,
+    finished: r.finished,
+  };
+  const { error } = await need().from('game_results').insert(row);
+  if (!error || error.code === '23505') return; // 23505 = 同じ ID がすでに保存済み（再送）
+  if (isMissingTable(error)) throw new CloudTableMissingError();
+  throw new Error(error.message);
+}
+
+const GAME_COLUMNS =
+  'id, game_id, rule_version, story_set_version, story_id, course_id, input_method, romaji_style, started_at, finished_at, elapsed_ms, miss_count, penalty_ms, record_time_ms, completion_year, correct_keystrokes, accuracy, completed_reading_characters, total_reading_characters, pause_count, finished';
+
+function mapGame(r: Record<string, unknown>): GameResult | null {
+  return parseGameResult({
+    id: r.id,
+    gameId: r.game_id,
+    ruleVersion: r.rule_version,
+    storySetVersion: r.story_set_version,
+    storyId: r.story_id,
+    courseId: r.course_id,
+    inputMethod: r.input_method,
+    romajiStyle: r.romaji_style,
+    // データベースの日時の書式（+00:00 など）をそろえます
+    startedAt: new Date(String(r.started_at)).toISOString(),
+    finishedAt: new Date(String(r.finished_at)).toISOString(),
+    elapsedMs: Number(r.elapsed_ms),
+    missCount: Number(r.miss_count),
+    penaltyMs: Number(r.penalty_ms),
+    recordTimeMs: Number(r.record_time_ms),
+    completionYear: Number(r.completion_year),
+    correctKeystrokes: Number(r.correct_keystrokes),
+    accuracy: r.accuracy === null ? null : Number(r.accuracy),
+    completedReadingCharacters: Number(r.completed_reading_characters),
+    totalReadingCharacters: Number(r.total_reading_characters),
+    pauseCount: Number(r.pause_count),
+    finished: Boolean(r.finished),
+  });
+}
+
+/** ある利用者のゲームの記録（新しい順・直近 100 件。RLS により本人か担当の先生だけが読めます） */
+export async function fetchGameResultsOf(userId: string, limit = GAME_HISTORY_LIMIT): Promise<GameResult[]> {
+  const { data, error } = await need().from('game_results').select(GAME_COLUMNS).eq('user_id', userId).order('started_at', { ascending: false }).limit(limit);
+  if (error) throw isMissingTable(error) ? new CloudTableMissingError() : new Error(error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map(mapGame).filter((x): x is GameResult => x !== null);
+}
+
+/** ある利用者のゲームの自己ベスト（条件ごと。100 件より古い記録も含めます） */
+export async function fetchGameBests(userId: string): Promise<GameResult[]> {
+  const { data, error } = await need().rpc('game_bests', { p_user: userId });
+  if (error) throw isMissingTable(error) ? new CloudTableMissingError() : new Error(error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map(mapGame).filter((x): x is GameResult => x !== null);
 }
