@@ -1,7 +1,8 @@
 import { FINGER_LABEL, type Finger, type KeyTarget } from '../core/keyboardLayout';
 
 /** 両手の指のガイド。次に押すキーと同じ色で指を示し、指の名前も文字で表示します */
-export function Hands({ target }: { target: KeyTarget | null }) {
+/** keyLabel を渡すと「次のキー：F」も表示します（実際の判定・ガイドと同じキー） */
+export function Hands({ target, keyLabel }: { target: KeyTarget | null; keyLabel?: string }) {
   const on = new Set<Finger>();
   if (target) {
     on.add(target.key.finger);
@@ -25,22 +26,38 @@ export function Hands({ target }: { target: KeyTarget | null }) {
       rx={11}
     />
   );
-  const label = target
+  const fingerText = target
     ? [FINGER_LABEL[target.key.finger], target.shift ? `${FINGER_LABEL[target.shift.finger]}（Shift）` : '']
         .filter(Boolean)
         .join(' ＋ ')
     : '';
+  const fingerClass = target ? `f-${target.key.finger}` : '';
   return (
     <div className="hands">
+      <div className="hand-info" aria-live="off">
+        {keyLabel !== undefined && (
+          <div className="hand-info-row">
+            <span className="hand-info-k">次のキー：</span>
+            <span className={`hand-info-key ${fingerClass}`} data-testid="next-key">
+              {keyLabel || '—'}
+            </span>
+          </div>
+        )}
+        <div className="hand-info-row">
+          <span className="hand-info-k">使う指：</span>
+          <span className="hand-info-v" data-testid="finger">
+            {fingerText || '—'}
+          </span>
+        </div>
+      </div>
       <svg viewBox="0 0 330 170" aria-hidden="true">
         <rect className="palm" x={12} y={96} width={118} height={68} rx={24} />
         <rect className="palm" x={200} y={96} width={118} height={68} rx={24} />
         {left.map((d) => finger(d, 'l'))}
         {right.map((d) => finger(d, 'r'))}
-        <text x={70} y={160} textAnchor="middle" fontSize="13" fill="#5f4f56">左手</text>
-        <text x={260} y={160} textAnchor="middle" fontSize="13" fill="#5f4f56">右手</text>
+        <text x={70} y={160} textAnchor="middle" fontSize="14" fill="#5f4f56">左手</text>
+        <text x={260} y={160} textAnchor="middle" fontSize="14" fill="#5f4f56">右手</text>
       </svg>
-      <div className="finger-label" aria-live="off">{label ? `使う指：${label}` : '　'}</div>
     </div>
   );
 }

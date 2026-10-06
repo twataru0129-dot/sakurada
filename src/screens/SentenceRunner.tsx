@@ -27,6 +27,8 @@ export function SentenceRunner({ deck, config, isActive, registerTotals }: Runne
   const [missCount, setMissCount] = useState(0);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
+  const [seq, setSeq] = useState(0);
+  const [announce, setAnnounce] = useState('');
   const cursorRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -64,7 +66,10 @@ export function SentenceRunner({ deck, config, isActive, registerTotals }: Runne
       setCommitted('');
       setQuestion(next);
       setEv(judge.current.current);
-      setMessage({ ok: true, text: '○ できました！ 次の問題です。' });
+      // 待ち時間なしで次の問題へ。前の問題の表示は残しません（達成状況は上部の「完成 ○問」）
+      setMessage(null);
+      setSeq((n) => n + 1);
+      setAnnounce(`${totals.current.completedQuestions}問完成。次の問題です。`);
       return;
     }
     setCommitted(area.current?.value ?? '');
@@ -121,18 +126,18 @@ export function SentenceRunner({ deck, config, isActive, registerTotals }: Runne
 
   return (
     <>
-      <div className="practice-bar" style={{ gap: 24 }}>
+      <div className="practice-stats">
         <span className="stat">
           完成 <b>{totals.current.completedQuestions}</b> 問
         </span>
         <span className="stat">
-          この問題 <b>{ev.correctChars}</b> / {countTargetChars(question.text)} 文字
+          この問題の正しい文字 <b>{ev.correctChars}</b> / {countTargetChars(question.text)} 文字
         </span>
         <span className="stat">
-          ミス <b>{missCount}</b> 文字
+          ミス（誤って確定した文字） <b>{missCount}</b> 文字
         </span>
       </div>
-      <section className="problem" aria-label="見本">
+      <section className="problem" aria-label="見本" key={seq} data-seq={seq}>
         <div className="model-box" lang="ja">
           {target.map((ch, i) => {
             const cls = i < pos && ok ? 'model-done' : i === pos ? 'model-cursor' : '';
@@ -145,6 +150,7 @@ export function SentenceRunner({ deck, config, isActive, registerTotals }: Runne
           {pos >= target.length && <span ref={cursorRef} />}
         </div>
         {settings.romajiGuide && question.reading && <div className="reading-hint">読み：{question.reading}</div>}
+        {!settings.romajiGuide && <div className="reading-hint">（読みのガイドは OFF です）</div>}
       </section>
 
       <label htmlFor="sentence-input" className="sr-only">
@@ -176,8 +182,11 @@ export function SentenceRunner({ deck, config, isActive, registerTotals }: Runne
           </span>
         ))}
       </div>
-      <div className={`feedback ${message?.ok ? 'feedback-ok' : 'feedback-ng'}`} role="status" aria-live="polite">
+      <div className="feedback feedback-ng" aria-live="polite">
         {message?.text}
+      </div>
+      <div className="sr-only" role="status" aria-live="polite">
+        {announce}
       </div>
       <p className="hint">
         変換中の文字は判定しません。確定したときに見本と比べます。{target.includes('\n') && '見本の「↵」のところで Enter を押して改行します。'}
