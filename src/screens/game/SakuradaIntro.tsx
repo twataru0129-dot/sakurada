@@ -1,10 +1,16 @@
 import { useState } from 'react';
-import { GAME_STORIES, pickStory } from '../../data/gameStories';
+import { courseKeystrokeRange, GAME_STORIES, pickStory } from '../../data/gameStories';
 import type { CourseId } from '../../core/game/sakurada';
 import { useApp } from '../../state/AppContext';
 import { navigate } from '../../state/router';
 import { BackLink, Toggle } from '../../ui/common';
 import { IMAGE_NOTE, STAGE_ALTS, STAGE_IMAGES } from '../../ui/game/stageImages';
+
+/** コースの打鍵数の目安（ヘボン式のお手本の実測値の平均を50打鍵単位に丸めた値） */
+function approxKeys(c: CourseId): number {
+  const r = courseKeystrokeRange(c);
+  return Math.round((r.min + r.max) / 2 / 50) * 50;
+}
 
 /** ゲームの紹介と開始前の設定 */
 export function SakuradaIntro() {
@@ -44,15 +50,15 @@ export function SakuradaIntro() {
         <div className="choice-row" role="radiogroup" aria-label="コース">
           <label className="choice">
             <input type="radio" name="course" checked={course === 'standard'} onChange={() => setCourse('standard')} />
-            標準コース（物語 約1800打鍵）
+            標準コース（長い物語・約{approxKeys('standard')}打鍵）
           </label>
           <label className="choice">
             <input type="radio" name="course" checked={course === 'short'} onChange={() => setCourse('short')} />
-            短縮コース（短い4文・約50打鍵）
+            短縮コース（短い物語・約{approxKeys('short')}打鍵）
           </label>
         </div>
         <p className="hint" style={{ marginTop: 8 }}>
-          物語は、そのコースの{GAME_STORIES[course].length}本から1本をランダムに選びます。標準コースと短縮コースの記録は分けて比べます。
+          物語は、そのコースの{GAME_STORIES[course].length}本から1本をランダムに選びます。短縮コースは、標準コースの約半分の長さの物語です。標準コースと短縮コースの記録は分けて比べます。
         </p>
       </section>
 

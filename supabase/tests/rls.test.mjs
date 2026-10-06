@@ -442,6 +442,18 @@ export async function runRlsTests(db) {
       check('ゲーム記録を削除できない', !!(await fails('delete from public.game_results where user_id = $1', [S_A1])));
       check('ゲーム記録はタイピング・検定の記録に混ざらない', (await rows('select id from public.practice_results where id = $1 union all select id from public.exam_results where id = $1', [mine.id])).length === 0);
     });
+    await as(S_A1, 'aal1', async () => {
+      const v2 = gm(S_A1, { story_set_version: 'sakurada-stories-v2', story_id: 'visit-barcelona-short', course_id: 'short', total_reading_characters: 507, completed_reading_characters: 507, correct_keystrokes: 940, elapsed_ms: 120000 });
+      await db.query(...insG(v2));
+      check('v1.3.0 の短縮版（sakurada-stories-v2）の記録を保存できる', (await rows('select id from public.game_results where id = $1', [v2.id])).length === 1);
+      check('短縮版の読みの総数が違う記録は拒否', !!(await fails(...insG(gm(S_A1, { story_set_version: 'sakurada-stories-v2', story_id: 'visit-barcelona-short', course_id: 'short', total_reading_characters: 30, completed_reading_characters: 30, correct_keystrokes: 51 })))));
+      check('新しい版に旧短縮版の物語 ID は登録されていない', !!(await fails(...insG(gm(S_A1, { story_set_version: 'sakurada-stories-v2', story_id: 'visit-barcelona-intro', course_id: 'short', total_reading_characters: 30, completed_reading_characters: 30, correct_keystrokes: 51 })))));
+      const old = gm(S_A1, { story_id: 'visit-barcelona-intro', course_id: 'short', total_reading_characters: 30, completed_reading_characters: 30, correct_keystrokes: 51, elapsed_ms: 20000 });
+      await db.query(...insG(old));
+      check('旧短縮版（sakurada-stories-v1）の記録も引き続き保存・参照できる', (await rows('select id from public.game_results where id = $1', [old.id])).length === 1);
+      const b = await rows('select story_id, story_set_version from public.game_bests($1)', [S_A1]);
+      check('旧短縮と新短縮の自己ベストは別々', b.some((x) => x.story_id === 'visit-barcelona-intro') && b.some((x) => x.story_id === 'visit-barcelona-short' && x.story_set_version === 'sakurada-stories-v2'), JSON.stringify(b));
+    });
     await as(S_SUSP, 'aal1', async () => {
       check('停止中の生徒はゲーム記録を追加できない', !!(await fails(...insG(gm(S_SUSP)))));
     });

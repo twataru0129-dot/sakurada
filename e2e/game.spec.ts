@@ -87,35 +87,38 @@ test.describe('ゲームモード', () => {
     await expect(page.getByTestId('game-penalty')).toContainText('ミス 1回（＋5秒）');
     expect(await gaugeNow(page)).toBe(0);
     expect(await leftChars(page)).toBe(total);
+    // 短縮版（v1.3.0）：読みの文字数は 503・517・507 のどれか
+    expect([503, 517, 507]).toContain(total);
     let lastPct = 0;
     let lastStage = 0;
     const stages = new Set<number>();
-    for (let i = 0; i < 200; i++) {
+    const snap = () =>
+      page.evaluate(() => ({
+        pct: Number(document.querySelector('[data-testid="gauge-bar"]')?.getAttribute('aria-valuenow') ?? 'NaN'),
+        st: Number(document.querySelector('[data-testid="building"]')?.getAttribute('data-stage') ?? 'NaN'),
+        left: Number(document.querySelector('[data-testid="gauge-left"] strong')?.textContent ?? 'NaN'),
+        count: document.querySelector('.game-count')?.textContent ?? '',
+      }));
+    for (let i = 0; i < 40; i++) {
       if (!(await page.locator('.game-romaji .romaji-next').count())) break;
-      const key = (await page.locator('.game-romaji .romaji-next').textContent())!;
-      const remaining = await guideText(page);
-      if (remaining.length === 1 && (await page.getByTestId('game-text').textContent())?.includes('完成。')) {
+      const g = await guideText(page);
+      // 文の最後の1文字の手前まで打ち、状態を確かめます
+      await page.keyboard.type(g.slice(0, -1));
+      const a = await snap();
+      const [n, all] = a.count.split('文目')[0]!.split('/').map((x) => Number(x.trim()));
+      expect(a.pct).toBeGreaterThanOrEqual(lastPct);
+      expect(a.st).toBeGreaterThanOrEqual(lastStage);
+      expect(a.pct).toBeLessThanOrEqual(99);
+      expect(a.left).toBeGreaterThan(0);
+      if (n === all) {
         // 最後の1打鍵の前は、まだ完成していない
-        expect(await gaugeNow(page)).toBeLessThan(100);
-        expect(await page.getByTestId('building').getAttribute('data-stage')).not.toBe('5');
+        expect(a.st).not.toBe(5);
       }
-      await page.keyboard.press(key);
-      // 最後の1打鍵で結果の画面に移ります
-      if (page.url().includes('/result') || !(await page.locator('.game-main').count())) break;
-      const snapshot = await page
-        .evaluate(() => ({
-          pct: Number(document.querySelector('[data-testid="gauge-bar"]')?.getAttribute('aria-valuenow') ?? 'NaN'),
-          st: Number(document.querySelector('[data-testid="building"]')?.getAttribute('data-stage') ?? 'NaN'),
-        }))
-        .catch(() => null);
-      if (!snapshot || Number.isNaN(snapshot.pct)) break;
-      const { pct, st } = snapshot;
-      expect(pct).toBeGreaterThanOrEqual(lastPct);
-      expect(st).toBeGreaterThanOrEqual(lastStage);
-      expect(pct).toBeLessThanOrEqual(100);
-      lastPct = pct;
-      lastStage = st;
-      stages.add(st);
+      lastPct = a.pct;
+      lastStage = a.st;
+      stages.add(a.st);
+      await page.keyboard.press(g.slice(-1));
+      if (n === all) break;
     }
     expect([...stages]).toEqual(expect.arrayContaining([1, 2, 3, 4]));
     await expect(page).toHaveURL(/#\/game\/sakurada\/result/);
@@ -136,6 +139,8 @@ test.describe('ゲームモード', () => {
   test('ミス6回・入力3分 → 記録3分30秒・西暦1987年（時間切れはない）', async ({ page }, info) => {
     test.skip(info.project.name !== 'pc');
     await page.clock.install();
+    // 入力にかかる実時間で数値が変わらないよう、時計を止めて進めます
+    await page.clock.pauseAt(Date.now() + 1000);
     await guest(page);
     await startCourse(page, '短縮コース');
     await page.getByTestId('game-go').click();
@@ -154,6 +159,8 @@ test.describe('ゲームモード', () => {
   test('長い時間がかかっても失敗にならず、ゲームオーバーもない（20分台 → 2482年以降）', async ({ page }, info) => {
     test.skip(info.project.name !== 'pc');
     await page.clock.install();
+    // 入力にかかる実時間で数値が変わらないよう、時計を止めて進めます
+    await page.clock.pauseAt(Date.now() + 1000);
     await guest(page);
     await startCourse(page, '短縮コース');
     await page.getByTestId('game-go').click();
@@ -171,6 +178,8 @@ test.describe('ゲームモード', () => {
   test('一時停止の間は時間が進まず入力も受け付けない。一時停止の回数を記録する', async ({ page }, info) => {
     test.skip(info.project.name !== 'pc');
     await page.clock.install();
+    // 入力にかかる実時間で数値が変わらないよう、時計を止めて進めます
+    await page.clock.pauseAt(Date.now() + 1000);
     await guest(page);
     await startCourse(page, '短縮コース');
     await page.getByTestId('game-go').click();
@@ -184,10 +193,8 @@ test.describe('ゲームモード', () => {
     await expect(page.getByTestId('elapsed-time')).toHaveText('10秒');
     await expect(page.getByText('一時停止 1回')).toBeVisible();
     const recs = await guestGames(page);
-    expect(recs[0]).toMatchObject({ pauseCount: 1 });
-    // 一時停止の120秒は含めない（入力にかかった実時間の分だけ 10秒より少し長い）
-    expect(recs[0]!.elapsedMs as number).toBeGreaterThanOrEqual(10_000);
-    expect(recs[0]!.elapsedMs as number).toBeLessThan(15_000);
+    // 一時停止の120秒は含めない
+    expect(recs[0]).toMatchObject({ pauseCount: 1, elapsedMs: 10_000 });
   });
 
   test('開始のスペースは、ボタンを操作しているときは奪わない。開始のキー・修飾キー・IME・Enter はミスにしない', async ({ page }, info) => {
@@ -244,6 +251,8 @@ test.describe('ゲームモード', () => {
   test('2回目は前回・自己ベストと比べる', async ({ page }, info) => {
     test.skip(info.project.name !== 'pc');
     await page.clock.install();
+    // 入力にかかる実時間で数値が変わらないよう、時計を止めて進めます
+    await page.clock.pauseAt(Date.now() + 1000);
     await guest(page);
     // 同じ物語になるよう、乱数を固定します
     await page.evaluate(() => {
@@ -262,7 +271,7 @@ test.describe('ゲームモード', () => {
     await page.clock.runFor(20_000);
     await typeAll(page);
     // 入力にかかる実時間の分だけ少し変わるため、約10秒の改善を確かめます
-    await expect(page.getByTestId('cmp-prev')).toContainText(/前回より(9|10|11)\.\d秒早く完成しました。/);
+    await expect(page.getByTestId('cmp-prev')).toContainText('前回より10.0秒早く完成しました。');
     await expect(page.getByTestId('cmp-prev')).toContainText('5年早く');
     await expect(page.getByTestId('cmp-best')).toBeVisible();
   });
@@ -277,19 +286,7 @@ test.describe('ゲームモード', () => {
     await expect(page.getByTestId('gauge-bar')).toBeVisible();
   });
 
-  test('Surface 相当（1366×768）：建物・ゲージ・残り文字数・入力する文・次のキーがスクロールなしで見える', async ({ page }, info) => {
-    test.skip(info.project.name !== 'pc');
-    await page.setViewportSize({ width: 1366, height: 768 });
-    await guest(page);
-    await startCourse(page, '標準コース');
-    await page.getByTestId('game-go').click();
-    for (const id of ['building', 'gauge-bar', 'gauge-left', 'gauge-stage', 'game-text', 'game-romaji']) {
-      const box = (await page.getByTestId(id).boundingBox())!;
-      expect(box.y + box.height, id).toBeLessThanOrEqual(768);
-    }
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(overflow).toBeLessThanOrEqual(0);
-  });
+  // Surface 相当の画面の配置は game-v130.spec.ts で確かめます
 
   test('スマートフォン：画面のキーをタップして遊べ、横にはみ出さない', async ({ page }, info) => {
     test.skip(info.project.name !== 'phone');
@@ -302,7 +299,13 @@ test.describe('ゲームモード', () => {
     await expect(page.getByTestId('game-penalty')).toContainText('ミス 0回');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
-    for (const id of ['building', 'gauge-bar', 'gauge-left', 'game-text']) await expect(page.getByTestId(id)).toBeVisible();
+    for (const id of ['building', 'gauge-bar', 'gauge-left', 'gauge-pct', 'gauge-stage', 'game-text', 'game-time', 'game-penalty']) {
+      await expect(page.getByTestId(id)).toBeVisible();
+      // 横にはみ出して切れていない
+      const b = (await page.getByTestId(id).boundingBox())!;
+      expect(b.x, id).toBeGreaterThanOrEqual(0);
+      expect(b.x + b.width, id).toBeLessThanOrEqual(page.viewportSize()!.width + 0.5);
+    }
   });
 
   test('ゲストのゲームの記録の削除は、ゲームの記録と自己ベストだけを消す', async ({ page }, info) => {

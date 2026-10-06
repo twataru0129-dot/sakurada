@@ -29,6 +29,10 @@ export interface GameStory {
   id: string;
   title: string;
   courseId: CourseId;
+  /** 物語の版（比較・自己ベストの条件に入ります） */
+  storySetVersion: string;
+  /** もう遊べない旧版の物語（過去の記録の表示用） */
+  legacy?: boolean;
   sentences: GameSentence[];
 }
 

@@ -1,13 +1,13 @@
 /** 効果音（設定で ON にしたときだけ鳴らします。初期状態は OFF） */
 let ctx: AudioContext | null = null;
 
-function tone(freq: number, ms: number, volume: number) {
+function tone(freq: number, ms: number, volume: number, type: OscillatorType = 'sine') {
   try {
     ctx ??= new AudioContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.frequency.value = freq;
-    osc.type = 'sine';
+    osc.type = type;
     gain.gain.value = volume;
     osc.connect(gain).connect(ctx.destination);
     const t = ctx.currentTime;
@@ -20,7 +20,16 @@ function tone(freq: number, ms: number, volume: number) {
   }
 }
 
+let lastGameMiss = 0;
+
 export const sound = {
+  /** ゲームのミス：短く低い音。続けてミスしても音が重ならないよう、間隔をあけます */
+  gameMiss: () => {
+    const now = performance.now();
+    if (now - lastGameMiss < 140) return;
+    lastGameMiss = now;
+    tone(170, 110, 0.07, 'square');
+  },
   miss: () => tone(220, 120, 0.08),
   complete: () => tone(880, 140, 0.05),
   finish: () => tone(660, 300, 0.06),

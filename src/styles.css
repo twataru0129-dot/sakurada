@@ -647,22 +647,43 @@ body:has(.entry-main) {
 .rule-list { font-size: 1.25rem; font-weight: 700; padding-left: 1.3em; margin: 0 0 12px; }
 .rule-list li { margin: 4px 0; }
 
-.game-main { max-width: 1500px; padding: 8px 12px 16px; }
-.game-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 6px 14px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+/* ゲーム画面：まずは普通の流れ（スクロールできる）。広く高さのある PC では、下の「一画面」の配置にします */
+.game-main {
+  max-width: 1600px; padding: 8px 12px 16px;
+  --gt: 1.5rem; --gk: 1.15rem; --gr: 1.2rem;
+}
+.game-top { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.game-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; padding: 4px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.game-bar .spacer { flex: 1; }
 .game-title-small { font-weight: 700; color: var(--accent-dark); font-size: 0.95rem; }
-.game-time strong { font-size: 1.5rem; color: var(--accent-dark); font-variant-numeric: tabular-nums; }
-.game-penalty { position: relative; font-variant-numeric: tabular-nums; }
-.penalty-pop { position: absolute; left: 0; top: -1.15em; color: var(--ng); font-weight: 800; font-size: 0.95rem; white-space: nowrap; animation: penalty-pop 0.9s ease-out forwards; }
-@keyframes penalty-pop { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
+.game-time strong { font-size: 1.45rem; color: var(--accent-dark); font-variant-numeric: tabular-nums; }
+.game-penalty { position: relative; font-variant-numeric: tabular-nums; border-radius: 8px; padding: 0 6px; border: 2px solid transparent; margin-right: 4.6em; }
+.game-penalty.is-miss { border-color: var(--ng); color: var(--ng); font-weight: 700; }
+.penalty-pop { position: absolute; left: 100%; top: 50%; margin-left: 6px; transform: translateY(-50%); color: #fff; background: var(--ng); border-radius: 999px; padding: 0 10px; font-weight: 800; font-size: 0.95rem; white-space: nowrap; pointer-events: none; }
 
-.game-layout { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 6fr); gap: 12px; align-items: start; }
-.game-visual { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gauge-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: center; }
+.gauge-box .gauge { grid-column: 1 / -1; }
+.gauge-inline { grid-template-columns: auto minmax(160px, 1fr) auto auto auto; padding: 6px 14px; }
+.gauge-inline .gauge { grid-column: auto; margin: 0; }
+.gauge-title { font-weight: 800; white-space: nowrap; }
+.gauge-stage { white-space: nowrap; }
+.gauge-stage strong { color: var(--accent-dark); font-size: 1.15rem; }
+.gauge { position: relative; height: 24px; border-radius: 12px; background: #efe3e7; border: 2px solid #8b6170; overflow: hidden; margin: 2px 0; }
+.gauge-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #b8204a, #8a1033); }
+.gauge-tick { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, 0.85); }
+.gauge-pct { font-size: 1.6rem; font-weight: 800; color: var(--accent-dark); font-variant-numeric: tabular-nums; line-height: 1.1; min-width: 3.2em; text-align: right; }
+.gauge-left { font-size: 1.05rem; white-space: nowrap; }
+.gauge-left strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.gauge-note { font-size: 0.8rem; color: var(--muted); margin-left: 2px; }
+
+.game-stage { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 6fr); gap: 12px; align-items: start; }
+.game-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.building-wrap { display: flex; justify-content: center; }
+.game-right { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .building {
-  position: relative; width: 100%; aspect-ratio: 3 / 2; max-height: 34vh; max-height: 34dvh; margin: 0 auto;
+  position: relative; width: 100%; aspect-ratio: 3 / 2; margin: 0 auto;
   border-radius: 12px; overflow: hidden; background: #dfe7f2; border: 1px solid var(--border);
 }
-.game-visual .building { width: min(100%, calc(34vh * 1.5)); width: min(100%, calc(34dvh * 1.5)); }
-.game-hands { display: flex; justify-content: center; }
 .building-large { max-height: 62vh; width: min(100%, calc(62vh * 1.5)); }
 .building-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; user-select: none; -webkit-user-drag: none; }
 .building-img.is-current { opacity: 1; }
@@ -670,32 +691,44 @@ body:has(.entry-main) {
 .building-fallback { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 16px; text-align: center; background: #f4f1ea; color: var(--ink); }
 .building-fallback-stage { font-weight: 800; font-size: 1.3rem; }
 .building-sparkle { position: absolute; left: 50%; bottom: 14%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: radial-gradient(circle, #fff7c2 0%, rgba(255, 220, 120, 0.7) 45%, rgba(255, 220, 120, 0) 70%); pointer-events: none; opacity: 0; }
+.stage-toast { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(126, 15, 44, 0.92); color: #fff; font-weight: 800; font-size: 1.15rem; padding: 4px 16px; border-radius: 999px; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
 
-.gauge-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; }
-.gauge-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.gauge-title { font-weight: 800; }
-.gauge-stage strong { color: var(--accent-dark); font-size: 1.15rem; }
-.gauge { position: relative; height: 26px; border-radius: 13px; background: #efe3e7; border: 2px solid #8b6170; overflow: hidden; margin: 6px 0 4px; }
-.gauge-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #b8204a, #8a1033); }
-.gauge-tick { position: absolute; top: 0; bottom: 0; width: 2px; background: rgba(255, 255, 255, 0.85); mix-blend-mode: normal; }
-.gauge-nums { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.gauge-pct { font-size: 1.8rem; font-weight: 800; color: var(--accent-dark); font-variant-numeric: tabular-nums; line-height: 1.1; }
-.gauge-left { font-size: 1.1rem; }
-.gauge-left strong { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
-.gauge-note { margin: 0; font-size: 0.8rem; color: var(--muted); }
+.game-hands { display: flex; justify-content: center; }
+.game-hands .hands { flex-direction: row; align-items: center; gap: 10px; }
+.game-hands .hands svg { width: 200px; }
+.game-hands .hand-info { min-width: 0; padding: 6px 12px; }
+.game-hands .hand-info-row { font-size: 1.1rem; min-height: 1.8em; }
 
-.game-sentence { margin-bottom: 0; padding: 14px 18px; min-width: 0; }
-.game-count { margin: 0 0 4px; }
-.game-text { font-size: clamp(1.4rem, 3.6vh, 2.1rem); font-weight: 700; line-height: 1.45; margin-bottom: 6px; word-break: break-word; }
-.game-kana { font-size: clamp(1.1rem, 2.8vh, 1.5rem); letter-spacing: 0.03em; margin-bottom: 6px; word-break: break-word; }
-.game-romaji { font-size: clamp(1.15rem, 3vh, 1.6rem); }
-.game-input-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.game-sentence { margin-bottom: 0; padding: 10px 16px; min-width: 0; border: 2px solid var(--border); }
+.game-sentence.is-miss { border-color: var(--ng); box-shadow: 0 0 0 3px rgba(164, 33, 27, 0.18); }
+.game-count { margin: 0 0 2px; font-size: 0.85rem; }
+.game-text { font-size: var(--gt); font-weight: 700; line-height: 1.4; margin-bottom: 4px; word-break: break-word; }
+.game-kana { font-size: var(--gk); letter-spacing: 0.03em; line-height: 1.5; margin-bottom: 4px; word-break: break-word; }
+.game-romaji { font-size: var(--gr); line-height: 1.5; }
+.game-inline-msg { margin: 6px 0 0; padding: 4px 10px; font-size: 0.95rem; }
 .game-guides { margin-top: 0; gap: 10px; }
-.game-guides .kb { transform-origin: top center; }
-.game-guides .kb-key { min-width: 0; }
 
 .game-ready { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 30; width: min(640px, calc(100vw - 32px)); background: var(--surface); border: 2px solid var(--accent); border-radius: var(--radius); box-shadow: 0 8px 30px rgba(80, 30, 45, 0.25); padding: 16px 20px; text-align: center; }
 .game-ready h2 { font-size: 1.15rem; }
+
+/* 一画面の配置（PC・Surface、ズーム100％でブラウザの表示領域が十分あるとき）。
+   ブラウザの実際の表示領域（dvh）に合わせて、画像の高さ・キーの大きさ・文字の大きさを決めます。
+   表示しきれない情報を隠す指定（overflow: hidden）は使いません。 */
+@media (min-width: 1000px) and (min-height: 620px) {
+  #root:has(.game-fit) { height: 100vh; height: 100dvh; }
+  .game-fit { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; padding-bottom: 8px;
+    --gt: clamp(1.3rem, 3.3vh, 2rem); --gk: clamp(1.02rem, 2.45vh, 1.4rem); --gr: clamp(1.02rem, 2.5vh, 1.45rem); }
+  .game-fit .game-stage { flex: 1 1 0; min-height: 0; align-items: stretch; }
+  .game-fit .game-left { min-height: 0; }
+  .game-fit .building-wrap { flex: 1 1 0; min-height: 0; container-type: size; align-items: center; }
+  .game-fit .building { width: min(100cqw, 150cqh); height: auto; }
+  .game-fit .game-right { min-height: 0; }
+  /* 文の長さが変わっても枠の高さが変わらないよう、いちばん長い文（表示文2行・読み2行・ローマ字2行）が入る高さを確保します */
+  .game-fit .game-sentence { min-height: calc(var(--gt) * 1.4 * 2 + var(--gk) * 1.5 * 2 + var(--gr) * 1.5 * 2 + 3.2rem); }
+  .game-fit .kb { --key: clamp(34px, min(3.05vw, 6vh), 50px); }
+  .game-fit .kb-touch { --key: clamp(36px, min(3.2vw, 6.3vh), 54px); }
+  .game-fit .game-hands .hands svg { width: clamp(150px, 14vw, 220px); }
+}
 
 .game-result { position: relative; }
 .game-result .building { margin-top: 4px; }
@@ -708,21 +741,48 @@ body:has(.entry-main) {
 .petals { position: absolute; inset: 0 0 auto 0; height: 70vh; overflow: hidden; pointer-events: none; z-index: 2; }
 .petal { position: absolute; top: -20px; width: 14px; height: 10px; border-radius: 10px 0 10px 0; background: #f6b9cb; opacity: 0; }
 
+/* 完成記念画像 */
+.memorial { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+.memorial-preview img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border); display: block; }
+.memorial-preview .hint { margin-top: 6px; }
+.memorial-form .field input[type='text'] { width: 100%; }
+
 @media (prefers-reduced-motion: no-preference) {
   .building-img { transition: opacity 0.6s ease; }
   .building-sparkle { animation: sparkle 0.5s ease-out; }
   @keyframes sparkle { 0% { opacity: 0.9; transform: translateY(0) scale(0.6); } 100% { opacity: 0; transform: translateY(-26px) scale(1.3); } }
   .gauge-fill { transition: width 0.25s ease-out; }
+  .penalty-pop { animation: penalty-pop 0.8s ease-out forwards; }
+  @keyframes penalty-pop { 0% { opacity: 1; transform: translateY(-50%); } 70% { opacity: 1; } 100% { opacity: 0; transform: translateY(-90%); } }
+  .game-sentence { transition: border-color 0.15s, box-shadow 0.15s; }
+  .stage-toast { animation: stage-toast 2.6s ease-out forwards; }
+  @keyframes stage-toast { 0% { opacity: 0; transform: translate(-50%, -6px); } 10% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; } }
   .petal { animation: petal-fall 6s linear 2; }
   @keyframes petal-fall { 0% { opacity: 0; transform: translateY(0) rotate(0deg); } 10% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(68vh) translateX(40px) rotate(220deg); } }
 }
+/* 動きを減らす設定：文字と枠だけの静かな表示にします（＋5秒は少しの間だけ表示） */
 @media (prefers-reduced-motion: reduce) {
-  .penalty-pop { animation: none; opacity: 1; }
+  .penalty-pop { opacity: 1; }
 }
 
-@media (max-width: 900px) {
-  .game-layout { grid-template-columns: 1fr; }
+@media (max-width: 999px) {
+  .game-stage { grid-template-columns: 1fr; }
   .game-intro { grid-template-columns: 1fr; }
-  .game-visual .building { width: min(100%, calc(32vh * 1.5)); max-height: 32vh; }
+  .memorial { grid-template-columns: 1fr; }
+  .gauge-inline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+  .gauge-inline .gauge { flex: 1 1 100%; order: 5; }
+  .gauge-inline .gauge-pct { min-width: 0; text-align: left; }
+  .gauge-left, .gauge-stage { white-space: normal; }
+  .game-left .building { width: min(100%, calc(34vh * 1.5)); width: min(100%, calc(34dvh * 1.5)); }
   .game-ready { position: static; transform: none; width: auto; margin-top: 12px; }
 }
+@media (max-width: 600px) {
+  .game-bar { gap: 2px 12px; padding: 4px 10px; }
+  .game-title-small { width: 100%; }
+  .gauge-inline { padding: 6px 10px; gap: 2px 8px; }
+  .gauge-left { font-size: 0.95rem; }
+  .game-hands .hands svg { width: 150px; }
+  .game-hands .hand-info-row { font-size: 1rem; }
+}
+.memorial-row { margin-bottom: 20px; }
+.btn.is-disabled { opacity: 0.5; pointer-events: none; }
