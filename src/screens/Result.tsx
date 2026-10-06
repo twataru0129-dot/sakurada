@@ -4,6 +4,8 @@ import { DIFFICULTY_LABEL, themeLabel } from '../core/questions';
 import { formatNumber1, nextRank, RANK_NONE } from '../core/rank';
 import { endLabel, speedUnit, type PracticeResult } from '../core/result';
 import { MissDetails } from '../ui/MissDetails';
+import { GUEST_HISTORY_NOTICE, loadGuestHistory } from '../data/guestHistory';
+import { mergeRecords, recordConditionKey, recordFromResult } from '../core/history';
 
 /** 時間の表示（例：2分05秒） */
 export function formatDuration(ms: number): string {
@@ -33,7 +35,7 @@ export function setTypeLabel(r: Pick<PracticeResult, 'setType' | 'theme' | 'diff
 }
 
 export function Result() {
-  const { currentResult: r, account, saves, retrySave, sessionResults, setLastConfig } = useApp();
+  const { currentResult: r, account, saves, retrySave, sessionResults, setLastConfig, setHistoryFocus } = useApp();
   const [cmp, setCmp] = useState<Comparison | null>(null);
   const [cmpError, setCmpError] = useState(false);
   const unitShort = r?.kind === 'romaji' ? '打／分' : '字／分';
@@ -50,8 +52,10 @@ export function Result() {
         })
         .catch(() => !cancelled && setCmpError(true));
     } else {
-      const hist = sessionResults.filter((x) => x.conditionKey === r.conditionKey && x.id !== r.id).map(toComparable);
-      setCmp(compareWithHistory(toComparable(r), hist, unitShort));
+      // ゲスト：この端末に保存した記録（と、保存できなかった今回分）から、同じ条件の記録と比べます
+      const saved = loadGuestHistory().records.filter((x) => recordConditionKey(x) === r.conditionKey && x.id !== r.id);
+      const local = sessionResults.filter((x) => x.conditionKey === r.conditionKey && x.id !== r.id).map(recordFromResult);
+      setCmp(compareWithHistory(toComparable(r), mergeRecords(saved, local), unitShort));
     }
     return () => {
       cancelled = true;
@@ -214,7 +218,19 @@ export function Result() {
             )}
           </p>
         ) : (
-          <p>ゲストのため、この記録は保存されません。終了すると消えます。</p>
+          <p className="save-state">
+            {save === 'saved' && <span className="ok-text">✓ この端末・ブラウザに記録しました（ゲスト）</span>}
+            {save === 'failed' && (
+              <span className="error-text">
+                × この端末に記録できませんでした（ブラウザの設定や空き容量を確認してください）。{' '}
+                <button type="button" className="btn btn-small" onClick={() => retrySave(r.id)}>
+                  もう一度記録する
+                </button>
+              </span>
+            )}
+            <br />
+            <span className="hint">{GUEST_HISTORY_NOTICE}</span>
+          </p>
         )}
       </section>
 
@@ -241,6 +257,16 @@ export function Result() {
           }}
         >
           同じ条件でもう一度
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setHistoryFocus(r.conditionKey);
+            navigate('/history');
+          }}
+        >
+          練習の記録
         </button>
         <button type="button" className="btn" onClick={() => navigate('/typing')}>
           条件を変えて練習

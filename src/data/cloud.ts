@@ -11,6 +11,7 @@ import { cloudConfig, isCloudConfigured } from '../config';
 import { loginIdToEmail, normalizeLoginId, validateLoginId } from '../../supabase/functions/_shared/accountRules';
 import type { PracticeConfig, PracticeResult } from '../core/result';
 import type { Question } from '../core/questions';
+import { HISTORY_LIMIT, type HistoryRecord } from '../core/history';
 import { sanitizeSettings, settingsToJson, type LearningSettings } from '../core/settings';
 
 const memory = new Map<string, string>();
@@ -179,86 +180,94 @@ export async function saveOwnSettings(userId: string, s: LearningSettings): Prom
 // 練習結果
 // ---------------------------------------------------------------------
 export async function saveResult(r: PracticeResult): Promise<void> {
-  const { error } = await need()
-    .from('practice_results')
-    .insert({
-      id: r.id,
-      started_at: r.startedAt,
-      kind: r.kind,
-      set_type: r.setType,
-      theme: r.theme,
-      difficulty: String(r.difficulty),
-      question_set_version: r.questionSetVersion,
-      rank_version: r.rankVersion,
-      minutes: r.endMode === 'count' ? null : r.minutes,
-      // 時間制の記録は end_mode を送りません（列の既定値 'time'。マイグレーション前のデータベースでも保存できます）
-      ...(r.endMode === 'count' ? { end_mode: 'count', target_count: r.targetCount } : {}),
-      elapsed_ms: Math.round(r.elapsedMs),
-      finished: r.finished,
-      input_method: r.inputMethod,
-      correct_count: r.correct,
-      miss_count: r.miss,
-      completed_questions: r.completedQuestions,
-    });
+  const row: Record<string, unknown> = {
+    id: r.id,
+    started_at: r.startedAt,
+    kind: r.kind,
+    set_type: r.setType,
+    theme: r.theme,
+    difficulty: String(r.difficulty),
+    question_set_version: r.questionSetVersion,
+    rank_version: r.rankVersion,
+    minutes: r.endMode === 'count' ? null : r.minutes,
+    // 時間制の記録は end_mode を送りません（列の既定値 'time'。v1.0.2 のマイグレーション前のデータベースでも保存できます）
+    ...(r.endMode === 'count' ? { end_mode: 'count', target_count: r.targetCount } : {}),
+    elapsed_ms: Math.round(r.elapsedMs),
+    finished: r.finished,
+    input_method: r.inputMethod,
+    correct_count: r.correct,
+    miss_count: r.miss,
+    completed_questions: r.completedQuestions,
+  };
+  if (r.kind === 'romaji' && r.romajiStyle) row.romaji_style = r.romajiStyle;
+  const c = need();
+  let { error } = await c.from('practice_results').insert(row);
+  // v1.0.3 のマイグレーション（romaji_style 列）を適用する前のデータベースでは、その項目を外して保存し直します
+  if (error && 'romaji_style' in row && (error.code === 'PGRST204' || error.code === '42703') && /romaji_style/.test(error.message)) {
+    delete row.romaji_style;
+    ({ error } = await c.from('practice_results').insert(row));
+  }
   // 23505 = 同じ ID がすでに保存済み（再送）。重複登録はされていないので成功として扱います
   if (error && error.code !== '23505') throw new Error(error.message);
 }
 
-export interface HistoryRow {
-  id: string;
-  startedAt: string;
-  kind: 'romaji' | 'sentence';
-  setType: string;
-  theme: string;
-  difficulty: string;
-  /** 時間制は 'time'、問題数制は 'count'。v1.0.1 までの記録は時間制として読み込みます */
-  endMode: 'time' | 'count';
-  minutes: number | null;
-  targetCount: number | null;
-  inputMethod: string;
-  finished: boolean;
-  official: boolean;
-  correct: number;
-  miss: number;
-  accuracy: number | null;
-  speed: number;
-  rank: string;
-  questionSetVersion: string;
-}
+/** クラウドの記録（表示・比較用の共通の形） */
+export type HistoryRow = HistoryRecord;
 
 const LEGACY_COLUMNS =
-  'id, started_at, kind, set_type, theme, difficulty, minutes, input_method, finished, official, correct_count, miss_count, accuracy, speed, rank, question_set_version';
-const HISTORY_COLUMNS = `${LEGACY_COLUMNS}, end_mode, target_count`;
+  'id, started_at, kind, set_type, theme, difficulty, minutes, input_method, finished, official, correct_count, miss_count, accuracy, speed, rank, rank_version, question_set_version, elapsed_ms, completed_questions';
+/** 新しい順に試す列の組み合わせ（まだ適用していないマイグレーションの列があっても読めるように） */
+const COLUMN_SETS = [`${LEGACY_COLUMNS}, end_mode, target_count, romaji_style`, `${LEGACY_COLUMNS}, end_mode, target_count`, LEGACY_COLUMNS];
 
-/** 42703 = 列がない（問題数制のマイグレーションをまだ適用していないデータベース） */
+/** 42703 = 列がない（マイグレーションをまだ適用していないデータベース） */
 const isMissingColumn = (e: { code?: string } | null) => e?.code === '42703';
 
-function mapHistory(r: Record<string, unknown>): HistoryRow {
+function mapHistory(r: Record<string, unknown>): HistoryRecord {
+  const endMode = r.end_mode === 'count' ? 'count' : 'time';
+  const d = String(r.difficulty);
   return {
     id: String(r.id),
     startedAt: String(r.started_at),
     kind: r.kind === 'sentence' ? 'sentence' : 'romaji',
-    setType: String(r.set_type),
+    inputMethod: r.input_method === 'touch' ? 'touch' : 'keyboard',
+    endMode,
+    minutes: endMode === 'time' ? (Number(r.minutes) as 3 | 5 | 10) : null,
+    targetCount: endMode === 'count' ? (Number(r.target_count) as 25 | 50) : null,
+    setType: String(r.set_type) as HistoryRecord['setType'],
     theme: String(r.theme),
-    difficulty: String(r.difficulty),
-    endMode: r.end_mode === 'count' ? 'count' : 'time',
-    minutes: r.minutes === null || r.minutes === undefined ? null : Number(r.minutes),
-    targetCount: r.target_count === null || r.target_count === undefined ? null : Number(r.target_count),
-    inputMethod: String(r.input_method),
-    finished: Boolean(r.finished),
-    official: Boolean(r.official),
+    difficulty: d === 'mixed' ? 'mixed' : (Number(d) as 1 | 2 | 3),
+    questionSetVersion: String(r.question_set_version),
+    romajiStyle: r.romaji_style === 'hepburn' || r.romaji_style === 'kunrei' ? r.romaji_style : null,
     correct: Number(r.correct_count),
     miss: Number(r.miss_count),
-    accuracy: r.accuracy === null ? null : Number(r.accuracy),
+    accuracy: r.accuracy === null || r.accuracy === undefined ? null : Number(r.accuracy),
     speed: Number(r.speed),
+    completedQuestions: Number(r.completed_questions ?? 0),
+    elapsedMs: Number(r.elapsed_ms ?? 0),
     rank: String(r.rank),
-    questionSetVersion: String(r.question_set_version),
+    rankVersion: String(r.rank_version ?? 'rank-v1'),
+    official: Boolean(r.official),
+    finished: Boolean(r.finished),
   };
+}
+
+type Query = (columns: string) => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }>;
+
+async function selectWithFallback(run: Query, allowLegacy: boolean): Promise<HistoryRecord[]> {
+  const sets = allowLegacy ? COLUMN_SETS : COLUMN_SETS.slice(0, 2);
+  let last: { code?: string; message: string } | null = null;
+  for (const cols of sets) {
+    const { data, error } = await run(cols);
+    if (!error) return ((data ?? []) as Record<string, unknown>[]).map(mapHistory);
+    last = error;
+    if (!isMissingColumn(error)) break;
+  }
+  throw new Error(last?.message ?? '記録を読み込めませんでした');
 }
 
 /** 同じ条件の過去の記録（自分の分。RLS により本人の記録だけが返ります）。時間制と問題数制、25問と50問は混ぜません */
 export async function fetchSameCondition(c: PracticeConfig, excludeId: string): Promise<HistoryRow[]> {
-  const run = (columns: string) => {
+  const run: Query = (columns) => {
     let q = need()
       .from('practice_results')
       .select(columns)
@@ -271,21 +280,19 @@ export async function fetchSameCondition(c: PracticeConfig, excludeId: string): 
       .neq('id', excludeId);
     // 時間制：minutes が一致するもの（問題数制の記録は minutes が空なので含まれません）
     q = c.endMode === 'count' ? q.eq('end_mode', 'count').eq('target_count', c.targetCount ?? 0) : q.eq('minutes', c.minutes ?? 0);
-    return q.order('started_at', { ascending: false }).limit(300);
+    return q.order('started_at', { ascending: false }).limit(HISTORY_LIMIT) as unknown as ReturnType<Query>;
   };
-  let { data, error } = await run(HISTORY_COLUMNS);
-  if (isMissingColumn(error) && c.endMode === 'time') ({ data, error } = await run(LEGACY_COLUMNS));
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map(mapHistory);
+  return selectWithFallback(run, c.endMode === 'time');
 }
 
-export async function fetchResultsOf(userId: string, limit = 500): Promise<HistoryRow[]> {
-  const run = (columns: string) =>
-    need().from('practice_results').select(columns).eq('user_id', userId).order('started_at', { ascending: false }).limit(limit);
-  let { data, error } = await run(HISTORY_COLUMNS);
-  if (isMissingColumn(error)) ({ data, error } = await run(LEGACY_COLUMNS));
-  if (error) throw new Error(error.message);
-  return ((data ?? []) as unknown as Record<string, unknown>[]).map(mapHistory);
+/**
+ * ある利用者の記録を新しい順に取得します（既定は直近 100 件）。
+ * クラウドの古い記録は削除しません（先生の閲覧や学習データを守るため、取得する件数だけを絞ります）。
+ */
+export async function fetchResultsOf(userId: string, limit = HISTORY_LIMIT): Promise<HistoryRow[]> {
+  const run: Query = (columns) =>
+    need().from('practice_results').select(columns).eq('user_id', userId).order('started_at', { ascending: false }).limit(limit) as unknown as ReturnType<Query>;
+  return selectWithFallback(run, true);
 }
 
 // ---------------------------------------------------------------------

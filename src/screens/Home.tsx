@@ -1,10 +1,11 @@
+import { GUEST_HISTORY_NOTICE } from '../data/guestHistory';
 import { endLabel } from '../core/result';
 import { useApp } from '../state/AppContext';
 import { navigate } from '../state/router';
 import { logoUrl, Notice, Toggle } from '../ui/common';
 
 export function Home() {
-  const { account, settings, updateSettings, settingsSave, sessionResults } = useApp();
+  const { account, settings, updateSettings, settingsSave, sessionResults, setHistoryFocus } = useApp();
   if (!account) return null;
   const isUser = account.kind === 'user';
   return (
@@ -15,7 +16,7 @@ export function Home() {
         <div>
           <h1 style={{ marginBottom: 4 }}>{isUser ? `${account.profile.displayName}さん、こんにちは` : 'ゲストで練習中'}</h1>
           <p className="hint" style={{ margin: 0 }}>
-            {isUser ? '記録と設定はクラウドに保存されます。' : 'ゲストの結果は保存されません。終了すると消えます。'}
+            {isUser ? '記録と設定はアカウント（クラウド）に保存されます。' : GUEST_HISTORY_NOTICE}
           </p>
         </div>
       </div>
@@ -71,11 +72,16 @@ export function Home() {
             </ul>
           )}
           <div className="btn-row">
-            {isUser && (
-              <button type="button" className="btn btn-quiet" onClick={() => navigate('/history')}>
-                これまでの記録を見る
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setHistoryFocus(null);
+                navigate('/history');
+              }}
+            >
+              練習の記録
+            </button>
             {isUser && account.profile.role === 'teacher' && (
               <button type="button" className="btn" onClick={() => navigate('/teacher')}>
                 先生用の画面へ
