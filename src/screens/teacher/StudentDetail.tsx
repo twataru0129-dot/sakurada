@@ -118,6 +118,17 @@ export function StudentDetail({ studentId }: { studentId: string }) {
             <option value="3">むずかしい（3）</option>
           </select>
         </div>
+        <div className="field-inline" style={{ marginTop: 8, marginBottom: 8 }}>
+          <label htmlFor="d-style">ローマ字のお手本</label>
+          <select
+            id="d-style"
+            value={defaults.romajiStyle}
+            onChange={(e) => setDefaults({ ...defaults, romajiStyle: e.target.value === 'kunrei' ? 'kunrei' : 'hepburn' })}
+          >
+            <option value="hepburn">ヘボン式（shi・chi・tsu）</option>
+            <option value="kunrei">訓令式（si・ti・tu）</option>
+          </select>
+        </div>
         <Toggle label="ローマ字ガイド（文章入力では読み）" checked={defaults.romajiGuide} onChange={(v) => setDefaults({ ...defaults, romajiGuide: v })} />
         <br />
         <Toggle label="キーボードガイド" checked={defaults.keyboardGuide} onChange={(v) => setDefaults({ ...defaults, keyboardGuide: v })} />

@@ -13,6 +13,7 @@ async function startPractice(page: Page, kind: 'A' | 'B', method: string | RegEx
   await page.getByLabel(minutes).check();
   await page.getByLabel(method).check();
   await page.getByRole('button', { name: '練習をはじめる' }).click();
+  await page.getByRole('button', { name: 'スタート' }).click();
 }
 
 async function stat(page: Page, label: string): Promise<number> {
@@ -58,7 +59,7 @@ test.describe('入口・アイコン・サブディレクトリ', () => {
       expect(overlap, sel).toBe(false);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-    await expect(page.locator('.app-header .version')).toHaveText('v1.0.1');
+    await expect(page.locator('.app-header .version')).toHaveText('v1.0.2');
   });
 
   test('準備中のモードは押せない', async ({ page }) => {
@@ -103,7 +104,6 @@ test.describe('ローマ字入力', () => {
     test.skip(info.project.name === 'phone');
     await page.clock.install();
     await startPractice(page, 'A', '実物のキーボード');
-    await page.clock.runFor(3500);
     await expect(page.locator('.romaji-next')).toBeVisible();
     const rest = ((await page.locator('.romaji-next').textContent()) ?? '') + ((await page.locator('.romaji-rest').textContent()) ?? '');
     await page.keyboard.type(rest);
@@ -120,7 +120,6 @@ test.describe('ローマ字入力', () => {
     test.skip(info.project.name === 'phone');
     await page.clock.install();
     await startPractice(page, 'A', '実物のキーボード');
-    await page.clock.runFor(3500);
     await expect(page.locator('.romaji-next')).toBeVisible();
     await page.clock.runFor(180_000);
     await expect(page.getByRole('heading', { name: '練習の結果' })).toBeVisible();
@@ -225,6 +224,7 @@ test('画面のスクリーンショット（目視確認用）', async ({ page 
   await page.getByRole('button', { name: /タイピングモード/ }).click();
   await page.getByLabel(info.project.name === 'pc' ? '実物のキーボード' : '画面のキーをタップ').check();
   await page.getByRole('button', { name: '練習をはじめる' }).click();
+  await page.getByRole('button', { name: 'スタート' }).click();
   await expect(page.locator('.romaji-next')).toBeVisible({ timeout: 6000 });
   await page.screenshot({ path: `test-results/shots/${info.project.name}-romaji.png`, fullPage: true });
 });

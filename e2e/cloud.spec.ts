@@ -103,6 +103,7 @@ test('保存失敗を明示し、再送で保存済みになる（同じIDで再
   await page.getByRole('button', { name: /タイピングモード/ }).click();
   await page.getByLabel('実物のキーボード').check();
   await page.getByRole('button', { name: '練習をはじめる' }).click();
+  await page.getByRole('button', { name: 'スタート' }).click();
   await expect(page.locator('.romaji-next')).toBeVisible({ timeout: 6000 });
   await page.keyboard.type(((await page.locator('.romaji-next').textContent()) ?? '') + ((await page.locator('.romaji-rest').textContent()) ?? ''));
   await page.getByRole('button', { name: '途中で終わる' }).click();
@@ -127,4 +128,28 @@ test('保存失敗を明示し、再送で保存済みになる（同じIDで再
   await expect(page.getByRole('heading', { name: '練習の結果' })).toHaveCount(0);
   await page.goto('./#/home');
   await expect(page.getByRole('button', { name: 'ゲストで練習' })).toBeVisible();
+});
+
+test('問題数で練習の記録は end_mode と target_count を付けて保存し、minutes は空にする', async ({ page }, info) => {
+  test.skip(info.project.name !== 'pc');
+  const st = await mockSupabase(page);
+  await login(page);
+  await page.getByRole('button', { name: /タイピングモード/ }).click();
+  await page.getByLabel('実物のキーボード').check();
+  await page.getByLabel('問題数で練習').check();
+  await page.getByLabel('25問').check();
+  await page.getByRole('button', { name: '練習をはじめる' }).click();
+  await page.getByRole('button', { name: 'スタート' }).click();
+  await page.keyboard.type(((await page.locator('.romaji-next').textContent()) ?? '') + ((await page.locator('.romaji-rest').textContent()) ?? ''));
+  await page.getByRole('button', { name: '途中で終わる' }).click();
+  await page.getByRole('button', { name: '終わる' }).click();
+  await expect(page.getByText('✓ 記録を保存しました')).toBeVisible();
+  const body = st.savedBodies[0] as Record<string, unknown>;
+  expect(body.end_mode).toBe('count');
+  expect(body.target_count).toBe(25);
+  expect(body.minutes).toBeNull();
+  expect(body.finished).toBe(false);
+  expect(body.completed_questions).toBe(1);
+  // ミス詳細はクラウドに送らない
+  expect(Object.keys(body)).not.toContain('missDetails');
 });

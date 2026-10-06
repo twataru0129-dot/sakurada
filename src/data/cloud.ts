@@ -190,7 +190,9 @@ export async function saveResult(r: PracticeResult): Promise<void> {
       difficulty: String(r.difficulty),
       question_set_version: r.questionSetVersion,
       rank_version: r.rankVersion,
-      minutes: r.minutes,
+      minutes: r.endMode === 'count' ? null : r.minutes,
+      // 時間制の記録は end_mode を送りません（列の既定値 'time'。マイグレーション前のデータベースでも保存できます）
+      ...(r.endMode === 'count' ? { end_mode: 'count', target_count: r.targetCount } : {}),
       elapsed_ms: Math.round(r.elapsedMs),
       finished: r.finished,
       input_method: r.inputMethod,
@@ -209,7 +211,10 @@ export interface HistoryRow {
   setType: string;
   theme: string;
   difficulty: string;
-  minutes: number;
+  /** 時間制は 'time'、問題数制は 'count'。v1.0.1 までの記録は時間制として読み込みます */
+  endMode: 'time' | 'count';
+  minutes: number | null;
+  targetCount: number | null;
   inputMethod: string;
   finished: boolean;
   official: boolean;
@@ -221,8 +226,12 @@ export interface HistoryRow {
   questionSetVersion: string;
 }
 
-const HISTORY_COLUMNS =
+const LEGACY_COLUMNS =
   'id, started_at, kind, set_type, theme, difficulty, minutes, input_method, finished, official, correct_count, miss_count, accuracy, speed, rank, question_set_version';
+const HISTORY_COLUMNS = `${LEGACY_COLUMNS}, end_mode, target_count`;
+
+/** 42703 = 列がない（問題数制のマイグレーションをまだ適用していないデータベース） */
+const isMissingColumn = (e: { code?: string } | null) => e?.code === '42703';
 
 function mapHistory(r: Record<string, unknown>): HistoryRow {
   return {
@@ -232,7 +241,9 @@ function mapHistory(r: Record<string, unknown>): HistoryRow {
     setType: String(r.set_type),
     theme: String(r.theme),
     difficulty: String(r.difficulty),
-    minutes: Number(r.minutes),
+    endMode: r.end_mode === 'count' ? 'count' : 'time',
+    minutes: r.minutes === null || r.minutes === undefined ? null : Number(r.minutes),
+    targetCount: r.target_count === null || r.target_count === undefined ? null : Number(r.target_count),
     inputMethod: String(r.input_method),
     finished: Boolean(r.finished),
     official: Boolean(r.official),
@@ -245,34 +256,36 @@ function mapHistory(r: Record<string, unknown>): HistoryRow {
   };
 }
 
-/** 同じ条件の過去の記録（自分の分。RLS により本人の記録だけが返ります） */
+/** 同じ条件の過去の記録（自分の分。RLS により本人の記録だけが返ります）。時間制と問題数制、25問と50問は混ぜません */
 export async function fetchSameCondition(c: PracticeConfig, excludeId: string): Promise<HistoryRow[]> {
-  const { data, error } = await need()
-    .from('practice_results')
-    .select(HISTORY_COLUMNS)
-    .eq('kind', c.kind)
-    .eq('minutes', c.minutes)
-    .eq('input_method', c.inputMethod)
-    .eq('set_type', c.setType)
-    .eq('theme', c.theme)
-    .eq('difficulty', String(c.difficulty))
-    .eq('question_set_version', c.questionSetVersion)
-    .neq('id', excludeId)
-    .order('started_at', { ascending: false })
-    .limit(300);
+  const run = (columns: string) => {
+    let q = need()
+      .from('practice_results')
+      .select(columns)
+      .eq('kind', c.kind)
+      .eq('input_method', c.inputMethod)
+      .eq('set_type', c.setType)
+      .eq('theme', c.theme)
+      .eq('difficulty', String(c.difficulty))
+      .eq('question_set_version', c.questionSetVersion)
+      .neq('id', excludeId);
+    // 時間制：minutes が一致するもの（問題数制の記録は minutes が空なので含まれません）
+    q = c.endMode === 'count' ? q.eq('end_mode', 'count').eq('target_count', c.targetCount ?? 0) : q.eq('minutes', c.minutes ?? 0);
+    return q.order('started_at', { ascending: false }).limit(300);
+  };
+  let { data, error } = await run(HISTORY_COLUMNS);
+  if (isMissingColumn(error) && c.endMode === 'time') ({ data, error } = await run(LEGACY_COLUMNS));
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapHistory);
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(mapHistory);
 }
 
 export async function fetchResultsOf(userId: string, limit = 500): Promise<HistoryRow[]> {
-  const { data, error } = await need()
-    .from('practice_results')
-    .select(HISTORY_COLUMNS)
-    .eq('user_id', userId)
-    .order('started_at', { ascending: false })
-    .limit(limit);
+  const run = (columns: string) =>
+    need().from('practice_results').select(columns).eq('user_id', userId).order('started_at', { ascending: false }).limit(limit);
+  let { data, error } = await run(HISTORY_COLUMNS);
+  if (isMissingColumn(error)) ({ data, error } = await run(LEGACY_COLUMNS));
   if (error) throw new Error(error.message);
-  return (data ?? []).map(mapHistory);
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(mapHistory);
 }
 
 // ---------------------------------------------------------------------

@@ -1,3 +1,4 @@
+import { endLabel } from '../core/result';
 import { useApp } from '../state/AppContext';
 import { navigate } from '../state/router';
 import { logoUrl, Notice, Toggle } from '../ui/common';
@@ -64,7 +65,7 @@ export function Home() {
             <ul>
               {sessionResults.slice(0, 5).map((r) => (
                 <li key={r.id}>
-                  {r.kind === 'romaji' ? 'ローマ字' : '文章'} {r.minutes}分：{r.rank}（{r.official ? '正式' : '参考'}）
+                  {r.kind === 'romaji' ? 'ローマ字' : '文章'} {endLabel(r)}：{r.rank}（{r.official ? '正式' : '参考'}）
                 </li>
               ))}
             </ul>

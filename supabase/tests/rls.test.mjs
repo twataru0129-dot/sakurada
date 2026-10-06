@@ -240,6 +240,33 @@ export async function runRlsTests(db) {
     check('成功すると失敗回数が消える', (await rows('select * from private.login_failures where user_id = $1', [u])).length === 0);
   }
 
+  console.log('問題数で練習（v1.0.2）');
+  await as(S_A1, 'aal1', async () => {
+    const countRec = result(S_A1, { end_mode: 'count', target_count: 25, minutes: null, elapsed_ms: 400000, completed_questions: 25, finished: true });
+    await db.query('savepoint c');
+    await db.query(...ins(countRec));
+    const saved = await rows('select end_mode, target_count, minutes, official, rank from public.practice_results where id = $1', [countRec.id]);
+    check('問題数制（25問）の記録を保存できる', saved.length === 1 && saved[0].end_mode === 'count' && saved[0].target_count === 25 && saved[0].minutes === null, JSON.stringify(saved));
+    check('問題数制の標準問題は正式ランクにならない（参考ランク）', saved[0]?.official === false);
+    check('50問の記録も保存できる', !(await fails(...ins(result(S_A1, { end_mode: 'count', target_count: 50, minutes: null, elapsed_ms: 900000, completed_questions: 50, finished: true })))));
+    check('問題数制の途中終了（目標に届かない）も保存できる', !(await fails(...ins(result(S_A1, { end_mode: 'count', target_count: 25, minutes: null, elapsed_ms: 60000, completed_questions: 7, finished: false })))));
+    check('完了なのに目標の問題数と合わない記録は拒否', !!(await fails(...ins(result(S_A1, { end_mode: 'count', target_count: 25, minutes: null, elapsed_ms: 400000, completed_questions: 24, finished: true })))));
+    check('問題数制で minutes を入れた記録は拒否（代用しない）', !!(await fails(...ins(result(S_A1, { end_mode: 'count', target_count: 25, minutes: 3, elapsed_ms: 180000, completed_questions: 25, finished: true })))));
+    check('25・50 以外の問題数は拒否', !!(await fails(...ins(result(S_A1, { end_mode: 'count', target_count: 30, minutes: null, elapsed_ms: 400000, completed_questions: 30, finished: true })))));
+    const timeRec = result(S_A1);
+    await db.query(...ins(timeRec));
+    const t = await rows('select end_mode, official from public.practice_results where id = $1', [timeRec.id]);
+    check('end_mode を送らない時間制の記録は時間制として保存され、正式ランク', t[0]?.end_mode === 'time' && t[0]?.official === true, JSON.stringify(t));
+    check('時間制で minutes がない記録は拒否', !!(await fails(...ins(result(S_A1, { minutes: null })))));
+    check('ローマ字のお手本（訓令式）を設定に保存できる', !(await fails("insert into public.user_settings (user_id, settings) values ($1, '{\"romajiStyle\":\"kunrei\"}')", [S_A1])));
+    check('お手本に不正な値は保存できない', !!(await fails("update public.user_settings set settings = '{\"romajiStyle\":\"x\"}' where user_id = $1", [S_A1])));
+  });
+  await db.query('select 1');
+  {
+    const legacy = await rows("select count(*)::int n from public.practice_results where end_mode = 'time'");
+    check('これまでの記録は時間制として読み込まれる', legacy[0].n >= 3);
+  }
+
   console.log('ランク判定（アプリとデータベースで同じ結果になるか）');
   {
     let mismatch = 0;

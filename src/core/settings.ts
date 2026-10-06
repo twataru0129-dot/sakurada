@@ -1,5 +1,6 @@
 import type { Difficulty } from './questions';
 import type { Minutes } from './result';
+import type { RomajiStyle } from './romaji';
 
 export interface LearningSettings {
   romajiGuide: boolean;
@@ -9,6 +10,8 @@ export interface LearningSettings {
   sound: boolean;
   minutes: Minutes;
   difficulty: Difficulty | 'mixed';
+  /** ローマ字のお手本（ガイドに優先表示する表記）。既定はヘボン式 */
+  romajiStyle: RomajiStyle;
 }
 
 export const APP_DEFAULT_SETTINGS: LearningSettings = {
@@ -18,6 +21,7 @@ export const APP_DEFAULT_SETTINGS: LearningSettings = {
   sound: false,
   minutes: 3,
   difficulty: 'mixed',
+  romajiStyle: 'hepburn',
 };
 
 /** 保存された値（形が正しくない可能性がある）から、正しい項目だけを取り出します */
@@ -33,6 +37,7 @@ export function sanitizeSettings(raw: unknown): Partial<LearningSettings> {
   const d = r.difficulty;
   if (d === 'mixed') out.difficulty = 'mixed';
   else if (d === 1 || d === 2 || d === 3 || d === '1' || d === '2' || d === '3') out.difficulty = Number(d) as Difficulty;
+  if (r.romajiStyle === 'hepburn' || r.romajiStyle === 'kunrei') out.romajiStyle = r.romajiStyle;
   return out;
 }
 

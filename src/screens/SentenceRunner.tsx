@@ -14,7 +14,11 @@ function caretInChars(el: HTMLTextAreaElement): number {
   return [...el.value.slice(0, el.selectionStart ?? el.value.length)].length;
 }
 
-export function SentenceRunner({ deck, config, isActive, registerTotals }: RunnerProps) {
+export function SentenceRunner({ deck, config, isActive, registerTotals, targetCount, onGoalReached }: RunnerProps) {
+  const goalRef = useRef(onGoalReached);
+  goalRef.current = onGoalReached;
+  /** 問題数制で目標を完成した（最後の問題の文字数は完成分に入っているため、二重に数えません） */
+  const goalDone = useRef(false);
   const { settings } = useApp();
   const activeRef = useRef(isActive);
   activeRef.current = isActive;
@@ -34,7 +38,7 @@ export function SentenceRunner({ deck, config, isActive, registerTotals }: Runne
   useEffect(() => {
     // 時間切れのときは、確定済みで正しい途中入力だけを数えます（変換中の文字は含めません）
     registerTotals(() => ({
-      correct: totals.current.completedChars + judge.current.current.correctChars,
+      correct: totals.current.completedChars + (goalDone.current ? 0 : judge.current.current.correctChars),
       miss: totals.current.miss,
       completedQuestions: totals.current.completedQuestions,
     }));
@@ -59,6 +63,12 @@ export function SentenceRunner({ deck, config, isActive, registerTotals }: Runne
       totals.current.completedChars += judge.current.target.filter((c) => c !== '\n').length;
       totals.current.completedQuestions++;
       if (settings.sound) sound.complete();
+      // 問題数制：最後の問題を完成したら、次の問題を取り出す前に終わります
+      if (targetCount !== null && totals.current.completedQuestions >= targetCount) {
+        goalDone.current = true;
+        goalRef.current();
+        return;
+      }
       const next = deck.next();
       judge.current = new SentenceJudge(next.text);
       ctl.current.setJudge(judge.current);
@@ -128,7 +138,8 @@ export function SentenceRunner({ deck, config, isActive, registerTotals }: Runne
     <>
       <div className="practice-stats">
         <span className="stat">
-          完成 <b>{totals.current.completedQuestions}</b> 問
+          完成 <b>{totals.current.completedQuestions}</b>
+          {targetCount !== null ? `／${targetCount}` : ''} 問
         </span>
         <span className="stat">
           この問題の正しい文字 <b>{ev.correctChars}</b> / {countTargetChars(question.text)} 文字

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DIFFICULTY_LABEL, QUESTION_SET_VERSION, SAKURA_THEMES, type Difficulty, type Question } from '../core/questions';
-import type { InputMethod, Minutes, PracticeConfig, SetType } from '../core/result';
+import type { EndMode, InputMethod, Minutes, PracticeConfig, SetType, TargetCount } from '../core/result';
 import type { PracticeKind } from '../core/rank';
 import { STANDARD_PATTERN } from '../core/deck';
 import { fetchPracticeMaterials } from '../data/cloud';
@@ -23,7 +23,9 @@ function Choice<T extends string | number>({ name, value, current, onChange, chi
 export function TypingSetup() {
   const { account, settings, updateSettings, lastConfig, setLastConfig } = useApp();
   const [kind, setKind] = useState<PracticeKind>(lastConfig?.kind ?? 'romaji');
+  const [endMode, setEndMode] = useState<EndMode>(lastConfig?.endMode ?? 'time');
   const [minutes, setMinutes] = useState<Minutes>(lastConfig?.minutes ?? settings.minutes);
+  const [targetCount, setTargetCount] = useState<TargetCount>(lastConfig?.targetCount ?? 25);
   const [inputMethod, setInputMethod] = useState<InputMethod | null>(lastConfig?.inputMethod ?? null);
   const [setType, setSetType] = useState<SetType>(lastConfig?.setType ?? 'standard');
   const [sakuraTheme, setSakuraTheme] = useState<string>(lastConfig?.setType === 'sakura' ? lastConfig.theme : 'all');
@@ -53,7 +55,10 @@ export function TypingSetup() {
     if (!inputMethod) return;
     const config: PracticeConfig = {
       kind,
-      minutes,
+      endMode,
+      minutes: endMode === 'time' ? minutes : null,
+      targetCount: endMode === 'count' ? targetCount : null,
+      ...(kind === 'romaji' ? { romajiStyle: settings.romajiStyle } : {}),
       inputMethod,
       setType,
       theme: setType === 'sakura' ? sakuraTheme : setType === 'teacher' ? 'teacher' : 'all',
@@ -90,15 +95,49 @@ export function TypingSetup() {
           </p>
         </fieldset>
 
-        <fieldset>
-          <legend>練習時間</legend>
-          <div className="choice-row">
-            {([3, 5, 10] as Minutes[]).map((m) => (
-              <Choice key={m} name="minutes" value={m} current={minutes} onChange={setMinutes}>
-                {m}分
+        {kind === 'romaji' && (
+          <fieldset>
+            <legend>ローマ字のお手本</legend>
+            <div className="choice-row">
+              <Choice name="romajiStyle" value="hepburn" current={settings.romajiStyle} onChange={(v) => updateSettings({ romajiStyle: v })}>
+                ヘボン式（し＝shi、ち＝chi、つ＝tsu）
               </Choice>
-            ))}
+              <Choice name="romajiStyle" value="kunrei" current={settings.romajiStyle} onChange={(v) => updateSettings({ romajiStyle: v })}>
+                訓令式（し＝si、ち＝ti、つ＝tu）
+              </Choice>
+            </div>
+            <p className="hint" style={{ marginTop: 8 }}>ガイドに表示する打ち方です。どちらの正しい打ち方でも入力できます。</p>
+          </fieldset>
+        )}
+
+        <fieldset>
+          <legend>終わりかた</legend>
+          <div className="choice-row">
+            <Choice name="endMode" value="time" current={endMode} onChange={setEndMode}>
+              時間で練習
+            </Choice>
+            <Choice name="endMode" value="count" current={endMode} onChange={setEndMode}>
+              問題数で練習
+            </Choice>
           </div>
+          <div className="choice-row" style={{ marginTop: 10 }} role="group" aria-label={endMode === 'time' ? '練習時間' : '問題数'}>
+            {endMode === 'time'
+              ? ([3, 5, 10] as Minutes[]).map((m) => (
+                  <Choice key={m} name="minutes" value={m} current={minutes} onChange={setMinutes}>
+                    {m}分
+                  </Choice>
+                ))
+              : ([25, 50] as TargetCount[]).map((n) => (
+                  <Choice key={n} name="count" value={n} current={targetCount} onChange={setTargetCount}>
+                    {n}問
+                  </Choice>
+                ))}
+          </div>
+          <p className="hint" style={{ marginTop: 8 }}>
+            {endMode === 'time'
+              ? '時間いっぱいまで練習します。'
+              : '時間の制限はありません。正しく入力し終えた問題を1問として数え、決めた数を完成したら終わります。ランクは「参考ランク」です。'}
+          </p>
         </fieldset>
 
         <fieldset>
@@ -137,7 +176,7 @@ export function TypingSetup() {
               <p className="hint">
                 身近な話題の一般問題を、決まった難易度の順番（
                 {STANDARD_PATTERN[kind].map((d) => DIFFICULTY_LABEL[kind][d].replace(/（.*）/, '')).join(' → ')}
-                をくり返す）で出します。時間いっぱいまで練習すると、正式ランクになります。
+                をくり返す）で出します。「時間で練習」で時間いっぱいまで練習すると、正式ランクになります（問題数で練習したときは参考ランク）。
               </p>
             )}
             {setType === 'sakura' && (

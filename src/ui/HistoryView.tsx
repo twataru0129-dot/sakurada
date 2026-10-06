@@ -54,7 +54,9 @@ function LineChart({ points, unit, title, yMax }: { points: ChartPoint[]; unit: 
   );
 }
 
-const condKey = (r: HistoryRow) => `${r.kind}|${r.minutes}|${r.inputMethod}|${r.setType}|${r.theme}|${r.difficulty}`;
+/** 条件ごとに分けて表示します（時間制と問題数制、25問と50問は別の条件） */
+const condKey = (r: HistoryRow) =>
+  `${r.kind}|${r.endMode === 'count' ? `count${r.targetCount}` : r.minutes}|${r.inputMethod}|${r.setType}|${r.theme}|${r.difficulty}`;
 
 /** 練習履歴と成長グラフ。条件（種類・時間・入力方法・問題）ごとに分けて表示します */
 export function HistoryView({ rows }: { rows: HistoryRow[] }) {
@@ -72,7 +74,7 @@ export function HistoryView({ rows }: { rows: HistoryRow[] }) {
 
   if (rows.length === 0) return <p>まだ練習の記録がありません。</p>;
   const label = (r: HistoryRow) =>
-    `${r.kind === 'romaji' ? 'ローマ字' : '文章'}・${r.minutes}分・${r.inputMethod === 'keyboard' ? '実物キーボード' : '画面入力'}・${setTypeLabel({
+    `${r.kind === 'romaji' ? 'ローマ字' : '文章'}・${r.endMode === 'count' ? `${r.targetCount}問` : `${r.minutes}分`}・${r.inputMethod === 'keyboard' ? '実物キーボード' : '画面入力'}・${setTypeLabel({
       setType: r.setType as 'standard',
       theme: r.theme,
       difficulty: (r.difficulty === 'mixed' ? 'mixed' : Number(r.difficulty)) as 1,
@@ -114,7 +116,7 @@ export function HistoryView({ rows }: { rows: HistoryRow[] }) {
               <th className="num">正確率</th>
               <th className="num">正しい数</th>
               <th className="num">ミス</th>
-              <th>完走</th>
+              <th>完走／完了</th>
             </tr>
           </thead>
           <tbody>
@@ -131,7 +133,7 @@ export function HistoryView({ rows }: { rows: HistoryRow[] }) {
                   <td className="num">{r.accuracy === null ? '—' : `${formatNumber1(r.accuracy)}％`}</td>
                   <td className="num">{r.correct}</td>
                   <td className="num">{r.miss}</td>
-                  <td>{r.finished ? '完走' : '途中終了'}</td>
+                  <td>{r.finished ? (r.endMode === 'count' ? `${r.targetCount}問完了` : '完走') : '途中終了'}</td>
                 </tr>
               ))}
           </tbody>

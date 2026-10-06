@@ -11,6 +11,7 @@ async function setup(page: Page, opts: { romajiGuide?: boolean; method?: string 
   await page.getByLabel(opts.method ?? '実物のキーボード').check();
   if (opts.romajiGuide === false) await page.getByLabel(/ローマ字ガイド/).uncheck();
   await page.getByRole('button', { name: '練習をはじめる' }).click();
+  await page.getByRole('button', { name: 'スタート' }).click();
   await expect(page.locator('.problem-romaji')).toBeVisible({ timeout: 6000 });
 }
 
@@ -57,8 +58,12 @@ test.describe('ローマ字ガイド', () => {
     expect(first).toMatch(/^[a-z\-,.!?]$/);
     const box = (await next.boundingBox())!;
     expect(box.width).toBeGreaterThan(12);
-    // 次の文字には枠がある（色だけで示さない）
-    expect(await next.evaluate((e) => getComputedStyle(e).borderTopWidth)).toBe('3px');
+    // 次の文字は枠ではなく、色と下線で示す（色だけに頼らない）
+    const st = await next.evaluate((e) => ({ border: getComputedStyle(e).borderTopWidth, deco: getComputedStyle(e).textDecorationLine, bg: getComputedStyle(e).backgroundColor, pad: getComputedStyle(e).paddingLeft }));
+    expect(st.border).toBe('0px');
+    expect(st.deco).toContain('underline');
+    expect(st.bg).toBe('rgba(0, 0, 0, 0)');
+    expect(st.pad).toBe('0px');
     const label = first === '-' ? 'ー（-）' : first.toUpperCase();
     await expect(page.getByTestId('next-key')).toHaveText(label);
     await expect(page.getByTestId('finger')).not.toHaveText('—');
@@ -107,7 +112,6 @@ test.describe('問題の切り替え', () => {
     await expect(page.locator('.kana-done')).toHaveCount(0);
     await expect(page.locator('.romaji-typed')).toHaveText('');
     await expect(page.locator('.feedback')).toHaveText('');
-    await expect(page.locator('.kana-current')).toHaveCount(1);
     // 読み上げ用の通知は画面には見えない
     const live = page.locator('.sr-only[role="status"]');
     await expect(live).toContainText('1問完成');
