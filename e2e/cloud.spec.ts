@@ -28,6 +28,9 @@ interface MockState {
   /** モックのクラウド：利用者ごとの記録（RLS の代わりに、ログイン中の人の分だけを返します） */
   rows: Map<string, Record<string, unknown>[]>;
   current: string;
+  /** 検定モードの記録（exam_results） */
+  examBodies?: Record<string, unknown>[];
+  examRows?: Map<string, Record<string, unknown>[]>;
 }
 
 async function mockSupabase(page: Page, opts: { failFirstSave?: boolean; state?: MockState; noRomajiStyleColumn?: boolean } = {}): Promise<MockState> {
@@ -92,6 +95,21 @@ async function mockSupabase(page: Page, opts: { failFirstSave?: boolean; state?:
       }
       const mine = [...(st.rows.get(st.current) ?? [])].sort((a, b) => String(b.started_at).localeCompare(String(a.started_at)));
       return json(route, mine);
+    }
+    if (url.pathname === '/rest/v1/exam_results') {
+      st.examBodies ??= [];
+      st.examRows ??= new Map();
+      if (req.method() === 'POST') {
+        const b = req.postDataJSON() as Record<string, unknown>;
+        st.examBodies.push(b);
+        const list = st.examRows.get(st.current) ?? [];
+        if (list.some((r) => r.id === b.id)) return json(route, { code: '23505', message: 'duplicate key' }, 409);
+        const score = b.scoring_enabled ? Math.max(0, Number(b.input_chars) - Number(b.miss_count) * Number(b.penalty_per_error)) : null;
+        list.push({ ...b, user_id: USERS[st.current]!.id, score_chars: score, achieved: null });
+        st.examRows.set(st.current, list);
+        return json(route, null, 201);
+      }
+      return json(route, [...(st.examRows.get(st.current) ?? [])]);
     }
     if (url.pathname === '/rest/v1/materials') return json(route, []);
     return json(route, { message: 'not mocked' }, 404);
@@ -266,4 +284,48 @@ test('v1.0.3 のマイグレーション前（romaji_style 列なし）でも、
   expect(st.resultPosts).toBe(2);
   expect(st.savedBodies[1]).not.toHaveProperty('romaji_style');
   expect(st.rows.get('stu01')).toHaveLength(1);
+});
+
+test('検定モード：ログイン利用者の記録はアカウントに保存し、端末やゲストの記録には書き込まない', async ({ page }, info) => {
+  test.skip(info.project.name !== 'pc');
+  const st = await mockSupabase(page);
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'さくらさん、こんにちは' })).toBeVisible();
+  await page.getByTestId('home-exam').click();
+  await page.getByTestId('exam-problem').first().click();
+  await page.getByTestId('exam-start').click();
+  await page.getByTestId('exam-go').click();
+  await page.getByTestId('exam-input').pressSequentially('朝、学校に着いたら');
+  await page.getByTestId('exam-end').click();
+  await page.getByTestId('exam-end-confirm').click();
+  await expect(page.getByTestId('exam-save-state')).toContainText('✓ 記録を保存しました（検定モードの記録）');
+  expect(st.examBodies).toHaveLength(1);
+  const body = st.examBodies![0]!;
+  // 入力した文章・正解文は送らない。タイピングの記録の表にも送らない
+  expect(JSON.stringify(body)).not.toContain('朝、学校に着いたら');
+  expect(body).toMatchObject({ problem_id: 'exam-original-4-01', problem_revision: 1, grade: '4', input_chars: 9, miss_count: 0, end_reason: 'user_end' });
+  expect(st.resultPosts).toBe(0);
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  expect(keys).not.toContain('sakura-type:guest-exam-history');
+  await page.getByRole('button', { name: '検定モードの記録' }).click();
+  await expect(page.getByTestId('exam-history-source')).toContainText('アカウント');
+  await expect(page.getByTestId('exam-history-row')).toHaveCount(1);
+  // 別のアカウントに切り替えると、前の人の記録は見えない
+  await page.getByRole('button', { name: '終了してログアウト' }).click();
+  await login(page, 'pass1234', 'stu02');
+  await expect(page.getByRole('heading', { name: 'もみじさん、こんにちは' })).toBeVisible();
+  await page.getByRole('button', { name: '練習の記録' }).click();
+  await page.getByTestId('tab-exam').click();
+  await expect(page.getByTestId('exam-history-empty')).toBeVisible();
+});
+
+test('検定モード：ログイン機能が設定済みのとき、生徒は先生の追加問題を管理できない（画面の表示）', async ({ page }, info) => {
+  test.skip(info.project.name !== 'pc');
+  await mockSupabase(page);
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'さくらさん、こんにちは' })).toBeVisible();
+  await page.getByTestId('home-exam').click();
+  await expect(page.getByRole('button', { name: '先生の追加問題を管理する' })).toHaveCount(0);
+  await page.evaluate(() => (window.location.hash = '#/exam/manage'));
+  await expect(page.getByText('この画面は先生のアカウントでログインしたときだけ使えます。')).toBeVisible();
 });

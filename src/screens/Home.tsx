@@ -33,10 +33,10 @@ export function Home() {
           <span>（準備中です）</span>
           <span id="quest-soon" className="badge badge-soon">準備中</span>
         </button>
-        <button type="button" className="card-button" disabled aria-describedby="exam-soon">
+        <button type="button" className="card-button" onClick={() => navigate('/exam')} data-testid="home-exam">
           <span className="title">③ 検定モード</span>
-          <span>見本を見ながら、白紙のA4文書に文章を作る練習を予定しています。（準備中です）</span>
-          <span id="exam-soon" className="badge badge-soon">準備中</span>
+          <span>お手本を見ながら、白紙のA4用紙に日本語の文章を入力します。4級相当〜1級相当・各5問。</span>
+          <span className="badge badge-ok">練習できます</span>
         </button>
       </div>
 

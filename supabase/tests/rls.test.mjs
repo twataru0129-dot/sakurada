@@ -315,6 +315,76 @@ export async function runRlsTests(db) {
     check(`${cases.length}通りの値でランクが一致`, mismatch === 0);
   }
 
+  console.log('検定モードの記録（exam_results）');
+  {
+    const exam = (user, extra = {}) => ({
+      id: id(), user_id: user, started_at: new Date().toISOString(), problem_id: 'exam-original-4-01', problem_title: '朝の準備',
+      problem_revision: 1, problem_source: 'builtin', grade: '4', time_limit_seconds: 600, elapsed_ms: 600000, end_reason: 'time_up',
+      full_text_completed: false, scoring_enabled: true, input_chars: 250, matched_chars: 245, miss_count: 5,
+      penalty_per_error: 1, target_characters: 200, scoring_version: 'exam-v1', ...extra,
+    });
+    const insE = (r) => {
+      const cols = Object.keys(r);
+      return [`insert into public.exam_results (${cols.join(',')}) values (${cols.map((_, i) => `$${i + 1}`).join(',')})`, cols.map((c) => r[c])];
+    };
+    for (const u of [S_A1, S_B1]) await db.query(...insE(exam(u)));
+    await as(S_A1, 'aal1', async () => {
+      const r = await rows('select user_id from public.exam_results');
+      check('生徒A1は自分の検定記録だけ見える', r.length === 1 && r[0].user_id === S_A1, JSON.stringify(r));
+      check('生徒A1が生徒B1の検定記録をIDで指定しても見えない', (await rows('select * from public.exam_results where user_id = $1', [S_B1])).length === 0);
+      check('生徒A1は生徒B1として検定記録を追加できない', !!(await fails(...insE(exam(S_B1)))));
+      const mine = exam(S_A1, { score_chars: 9999, achieved: true, input_chars: 150, matched_chars: 140, miss_count: 10 });
+      await db.query(...insE(mine));
+      const saved = await rows('select score_chars, achieved from public.exam_results where id = $1', [mine.id]);
+      check('得点文字数・目安達成はサーバー側で計算し直す（送った値は使わない）', saved[0]?.score_chars === 140 && saved[0]?.achieved === false, JSON.stringify(saved));
+      const pre2 = exam(S_A1, { grade: 'pre2', penalty_per_error: 3, target_characters: 400, input_chars: 10, matched_chars: 5, miss_count: 5 });
+      await db.query(...insE(pre2));
+      const s2 = await rows('select score_chars from public.exam_results where id = $1', [pre2.id]);
+      check('得点文字数の下限は0', s2[0]?.score_chars === 0, JSON.stringify(s2));
+      const short = exam(S_A1, { time_limit_seconds: 300, elapsed_ms: 300000 });
+      await db.query(...insE(short));
+      check('短縮練習では目安達成を判定しない（null）', (await rows('select achieved from public.exam_results where id = $1', [short.id]))[0]?.achieved === null);
+      const quit = exam(S_A1, { end_reason: 'user_end', elapsed_ms: 300000, full_text_completed: true });
+      await db.query(...insE(quit));
+      check('途中終了・全文入力完了では目安達成を判定しない（null）', (await rows('select achieved from public.exam_results where id = $1', [quit.id]))[0]?.achieved === null);
+      const none = exam(S_A1, { problem_source: 'teacher', problem_id: 'tp-x', scoring_enabled: false, matched_chars: null, miss_count: null, time_limit_seconds: null, end_reason: 'user_end', elapsed_ms: 1000000, input_chars: 100 });
+      await db.query(...insE(none));
+      const ns = await rows('select score_chars, achieved from public.exam_results where id = $1', [none.id]);
+      check('採点なしの記録は得点・目安達成を持たない', ns[0]?.score_chars === null && ns[0]?.achieved === null, JSON.stringify(ns));
+      check('同じIDの検定記録の再送は重複しない', (await fails(...insE(mine))) === '23505');
+      check('段階と減点が合わない記録は拒否', !!(await fails(...insE(exam(S_A1, { penalty_per_error: 5 })))));
+      check('時間切れなのに時間が足りない記録は拒否', !!(await fails(...insE(exam(S_A1, { elapsed_ms: 1000 })))));
+      check('制限時間を超えた記録は拒否', !!(await fails(...insE(exam(S_A1, { end_reason: 'user_end', elapsed_ms: 700000 })))));
+      check('選べない制限時間は拒否', !!(await fails(...insE(exam(S_A1, { time_limit_seconds: 1200, elapsed_ms: 1200000 })))));
+      check('一致数が入力文字数を超える記録は拒否', !!(await fails(...insE(exam(S_A1, { matched_chars: 300 })))));
+      check('採点なしでミス数を持つ記録は拒否', !!(await fails(...insE(exam(S_A1, { scoring_enabled: false })))));
+      check('ありえない入力の速さは拒否', !!(await fails(...insE(exam(S_A1, { input_chars: 9000, matched_chars: 9000 })))));
+      check('問題名にタグを含む記録は拒否', !!(await fails(...insE(exam(S_A1, { problem_title: '<script>' })))));
+      check('検定記録を書き換えられない', !!(await fails('update public.exam_results set miss_count = 0 where user_id = $1', [S_A1])));
+      check('検定記録を削除できない', !!(await fails('delete from public.exam_results where user_id = $1', [S_A1])));
+      check('検定記録はタイピングの記録に混ざらない', (await rows('select id from public.practice_results where id = $1', [mine.id])).length === 0);
+    });
+    await as(S_SUSP, 'aal1', async () => {
+      check('停止中の生徒は検定記録を追加できない', !!(await fails(...insE(exam(S_SUSP)))));
+    });
+    await as(T_A, 'aal2', async () => {
+      const r = await rows('select distinct user_id from public.exam_results');
+      check('教員A（二段階認証済み）は担当の生徒の検定記録だけ見える', r.length === 1 && r[0].user_id === S_A1, JSON.stringify(r));
+      check('教員Aは担当外の生徒B1の検定記録を見られない', (await rows('select * from public.exam_results where user_id = $1', [S_B1])).length === 0);
+      check('教員は生徒の検定記録を書き換えられない', !!(await fails('update public.exam_results set miss_count = 0 where user_id = $1', [S_A1])));
+    });
+    await as(T_A, 'aal1', async () => {
+      check('教員Aは二段階認証なしでは生徒の検定記録を見られない', (await rows('select * from public.exam_results where user_id = $1', [S_A1])).length === 0);
+    });
+    await as(T_B, 'aal2', async () => {
+      const r = await rows('select distinct user_id from public.exam_results');
+      check('教員Bは担当の生徒B1の検定記録だけ見える', r.length === 1 && r[0].user_id === S_B1, JSON.stringify(r));
+    });
+    await as('anon', null, async () => {
+      check('未ログインでは検定記録を読めない', !!(await fails('select * from public.exam_results')));
+    });
+  }
+
   console.log('アカウント削除');
   await db.query('delete from auth.users where id = $1', [S_A2]);
   check('アカウントを削除すると記録も消える', (await rows('select * from public.practice_results where user_id = $1', [S_A2])).length === 0);

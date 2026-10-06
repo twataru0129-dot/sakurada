@@ -11,6 +11,10 @@ import { Result } from './screens/Result';
 import { MyHistory } from './screens/MyHistory';
 import { TeacherHome } from './screens/teacher/TeacherHome';
 import { StudentDetail } from './screens/teacher/StudentDetail';
+import { ExamSelect } from './screens/exam/ExamSelect';
+import { ExamPractice } from './screens/exam/ExamPractice';
+import { ExamResult } from './screens/exam/ExamResult';
+import { ExamManage } from './screens/exam/ExamManage';
 
 function Screens() {
   const path = useRoute();
@@ -23,7 +27,7 @@ function Screens() {
   }, [needsAccount, account]);
 
   if (needsAccount && !account) return null;
-  const practicing = path === '/practice';
+  const practicing = path === '/practice' || path === '/exam/practice';
   let screen;
   if (path === '/') screen = <Entry />;
   else if (path === '/login') screen = <Login />;
@@ -32,6 +36,10 @@ function Screens() {
   else if (path === '/practice') screen = <Practice />;
   else if (path === '/result') screen = <Result />;
   else if (path === '/history') screen = <MyHistory />;
+  else if (path === '/exam') screen = <ExamSelect />;
+  else if (path === '/exam/practice') screen = <ExamPractice />;
+  else if (path === '/exam/result') screen = <ExamResult />;
+  else if (path === '/exam/manage') screen = <ExamManage />;
   else if (path === '/teacher') screen = <TeacherHome tab="classes" />;
   else if (path === '/teacher/materials') screen = <TeacherHome tab="materials" />;
   else if (path === '/teacher/account') screen = <TeacherHome tab="account" />;

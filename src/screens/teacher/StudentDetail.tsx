@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   adminAction,
+  fetchExamResultsOf,
   fetchResultsOf,
   getStudentDefaults,
   listMyClasses,
@@ -22,6 +23,8 @@ import { useApp } from '../../state/AppContext';
 import { navigate } from '../../state/router';
 import { BackLink, Toggle } from '../../ui/common';
 import { HistoryPanel } from '../../ui/HistoryPanel';
+import { ExamRecordTable } from '../../ui/exam/ExamRecordTable';
+import type { ExamRecord } from '../../core/examResult';
 
 export function StudentDetail({ studentId }: { studentId: string }) {
   const { account } = useApp();
@@ -31,6 +34,8 @@ export function StudentDetail({ studentId }: { studentId: string }) {
   const [member, setMember] = useState<string[]>([]);
   const [defaults, setDefaults] = useState<LearningSettings>(APP_DEFAULT_SETTINGS);
   const [rows, setRows] = useState<HistoryRow[] | null>(null);
+  const [examRows, setExamRows] = useState<ExamRecord[] | null>(null);
+  const [examError, setExamError] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [newPw, setNewPw] = useState<string | null>(null);
 
@@ -49,6 +54,19 @@ export function StudentDetail({ studentId }: { studentId: string }) {
       setRows(hist);
     } catch {
       setStudent(null);
+      return;
+    }
+    // 検定モードの記録（データベースに表がまだないときも、ほかの表示は続けます）
+    try {
+      setExamRows(await fetchExamResultsOf(studentId));
+      setExamError(null);
+    } catch (e) {
+      setExamRows([]);
+      setExamError(
+        (e as Error)?.message === 'exam_results_missing'
+          ? '検定モードの記録の表が、まだデータベースにありません（v1.1.0 のマイグレーションを適用してください）。'
+          : '検定モードの記録を読み込めませんでした。',
+      );
     }
   }, [studentId, teacherId]);
 
@@ -94,6 +112,13 @@ export function StudentDetail({ studentId }: { studentId: string }) {
       <section className="panel">
         <h2>練習の記録と成長</h2>
         {rows ? <HistoryPanel records={rows} /> : <p>読み込んでいます…</p>}
+      </section>
+
+      <section className="panel" data-testid="teacher-exam-records">
+        <h2>検定モードの記録</h2>
+        <p className="hint">タイピングのランクとは別の記録です。問題の改訂番号と、そのときの成績をそのまま表示します。</p>
+        {examError && <p className="msg msg-ng">{examError}</p>}
+        {examRows ? <ExamRecordTable records={examRows} /> : <p>読み込んでいます…</p>}
       </section>
 
       <section className="panel">
