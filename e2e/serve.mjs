@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const roots = { '/typing/': path.resolve('dist'), '/sakurada/': path.resolve('dist'), '/mock/': path.resolve('dist-mock') };
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json' };
 createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
   const prefix = Object.keys(roots).find((p) => url.pathname.startsWith(p));

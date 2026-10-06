@@ -13,6 +13,7 @@ import type { PracticeConfig, PracticeResult } from '../core/result';
 import type { Question } from '../core/questions';
 import { HISTORY_LIMIT, type HistoryRecord } from '../core/history';
 import { sanitizeSettings, settingsToJson, type LearningSettings } from '../core/settings';
+import { EXAM_HISTORY_LIMIT, parseExamRecord, type ExamRecord } from '../core/examResult';
 
 const memory = new Map<string, string>();
 const memoryStorage = {
@@ -504,4 +505,77 @@ export async function saveMaterial(m: Omit<MaterialRow, 'id' | 'ownerId'> & { id
 export async function deleteMaterial(id: string): Promise<void> {
   const { error } = await need().from('materials').delete().eq('id', id);
   if (error) throw new Error('教材を削除できませんでした');
+}
+
+// ---------------------------------------------------------------------
+// 検定モードの記録（タイピングの記録とは別の表 exam_results。ランクの計算には使いません）
+// ---------------------------------------------------------------------
+/**
+ * 検定モードの記録を保存します。問題・正解文・入力本文は送りません（成績の数値と問題の名前・改訂番号だけ）。
+ * 得点文字数と目安達成はデータベース側（トリガー）でも同じ規則で計算し直します。
+ */
+export async function saveExamResult(r: ExamRecord): Promise<void> {
+  const row = {
+    id: r.id,
+    started_at: r.startedAt,
+    problem_id: r.problemId,
+    problem_title: r.problemTitle,
+    problem_revision: r.problemRevision,
+    problem_source: r.problemSource,
+    grade: r.grade,
+    time_limit_seconds: r.timeLimitSeconds,
+    elapsed_ms: Math.round(r.elapsedMs),
+    end_reason: r.endReason,
+    full_text_completed: r.fullTextCompleted,
+    scoring_enabled: r.scoringEnabled,
+    input_chars: r.inputChars,
+    matched_chars: r.matchedChars,
+    miss_count: r.missCount,
+    penalty_per_error: r.penaltyPerError,
+    target_characters: r.targetCharacters,
+    scoring_version: r.scoringVersion,
+  };
+  const { error } = await need().from('exam_results').insert(row);
+  // 23505 = 同じ ID がすでに保存済み（再送）
+  if (error && error.code !== '23505') throw new Error(error.message);
+}
+
+const EXAM_COLUMNS =
+  'id, started_at, problem_id, problem_title, problem_revision, problem_source, grade, time_limit_seconds, elapsed_ms, end_reason, full_text_completed, scoring_enabled, input_chars, matched_chars, miss_count, score_chars, penalty_per_error, target_characters, achieved, scoring_version';
+
+function mapExam(r: Record<string, unknown>): ExamRecord | null {
+  return parseExamRecord({
+    id: r.id,
+    startedAt: r.started_at,
+    problemId: r.problem_id,
+    problemTitle: r.problem_title,
+    problemRevision: r.problem_revision,
+    problemSource: r.problem_source,
+    grade: r.grade,
+    timeLimitSeconds: r.time_limit_seconds ?? null,
+    elapsedMs: r.elapsed_ms,
+    endReason: r.end_reason,
+    fullTextCompleted: r.full_text_completed,
+    scoringEnabled: r.scoring_enabled,
+    inputChars: r.input_chars,
+    matchedChars: r.matched_chars ?? null,
+    missCount: r.miss_count ?? null,
+    scoreChars: r.score_chars ?? null,
+    penaltyPerError: r.penalty_per_error,
+    targetCharacters: r.target_characters,
+    achieved: r.achieved ?? null,
+    scoringVersion: r.scoring_version,
+  });
+}
+
+/** ある利用者の検定モードの記録（新しい順・既定は直近 100 件。RLS により本人か担当の先生だけが読めます） */
+export async function fetchExamResultsOf(userId: string, limit = EXAM_HISTORY_LIMIT): Promise<ExamRecord[]> {
+  const { data, error } = await need()
+    .from('exam_results')
+    .select(EXAM_COLUMNS)
+    .eq('user_id', userId)
+    .order('started_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.code === '42P01' || error.code === 'PGRST205' ? 'exam_results_missing' : error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map(mapExam).filter((x): x is ExamRecord => x !== null);
 }

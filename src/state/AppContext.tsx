@@ -1,11 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { IDLE_LOGOUT_MS, IDLE_WARNING_MS } from '../config';
-import { getClient, loadSettings, logoutCloud, saveOwnSettings, saveResult, type Profile } from '../data/cloud';
+import { getClient, loadSettings, logoutCloud, saveExamResult, saveOwnSettings, saveResult, type Profile } from '../data/cloud';
 import type { PracticeConfig, PracticeResult } from '../core/result';
 import { APP_DEFAULT_SETTINGS, effectiveSettings, type LearningSettings } from '../core/settings';
 import { navigate } from './router';
 import { GUEST_HISTORY_KEY, saveGuestRecord } from '../data/guestHistory';
 import { recordFromResult } from '../core/history';
+import type { ExamProblem } from '../core/exam';
+import type { ExamOutcome } from '../core/examResult';
+import { GUEST_EXAM_HISTORY_KEY, saveGuestExamRecord } from '../data/guestExamHistory';
+
+/** 検定モードで始める練習（問題・時間・プレビューか） */
+export interface ExamSession {
+  problem: ExamProblem;
+  timeLimitSeconds: number | null;
+  /** 先生の「生徒用プレビュー」。記録は保存しません */
+  preview: boolean;
+}
 
 export type Account = { kind: 'guest' } | { kind: 'user'; profile: Profile };
 export type SaveState = 'saving' | 'saved' | 'failed';
@@ -30,6 +41,13 @@ interface AppValue {
   setCurrentResult: (r: PracticeResult | null) => void;
   historyFocus: string | null;
   setHistoryFocus: (key: string | null) => void;
+  examSession: ExamSession | null;
+  setExamSession: (s: ExamSession | null) => void;
+  /** このログイン中（またはゲストの間）の検定モードの結果 */
+  examOutcomes: ExamOutcome[];
+  currentExam: ExamOutcome | null;
+  recordExam: (o: ExamOutcome) => void;
+  retryExamSave: (id: string) => void;
   notice: string | null;
   setNotice: (s: string | null) => void;
   idleWarning: boolean;
@@ -53,7 +71,7 @@ function clearLocalTraces() {
     if (!store) continue;
     try {
       for (const k of Object.keys(store)) {
-        if (k === GUEST_HISTORY_KEY) continue;
+        if (k === GUEST_HISTORY_KEY || k === GUEST_EXAM_HISTORY_KEY) continue;
         if (k.startsWith('sakura') || k.startsWith('sb-')) store.removeItem(k);
       }
     } catch {
@@ -80,12 +98,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /** 「練習の記録」を開いたときに最初に選ぶ条件（結果画面から開いたときは今回の条件） */
   const [historyFocus, setHistoryFocus] = useState<string | null>(null);
   const [currentResult, setCurrentResult] = useState<PracticeResult | null>(null);
+  const [examSession, setExamSession] = useState<ExamSession | null>(null);
+  const [examOutcomes, setExamOutcomes] = useState<ExamOutcome[]>([]);
+  const [currentExam, setCurrentExam] = useState<ExamOutcome | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [idleWarning, setIdleWarning] = useState(false);
   const accountRef = useRef<Account | null>(null);
   accountRef.current = account;
   const settingsTimer = useRef<number | undefined>(undefined);
   const lastActivity = useRef(Date.now());
+  const examIds = useRef(new Set<string>());
 
   const resetAll = useCallback(() => {
     accountRef.current = null;
@@ -97,6 +119,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLastConfig(null);
     setCurrentResult(null);
     setHistoryFocus(null);
+    setExamSession(null);
+    setExamOutcomes([]);
+    setCurrentExam(null);
+    examIds.current = new Set();
     setIdleWarning(false);
     window.clearTimeout(settingsTimer.current);
     clearLocalTraces();
@@ -183,6 +209,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [sessionResults, doSave],
   );
 
+  // 検定モードの記録：ゲストはこの端末、ログイン利用者はアカウント（クラウド）。タイピングの記録とは別に保存します
+  const doSaveExam = useCallback(async (o: ExamOutcome) => {
+    const id = o.record.id;
+    if (o.preview) return;
+    if (accountRef.current?.kind === 'guest') {
+      const outcome = saveGuestExamRecord(o.record);
+      setSaves((s) => ({ ...s, [id]: outcome === 'failed' ? 'failed' : 'saved' }));
+      return;
+    }
+    setSaves((s) => ({ ...s, [id]: 'saving' }));
+    try {
+      await saveExamResult(o.record);
+      if (accountRef.current?.kind === 'user') setSaves((s) => ({ ...s, [id]: 'saved' }));
+    } catch {
+      if (accountRef.current?.kind === 'user') setSaves((s) => ({ ...s, [id]: 'failed' }));
+    }
+  }, []);
+
+  const recordExam = useCallback(
+    (o: ExamOutcome) => {
+      // 同じ記録 ID の結果は一度だけ扱います（終了ボタンの連打などで二重に保存しません）
+      if (examIds.current.has(o.record.id)) return;
+      examIds.current.add(o.record.id);
+      setCurrentExam(o);
+      setExamOutcomes((list) => [o, ...list]);
+      if (accountRef.current) void doSaveExam(o);
+    },
+    [doSaveExam],
+  );
+
+  const retryExamSave = useCallback(
+    (id: string) => {
+      const o = examOutcomes.find((x) => x.record.id === id);
+      if (o && accountRef.current) void doSaveExam(o);
+    },
+    [examOutcomes, doSaveExam],
+  );
+
   // 認証基盤側でセッションが終わったとき（停止・期限切れなど）は入口に戻ります
   useEffect(() => {
     const c = getClient();
@@ -235,8 +299,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       account, settings, settingsSave, updateSettings, startGuest, startUser, logout,
       sessionResults, saves, recordResult, retrySave, unsavedCount,
       lastConfig, setLastConfig, currentResult, setCurrentResult, historyFocus, setHistoryFocus, notice, setNotice, idleWarning, keepAlive,
+      examSession, setExamSession, examOutcomes, currentExam, recordExam, retryExamSave,
     }),
-    [historyFocus, account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
+    [examSession, examOutcomes, currentExam, recordExam, retryExamSave, historyFocus, account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

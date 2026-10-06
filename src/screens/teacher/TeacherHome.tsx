@@ -46,6 +46,9 @@ export function TeacherHome({ tab }: { tab: Tab }) {
         <button type="button" className="btn btn-small" aria-current={tab === 'materials' ? 'page' : undefined} onClick={() => navigate('/teacher/materials')}>
           追加教材
         </button>
+        <button type="button" className="btn btn-small" onClick={() => navigate('/exam/manage')}>
+          検定モードの問題（この端末）
+        </button>
         <button type="button" className="btn btn-small" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => navigate('/teacher/account')}>
           自分のアカウント
         </button>
