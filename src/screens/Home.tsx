@@ -2,54 +2,64 @@ import { GUEST_HISTORY_NOTICE } from '../data/guestHistory';
 import { endLabel } from '../core/result';
 import { useApp } from '../state/AppContext';
 import { navigate } from '../state/router';
-import { logoUrl, Notice, Toggle } from '../ui/common';
+import { logoSrcSet, logoUrl, Notice, Toggle } from '../ui/common';
 
 export function Home() {
   const { account, settings, updateSettings, settingsSave, sessionResults, setHistoryFocus } = useApp();
   if (!account) return null;
   const isUser = account.kind === 'user';
   return (
-    <main>
+    <main className="home-main">
       <Notice />
       <div className="home-hero">
-        <img src={logoUrl} alt="桜打 SAKURA TYPE のロゴ" width={88} height={88} />
+        <img src={logoUrl} srcSet={logoSrcSet} sizes="(min-width: 761px) 180px, 96px" alt="桜打 SAKURA TYPE のロゴ" width={180} height={180} />
         <div>
-          <h1 style={{ marginBottom: 4 }}>{isUser ? `${account.profile.displayName}さん、こんにちは` : 'ゲストで練習中'}</h1>
-          <p className="hint" style={{ margin: 0 }}>
-            {isUser ? '記録と設定はアカウント（クラウド）に保存されます。' : GUEST_HISTORY_NOTICE}
-          </p>
+          <h1 className="home-greeting">{isUser ? `${account.profile.displayName}さん、こんにちは` : 'ゲストで練習中'}</h1>
+          <p className="home-hero-note">{isUser ? '記録と設定はアカウント（クラウド）に保存されます。' : GUEST_HISTORY_NOTICE}</p>
         </div>
       </div>
 
-      <h2>モードをえらぶ</h2>
-      <div className="grid grid-3" style={{ marginBottom: 24 }}>
-        <button type="button" className="card-button" onClick={() => navigate('/typing')}>
+      <h2 className="home-section-title">モードをえらぶ</h2>
+      <div className="home-modes">
+        <button type="button" className="card-button home-mode" onClick={() => navigate('/typing')}>
           <span className="title">① タイピングモード</span>
-          <span>ローマ字入力と、漢字に変換する文章入力を練習します。3分・5分・10分。</span>
-          <span className="badge badge-ok">練習できます</span>
+          <span className="home-mode-desc">ローマ字入力と、漢字に変換する文章入力。3・5・10分、または25・50問で練習できます。</span>
+          <span className="home-mode-foot">
+            <span className="badge badge-ok">練習できます</span>
+            <span className="home-mode-arrow" aria-hidden="true">→</span>
+          </span>
         </button>
-        <button type="button" className="card-button" onClick={() => navigate('/game')} data-testid="home-game">
+        <button type="button" className="card-button home-mode" onClick={() => navigate('/game')} data-testid="home-game">
           <span className="title">② ゲームモード</span>
-          <span>タイピングで遊べるゲーム。「サクラダファミリアを完成させよ」：物語を打つと建物が完成していきます。</span>
-          <span className="badge badge-ok">遊べます</span>
+          <span className="home-mode-desc">文章を打って建物を完成させたり、桜を育てて庭を作ったりできます。</span>
+          <span className="home-mode-sub">
+            <span>・サクラダファミリアを完成させよ</span>
+            <span>・桜ガーデン</span>
+          </span>
+          <span className="home-mode-foot">
+            <span className="badge badge-ok">遊べます</span>
+            <span className="home-mode-arrow" aria-hidden="true">→</span>
+          </span>
         </button>
-        <button type="button" className="card-button" onClick={() => navigate('/exam')} data-testid="home-exam">
+        <button type="button" className="card-button home-mode" onClick={() => navigate('/exam')} data-testid="home-exam">
           <span className="title">③ 検定モード</span>
-          <span>お手本を見ながら、白紙のA4用紙に日本語の文章を入力します。4級相当〜1級相当・各5問。</span>
-          <span className="badge badge-ok">練習できます</span>
+          <span className="home-mode-desc">お手本を見ながら、A4の用紙に日本語の文章を入力する練習です。4級相当〜1級相当。</span>
+          <span className="home-mode-foot">
+            <span className="badge badge-ok">練習できます</span>
+            <span className="home-mode-arrow" aria-hidden="true">→</span>
+          </span>
         </button>
       </div>
 
-      <div className="grid grid-2">
-        <section className="panel" aria-labelledby="settings-title">
+      <div className="home-panels">
+        <section className="panel home-panel" aria-labelledby="settings-title">
           <h2 id="settings-title">設定</h2>
-          <Toggle label="ローマ字ガイド（文章入力では読み）" checked={settings.romajiGuide} onChange={(v) => updateSettings({ romajiGuide: v })} />
-          <br />
-          <Toggle label="キーボードガイド" checked={settings.keyboardGuide} onChange={(v) => updateSettings({ keyboardGuide: v })} />
-          <br />
-          <Toggle label="指のガイド" checked={settings.fingerGuide} onChange={(v) => updateSettings({ fingerGuide: v })} />
-          <br />
-          <Toggle label="音" checked={settings.sound} onChange={(v) => updateSettings({ sound: v })} />
+          <div className="home-settings">
+            <Toggle label="ローマ字ガイド（文章入力では読み）" checked={settings.romajiGuide} onChange={(v) => updateSettings({ romajiGuide: v })} />
+            <Toggle label="キーボードガイド" checked={settings.keyboardGuide} onChange={(v) => updateSettings({ keyboardGuide: v })} />
+            <Toggle label="指のガイド" checked={settings.fingerGuide} onChange={(v) => updateSettings({ fingerGuide: v })} />
+            <Toggle label="音" checked={settings.sound} onChange={(v) => updateSettings({ sound: v })} />
+          </div>
           {isUser && (
             <p className="hint" role="status" style={{ marginTop: 8 }}>
               {settingsSave === 'saving' && '設定を保存しています…'}
@@ -58,7 +68,7 @@ export function Home() {
             </p>
           )}
         </section>
-        <section className="panel" aria-labelledby="recent-title">
+        <section className="panel home-panel" aria-labelledby="recent-title">
           <h2 id="recent-title">今回の練習</h2>
           {sessionResults.length === 0 ? (
             <p className="hint">まだ練習していません。</p>
@@ -74,7 +84,7 @@ export function Home() {
           <div className="btn-row">
             <button
               type="button"
-              className="btn"
+              className="btn btn-primary home-history-btn"
               onClick={() => {
                 setHistoryFocus(null);
                 navigate('/history');

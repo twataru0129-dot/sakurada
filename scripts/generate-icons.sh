@@ -28,6 +28,8 @@ resize 180 "$OUT/apple-touch-icon.png"
 resize 192 "$OUT/icon-192.png"
 resize 512 "$OUT/icon-512.png"
 resize 320 "$OUT/logo-320.png"
+# 入口・ホームで大きく表示するとき（高解像度の画面）用。元画像を縮小しただけで、描き直しはしません
+resize 640 "$OUT/logo-640.png"
 convert "$OUT/favicon-16.png" "$OUT/favicon-32.png" "$OUT/favicon-48.png" "$OUT/favicon.ico"
 rm "$OUT/favicon-16.png" "$OUT/favicon-48.png"
 

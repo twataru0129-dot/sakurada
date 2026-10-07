@@ -4,6 +4,8 @@ import { useApp } from '../state/AppContext';
 import { navigate } from '../state/router';
 
 export const logoUrl = `${import.meta.env.BASE_URL}icons/logo-320.png`;
+/** 入口・ホームでロゴを大きく表示するときの高解像度版（同じ元画像を縮小したもの） */
+export const logoSrcSet = `${logoUrl} 320w, ${import.meta.env.BASE_URL}icons/logo-640.png 640w`;
 
 /** 画面上部。右上に小さくバージョンを表示します（クリック不要・ほかの要素と重なりません） */
 export function Header({ practicing = false }: { practicing?: boolean }) {

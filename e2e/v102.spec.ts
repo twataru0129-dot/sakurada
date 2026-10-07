@@ -36,7 +36,8 @@ const guide = async (page: Page) =>
 async function completeCurrent(page: Page) {
   await page.keyboard.type(await guide(page));
 }
-const wrongFor = (c: string) => (c === 'z' ? 'x' : 'z');
+// 誤りのキー：どの読みの打ち方の先頭にもならないキー（z は「じ」の zi などで正解になるため使いません）
+const wrongFor = (_c: string) => ';';
 const pcOnly = (name: string) => test.skip(name === 'phone', 'スマートフォンは画面タップで別に確認します');
 
 test.describe('開始待ち', () => {

@@ -1036,3 +1036,92 @@ body:has(.entry-main) {
   .gcount legend { float: none; width: 100%; margin: 0 0 2px; }
   .gcount-opt { padding: 4px 12px; }
 }
+
+/* =====================================================================
+   v1.4.1 入口とホーム（モード選択）：画面の幅を使い、ロゴ・文字・カードを大きく
+   （入口・ホーム専用のクラスだけを変えます。ほかの画面の main やカードには影響しません）
+   ===================================================================== */
+
+/* ---------- 入口 ---------- */
+/* 装飾は画面の四隅の背景にだけ置きます（文字の背後には重ねず、動きもありません） */
+.entry-main::before, .entry-main::after { content: none; }
+body:has(.entry-main) {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='%23f6cfdb'%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(72 100 100)'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(144 100 100)'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(216 100 100)'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(288 100 100)'/%3E%3C/g%3E%3Ccircle cx='100' cy='100' r='9' fill='%23eeb0c3'/%3E%3C/svg%3E") no-repeat left -2vw top 84px / clamp(70px, 6vw, 140px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='%23f6cfdb'%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(72 100 100)'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(144 100 100)'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(216 100 100)'/%3E%3Cpath d='M100 20c14 0 24 18 18 36l-8 22-10-8-10 8-8-22c-6-18 4-36 18-36z' transform='rotate(288 100 100)'/%3E%3C/g%3E%3Ccircle cx='100' cy='100' r='9' fill='%23eeb0c3'/%3E%3C/svg%3E") no-repeat right -2vw bottom 24px / clamp(60px, 5vw, 120px),
+    radial-gradient(circle at 10% 6%, rgba(246, 207, 219, 0.55), transparent 32%),
+    radial-gradient(circle at 92% 92%, rgba(246, 207, 219, 0.45), transparent 30%),
+    var(--bg);
+}
+.entry-main { padding-top: clamp(16px, 3vh, 36px); }
+.entry-hero .entry-logo { width: clamp(180px, min(20vw, 27vh), 300px); height: auto; aspect-ratio: 1; object-fit: contain; border-radius: 28px; }
+.entry-heading .entry-title { font-size: clamp(42px, 3.6vw, 56px); line-height: 1.2; }
+.entry-tagline { font-size: clamp(22px, 1.8vw, 26px); line-height: 1.5; }
+.choice-card { position: relative; min-height: clamp(130px, 18vh, 180px); padding: 22px 64px 22px 28px; }
+.choice-card-title { font-size: clamp(28px, 2.4vw, 34px); }
+.choice-card-desc { font-size: clamp(18px, 1.5vw, 22px); line-height: 1.5; }
+.choice-card-arrow { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); font-size: clamp(28px, 2.4vw, 36px); font-weight: 800; line-height: 1; }
+.choice-card-badge { display: inline-block; font-size: 1rem; font-weight: 700; color: #6b4a00; background: var(--warn-bg); border: 1px solid #ecd48d; border-radius: 999px; padding: 2px 14px; }
+.choice-note { font-size: 1.05rem; line-height: 1.6; }
+.entry-cautions { font-size: 1.12rem; line-height: 1.75; }
+.entry-details summary { font-size: 1.15rem; }
+.entry-details-body { font-size: 1.05rem; line-height: 1.8; }
+
+/* ---------- ホーム ---------- */
+.home-main .home-hero { gap: clamp(16px, 2vw, 32px); margin-bottom: clamp(12px, 2.4vh, 28px); }
+.home-main .home-hero img { width: clamp(120px, min(12vw, 20vh), 180px); height: auto; aspect-ratio: 1; object-fit: contain; border-radius: 24px; box-shadow: var(--shadow); }
+.home-greeting { font-size: clamp(30px, 2.6vw, 40px); color: var(--accent-dark); margin: 0 0 6px; }
+.home-hero-note { margin: 0; font-size: clamp(16px, 1.25vw, 19px); line-height: 1.6; color: var(--muted); }
+.home-section-title { font-size: clamp(24px, 1.9vw, 30px); margin-bottom: 12px; }
+.home-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 1.6vw, 24px); margin-bottom: clamp(18px, 3vh, 28px); }
+.home-mode.card-button { gap: 10px; padding: clamp(18px, 1.8vw, 26px); border-width: 2px; border-radius: 20px; }
+.home-mode .title { font-size: clamp(24px, 2.1vw, 30px); line-height: 1.3; }
+.home-mode-desc { font-size: clamp(18px, 1.45vw, 22px); line-height: 1.6; }
+.home-mode-sub { display: flex; flex-direction: column; font-size: clamp(16px, 1.2vw, 18px); line-height: 1.5; color: var(--muted); font-weight: 600; }
+.home-mode-foot { margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; }
+.home-mode-foot .badge { font-size: 1rem; }
+.home-mode-arrow { font-size: clamp(26px, 2.2vw, 32px); font-weight: 800; color: var(--accent); line-height: 1; }
+.home-mode:hover .home-mode-arrow { color: var(--accent-dark); }
+.home-panels { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(16px, 1.6vw, 24px); align-items: start; }
+.home-panel.panel { margin-bottom: 0; padding: clamp(16px, 1.6vw, 24px); }
+.home-panel h2 { font-size: clamp(22px, 1.7vw, 26px); }
+/* 設定：大きなチェックボックス。ラベル全体を押せます（Toggle はラベルの中に入力欄があります） */
+.home-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; }
+.home-settings .switch { font-size: clamp(17px, 1.3vw, 20px); line-height: 1.5; min-height: 52px; padding: 4px 0; }
+.home-settings .switch input { width: 28px; height: 28px; flex: none; }
+.home-panel ul { margin: 0 0 12px; padding-left: 1.3em; font-size: 1.05rem; line-height: 1.7; }
+.home-panel .hint { font-size: 1.02rem; }
+.home-history-btn { min-height: 54px; padding: 10px 28px; font-size: 1.12rem; }
+
+/* PC・Surface：画面の幅の約86％（最大1500px）を使います */
+@media (min-width: 1100px) {
+  .entry-main, .home-main { max-width: min(1500px, 86vw); padding-left: 0; padding-right: 0; }
+  .entry-hero { gap: clamp(32px, 3vw, 56px); }
+  .entry-choices { gap: clamp(24px, 2.4vw, 40px); }
+}
+/* 低い画面（1280×720・1368×800 など）：ロゴと余白を少し小さくして、主な操作が見えるように */
+@media (min-width: 761px) and (max-height: 820px) {
+  .entry-main { padding-top: 12px; }
+  .entry-hero { margin-bottom: 18px; }
+  .entry-hero .entry-logo { width: clamp(160px, min(18vw, 27vh), 240px); }
+  .home-main { padding-top: 12px; }
+}
+/* タブレット：ホームのカードは2列 → 1列へ */
+@media (max-width: 1000px) {
+  .home-modes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-panels { grid-template-columns: 1fr; }
+}
+/* スマートフォン：縦に並べます */
+@media (max-width: 760px) {
+  body:has(.entry-main) { background: radial-gradient(circle at 10% 4%, rgba(246, 207, 219, 0.55), transparent 40%), var(--bg); }
+  .entry-hero .entry-logo { width: clamp(140px, 44vw, 180px); }
+  .entry-heading .entry-title { font-size: clamp(28px, 8vw, 36px); }
+  .entry-tagline { font-size: clamp(17px, 4.6vw, 20px); }
+  .choice-card { padding: 18px 56px 18px 20px; min-height: 110px; }
+  .choice-card-title { font-size: clamp(24px, 6.6vw, 28px); }
+  .choice-card-desc { font-size: 17px; }
+  .home-main .home-hero img { width: clamp(72px, 22vw, 96px); }
+  .home-greeting { font-size: clamp(24px, 6.6vw, 30px); }
+  .home-modes { grid-template-columns: 1fr; }
+  .home-settings { grid-template-columns: 1fr; }
+}
