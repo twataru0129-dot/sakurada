@@ -2,7 +2,7 @@ import { DOCS_BASE, isCloudConfigured } from '../config';
 import { GUEST_HISTORY_NOTICE } from '../data/guestHistory';
 import { useApp } from '../state/AppContext';
 import { navigate } from '../state/router';
-import { logoUrl, Notice } from '../ui/common';
+import { logoSrcSet, logoUrl, Notice } from '../ui/common';
 
 export function Entry() {
   const { startGuest } = useApp();
@@ -10,7 +10,7 @@ export function Entry() {
     <main className="entry-main">
       <Notice />
       <section className="entry-hero">
-        <img className="entry-logo" src={logoUrl} alt="桜打 SAKURA TYPE のロゴ" width={240} height={240} />
+        <img className="entry-logo" src={logoUrl} srcSet={logoSrcSet} sizes="(min-width: 761px) 300px, 180px" alt="桜打 SAKURA TYPE のロゴ" width={300} height={300} />
         <div className="entry-heading">
           <h1 className="entry-title">桜打 — SAKURA TYPE</h1>
           <p className="entry-tagline">自分のペースで、タイピングを練習しよう</p>
@@ -22,6 +22,7 @@ export function Entry() {
           <button type="button" className="choice-card choice-card-primary" onClick={startGuest}>
             <span className="choice-card-title">ゲストで練習</span>
             <span className="choice-card-desc">登録なしですぐ練習</span>
+            <span className="choice-card-arrow" aria-hidden="true">→</span>
           </button>
           <p className="choice-note">ゲストの記録は、この端末・ブラウザに保存されます。</p>
         </div>
@@ -35,6 +36,12 @@ export function Entry() {
           >
             <span className="choice-card-title">ログインして練習</span>
             <span className="choice-card-desc">記録を保存して成長を確認</span>
+            {/* 押せないときは矢印を出さず、「準備中」を文字で示します */}
+            {isCloudConfigured ? (
+              <span className="choice-card-arrow" aria-hidden="true">→</span>
+            ) : (
+              <span className="choice-card-badge">準備中</span>
+            )}
           </button>
           {isCloudConfigured ? (
             <p className="choice-note">先生からもらった ID とパスワードを使います。</p>
