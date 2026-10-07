@@ -25,8 +25,8 @@ async function startCourse(page: Page, course: '標準コース' | '短縮コー
   await expect(page.getByTestId('game-go')).toBeVisible();
 }
 
-/** いまの文のガイド（ローマ字）を返します */
-const guideText = async (page: Page) => ((await page.locator('.game-romaji .romaji-next').textContent()) ?? '') + ((await page.locator('.game-romaji .romaji-rest').textContent()) ?? '');
+/** いまの文のガイド（これから打つローマ字。表示は行ごとに分かれるため、まとめた値を読みます） */
+const guideText = async (page: Page) => (await page.getByTestId('game-romaji').getAttribute('data-remaining')) ?? '';
 
 /** 物語を最後までガイドどおりに打ちます（1文ずつ） */
 async function typeAll(page: Page, onSentence?: () => Promise<void>) {
@@ -294,7 +294,7 @@ test.describe('ゲームモード', () => {
     await startCourse(page, '短縮コース', { touch: true });
     await page.getByTestId('game-go').click();
     const key = (await page.locator('.game-romaji .romaji-next').textContent())!;
-    await page.locator('.kb').getByRole('button', { name: new RegExp(`^${key.toUpperCase()}`) }).first().click();
+    await page.locator(`.gkb [data-key="${key}"]`).click();
     expect(await gaugeNow(page)).toBeGreaterThanOrEqual(0);
     await expect(page.getByTestId('game-penalty')).toContainText('ミス 0回');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
