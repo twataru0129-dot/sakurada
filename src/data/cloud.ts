@@ -15,6 +15,7 @@ import { HISTORY_LIMIT, type HistoryRecord } from '../core/history';
 import { sanitizeSettings, settingsToJson, type LearningSettings } from '../core/settings';
 import { EXAM_HISTORY_LIMIT, parseExamRecord, type ExamRecord } from '../core/examResult';
 import { GAME_HISTORY_LIMIT, parseGameResult, type GameResult } from '../core/game/result';
+import { parseEvent, type GardenEvent } from '../core/garden/state';
 
 const memory = new Map<string, string>();
 const memoryStorage = {
@@ -664,4 +665,39 @@ export async function fetchGameBests(userId: string): Promise<GameResult[]> {
   const { data, error } = await need().rpc('game_bests', { p_user: userId });
   if (error) throw isMissingTable(error) ? new CloudTableMissingError() : new Error(error.message);
   return ((data ?? []) as Record<string, unknown>[]).map(mapGame).filter((x): x is GameResult => x !== null);
+}
+
+/**
+ * 桜ガーデンの記録（出来事の一覧）を読み込みます（本人の分だけ。RLS により他人の分は読めません）。
+ * 1回に読める行数に上限があるため、古い順に分けて読みます。
+ */
+export async function fetchGardenEvents(userId: string): Promise<GardenEvent[]> {
+  const out: GardenEvent[] = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await need()
+      .from('garden_events')
+      .select('event_id, event_type, event_at, payload')
+      .eq('user_id', userId)
+      .order('event_at', { ascending: true })
+      .order('event_id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw isMissingTable(error) ? new CloudTableMissingError() : new Error(error.message);
+    const rows = (data ?? []) as Record<string, unknown>[];
+    for (const r of rows) {
+      const e = parseEvent({ id: r.event_id, at: Number(r.event_at), type: r.event_type, data: r.payload });
+      if (e) out.push(e);
+    }
+    if (rows.length < PAGE) return out;
+  }
+}
+
+/** 桜ガーデンの出来事を保存します。すでに保存済みの ID は無視されます（再送しても二重になりません） */
+export async function saveGardenEvents(userId: string, events: readonly GardenEvent[]): Promise<void> {
+  if (events.length === 0) return;
+  const rows = events.map((e) => ({ user_id: userId, event_id: e.id, event_type: e.type, event_at: e.at, payload: e.data }));
+  const { error } = await need().from('garden_events').upsert(rows, { onConflict: 'user_id,event_id', ignoreDuplicates: true });
+  if (!error) return;
+  if (isMissingTable(error)) throw new CloudTableMissingError();
+  throw new Error(error.message);
 }

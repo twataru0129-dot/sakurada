@@ -1,0 +1,38 @@
+{
+ "trees": {
+  "saitama_sakura": {
+   "sapling": {
+    "file": "saitama_sakura_sapling.webp",
+    "w": 407,
+    "h": 451,
+    "groundX": 0.5295,
+    "groundY": 0.9335,
+    "groundWidth": 0.6413
+   },
+   "young": {
+    "file": "saitama_sakura_young.webp",
+    "w": 623,
+    "h": 551,
+    "groundX": 0.5048,
+    "groundY": 0.9419,
+    "groundWidth": 0.4767
+   },
+   "buds": {
+    "file": "saitama_sakura_buds.webp",
+    "w": 605,
+    "h": 577,
+    "groundX": 0.5322,
+    "groundY": 0.9411,
+    "groundWidth": 0.5653
+   },
+   "bloom": {
+    "file": "saitama_sakura_bloom.webp",
+    "w": 632,
+    "h": 585,
+    "groundX": 0.5633,
+    "groundY": 0.8872,
+    "groundWidth": 0.6487
+   }
+  }
+ }
+}

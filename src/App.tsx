@@ -19,6 +19,8 @@ import { GameSelect } from './screens/game/GameSelect';
 import { SakuradaIntro } from './screens/game/SakuradaIntro';
 import { SakuradaPlay } from './screens/game/SakuradaPlay';
 import { SakuradaResult } from './screens/game/SakuradaResult';
+import { GardenScreen } from './screens/garden/GardenScreen';
+import { GardenProvider } from './state/GardenContext';
 
 function Screens() {
   const path = useRoute();
@@ -31,7 +33,7 @@ function Screens() {
   }, [needsAccount, account]);
 
   if (needsAccount && !account) return null;
-  const practicing = path === '/practice' || path === '/exam/practice' || path === '/game/sakurada/play';
+  const practicing = path === '/practice' || path === '/exam/practice' || path === '/game/sakurada/play' || path === '/game/garden/play';
   let screen;
   if (path === '/') screen = <Entry />;
   else if (path === '/login') screen = <Login />;
@@ -48,6 +50,8 @@ function Screens() {
   else if (path === '/game/sakurada') screen = <SakuradaIntro />;
   else if (path === '/game/sakurada/play') screen = <SakuradaPlay />;
   else if (path === '/game/sakurada/result') screen = <SakuradaResult />;
+  // 庭と練習は同じ画面です（練習を始めても、庭の表示はそのまま残ります）
+  else if (path === '/game/garden' || path === '/game/garden/play') screen = <GardenScreen key="garden" mode={path === '/game/garden/play' ? 'play' : 'garden'} />;
   else if (path === '/teacher') screen = <TeacherHome tab="classes" />;
   else if (path === '/teacher/materials') screen = <TeacherHome tab="materials" />;
   else if (path === '/teacher/account') screen = <TeacherHome tab="account" />;
@@ -65,7 +69,9 @@ function Screens() {
 export function App() {
   return (
     <AppProvider>
-      <Screens />
+      <GardenProvider>
+        <Screens />
+      </GardenProvider>
     </AppProvider>
   );
 }

@@ -1,0 +1,29 @@
+{
+ "schema_version": 1,
+ "tree": {
+  "id": "saitama_sakura",
+  "name": "さいたま桜",
+  "name_reading": "さいたまざくら",
+  "flower_color": "白・桃色・淡い杏色",
+  "tree_shape": "広がる枝と、やさしく垂れる枝先",
+  "description": "白と桃色、淡い杏色の花が重なり、枝先まで華やかに咲きます。桜ガーデンだけの、空想から生まれた桜です。",
+  "fictional": true,
+  "source_note": "ゲームオリジナルの桜です。実在する品種ではありません。",
+  "growth_thresholds": {
+   "young": 20,
+   "buds": 50,
+   "bloom": 100
+  }
+ },
+ "ui": {
+  "arrival_title": "特別な苗が届きました",
+  "arrival_body": "あなたの庭に、特別な桜の苗が届きました。",
+  "reveal_name": "さいたま桜",
+  "reveal_body": "あなたの庭で、新しい桜を育てましょう。",
+  "receive_button": "苗を見る",
+  "collection_section": "特別な桜",
+  "bloom_title": "さいたま桜が満開になりました！",
+  "bloom_body": "白と桃色、淡い杏色の花が庭を彩ります。",
+  "collection_note": "この桜の満開の姿を、特別なページに記録しました。"
+ }
+}

@@ -1,0 +1,310 @@
+{
+ "schema_version": 1,
+ "language": "ja",
+ "title": "桜ガーデン 画面文章とカタログ",
+ "standard_trees": [
+  {
+   "id": "somei_yoshino",
+   "name": "ソメイヨシノ",
+   "name_reading": "そめいよしの",
+   "flower_color": "白に近い淡い桃色",
+   "tree_shape": "横に広がる枝",
+   "description": "淡い花が枝いっぱいに咲きます。庭を明るく彩る、なじみ深い桜です。",
+   "shop_description": "ソメイヨシノの苗です。水やりをして、満開の姿を楽しみましょう。",
+   "unlock_completed_problems": 0,
+   "price_petals": 20
+  },
+  {
+   "id": "yae_beni_shidare",
+   "name": "八重紅枝垂",
+   "name_reading": "やえべにしだれ",
+   "flower_color": "桃色",
+   "tree_shape": "下へ流れる枝",
+   "description": "やわらかな枝が下へ垂れ、八重の花が咲きます。花のカーテンのような姿が魅力です。",
+   "shop_description": "八重紅枝垂の苗です。水やりをして、満開の姿を楽しみましょう。",
+   "unlock_completed_problems": 20,
+   "price_petals": 20
+  },
+  {
+   "id": "kanzan",
+   "name": "関山",
+   "name_reading": "かんざん",
+   "flower_color": "濃い桃色",
+   "tree_shape": "大きく広がる枝",
+   "description": "花びらが重なった、濃い桃色の花を咲かせます。華やかな色が庭のアクセントになります。",
+   "shop_description": "関山の苗です。水やりをして、満開の姿を楽しみましょう。",
+   "unlock_completed_problems": 50,
+   "price_petals": 30
+  },
+  {
+   "id": "asahiyama",
+   "name": "旭山",
+   "name_reading": "あさひやま",
+   "flower_color": "桃色",
+   "tree_shape": "小ぶりでまとまった形",
+   "description": "小型の桜で、桃色の花を咲かせます。小さな庭でも、そのかわいらしい姿を楽しめます。",
+   "shop_description": "旭山の苗です。水やりをして、満開の姿を楽しみましょう。",
+   "unlock_completed_problems": 90,
+   "price_petals": 35
+  },
+  {
+   "id": "ukon",
+   "name": "鬱金",
+   "name_reading": "うこん",
+   "flower_color": "淡い黄緑色",
+   "tree_shape": "ゆったり広がる枝",
+   "description": "黄色がかった淡い黄緑色の花を咲かせます。やさしい色合いで庭に変化を添える桜です。",
+   "shop_description": "鬱金の苗です。水やりをして、満開の姿を楽しみましょう。",
+   "unlock_completed_problems": 140,
+   "price_petals": 45
+  },
+  {
+   "id": "gyoiko",
+   "name": "御衣黄",
+   "name_reading": "ぎょいこう",
+   "flower_color": "緑から黄緑色",
+   "tree_shape": "広がる枝",
+   "description": "緑色を帯びた珍しい花を咲かせます。葉だけでなく、花にも緑の色合いが見られます。",
+   "shop_description": "御衣黄の苗です。水やりをして、満開の姿を楽しみましょう。",
+   "unlock_completed_problems": 200,
+   "price_petals": 60
+  },
+  {
+   "id": "amanogawa",
+   "name": "天の川",
+   "name_reading": "あまのがわ",
+   "flower_color": "淡い桃色",
+   "tree_shape": "細く上へ伸びる形",
+   "description": "枝が上へ伸び、細長い姿になる桜です。横に広がる桜と並べると、形の違いを楽しめます。",
+   "shop_description": "天の川の苗です。水やりをして、満開の姿を楽しみましょう。",
+   "unlock_completed_problems": 270,
+   "price_petals": 75
+  },
+  {
+   "id": "kenrokuen_kikuzakura",
+   "name": "兼六園菊桜",
+   "name_reading": "けんろくえんきくざくら",
+   "flower_color": "淡い桃色",
+   "tree_shape": "まとまりのある枝",
+   "description": "たくさんの花びらが重なり、菊のような花を咲かせます。近くで花の形を眺めたくなる桜です。",
+   "shop_description": "兼六園菊桜の苗です。水やりをして、満開の姿を楽しみましょう。",
+   "unlock_completed_problems": 350,
+   "price_petals": 100
+  }
+ ],
+ "decorations": [
+  {
+   "id": "flowerbed",
+   "name": "花壇",
+   "name_reading": "かだん",
+   "description": "小さな花で庭に彩りを添えます。桜の足元や小道のそばにどうぞ。",
+   "price_petals": 10
+  },
+  {
+   "id": "stepping_stones",
+   "name": "飛び石",
+   "name_reading": "とびいし",
+   "description": "石を並べて、庭に小道を作ります。一つのセットに五つの石が入っています。",
+   "price_petals": 10
+  },
+  {
+   "id": "wooden_bench",
+   "name": "木のベンチ",
+   "name_reading": "きのべんち",
+   "description": "桜を眺める休憩場所です。木陰や池のそばに置いてみましょう。",
+   "price_petals": 30
+  },
+  {
+   "id": "stone_lantern",
+   "name": "石灯籠",
+   "name_reading": "いしどうろう",
+   "description": "落ち着いた和風の飾りです。庭のすみや小道のそばになじみます。",
+   "price_petals": 40
+  },
+  {
+   "id": "small_pond",
+   "name": "小さな池",
+   "name_reading": "ちいさないけ",
+   "description": "空や桜が映る、小さな水辺です。周りに余白を残して置くときれいです。",
+   "price_petals": 60
+  }
+ ],
+ "ui": {
+  "navigation": {
+   "garden": "庭づくり",
+   "grow": "桜を育てる",
+   "shop": "お店",
+   "collection": "図鑑",
+   "inventory": "持ちもの",
+   "back": "戻る"
+  },
+  "buttons": {
+   "start": "練習を始める",
+   "space_start": "スペースでスタート",
+   "pause": "ひと休み",
+   "resume": "続きを始める",
+   "end": "練習を終える",
+   "water_one": "水を1使う",
+   "water_five": "水を5使う",
+   "water_to_bloom": "満開まで水やり",
+   "view": "鑑賞する",
+   "exchange": "交換する",
+   "place": "庭に置く",
+   "move": "移動する",
+   "put_away": "片付ける",
+   "cancel": "やめる",
+   "confirm": "決定",
+   "close": "閉じる",
+   "save_image": "庭の画像を保存",
+   "rename_garden": "庭の名前を変える"
+  },
+  "labels": {
+   "water": "水",
+   "petals": "花びら",
+   "selected_tree": "育てている桜",
+   "growth": "成長度",
+   "owned": "持っている数",
+   "garden_name": "庭の名前",
+   "problem_count": "問題数",
+   "remaining_to_bloom": "満開まであと{water}",
+   "placement_count": "庭の桜 {placed} / 3",
+   "collection_count": "満開にした桜 {completed} / 8",
+   "unlock_condition": "練習で{count}問完成すると、お店に並びます",
+   "price": "花びら {count}枚",
+   "not_acquired": "まだ持っていません",
+   "not_bloomed": "まだ満開になっていません",
+   "bloomed": "満開に育てました"
+  },
+  "garden": {
+   "initial_names": [
+    "はじめの庭",
+    "風の庭",
+    "ひだまりの庭"
+   ],
+   "place_prompt": "置きたい場所を選んでね",
+   "tree_slot_full": "この庭には桜を3本置けます。入れ替える桜を選んでね。",
+   "occupied": "ここには置けません。別の場所を選んでね。",
+   "outside_area": "庭の中の場所を選んでね。",
+   "tree_elsewhere": "この桜は「{garden}」にあります。こちらへ移しますか？",
+   "transfer_confirm": "この庭へ移す",
+   "put_away_note": "持ちものに戻ります。育てた記録も残ります。",
+   "empty_inventory": "お店で桜や飾りを手に入れよう。",
+   "unplaced_trees": "持ちものにある桜も水やりできます。",
+   "garden_unlocked": "新しい庭が使えるようになりました。",
+   "unlock_hint": "練習で{count}問完成すると、新しい庭が使えます。",
+   "image_saved": "庭の画像を保存しました。",
+   "image_download_started": "庭の画像をダウンロードします。",
+   "image_failed": "画像を保存できませんでした。もう一度試してね。",
+   "name_empty": "庭の名前を入れてね。",
+   "name_too_long": "庭の名前は20文字までにしてね。"
+  },
+  "growth": {
+   "select": "育てたい桜を選んでね",
+   "no_tree": "最初の桜の苗を受け取ろう。",
+   "stages": {
+    "sapling": "苗木",
+    "young": "若木",
+    "buds": "つぼみ",
+    "bloom": "満開"
+   },
+   "stage_messages": {
+    "sapling": "新しい苗を手に入れました。",
+    "young": "若木になりました。枝が伸びています。",
+    "buds": "つぼみがふくらみました。満開までもう少し。",
+    "bloom": "桜が満開になりました！"
+   },
+   "watered": "水を{amount}使いました。",
+   "not_enough_water": "水が足りません。タイピングで集めよう。",
+   "already_bloomed": "満開の桜です。ゆっくり眺めてね。",
+   "registered": "図鑑に満開の姿を記録しました。",
+   "first_tree_note": "最初のソメイヨシノは、水20で満開になります。"
+  },
+  "practice": {
+   "intro": "短い文章を打って、庭を育てよう。",
+   "count_options": [
+    5,
+    10,
+    20
+   ],
+   "default_count": 10,
+   "ready": "スペースを押すと始まります。",
+   "typing_hint": "ひらがなの読みを、ローマ字で入力しよう。",
+   "progress": "{current} / {total}",
+   "reward_small": "水 +{water}　花びら +{petals}",
+   "finished_title": "おつかれさまでした",
+   "finished_body": "今日は{count}問の文章を完成させました。",
+   "reward_summary": "集めた水 {water}　花びら {petals}枚",
+   "next_action": "集めた水で桜を育てよう。",
+   "interrupted_title": "ここでひと休みしますか？",
+   "interrupted_body": "完成した問題のごほうびは残ります。",
+   "no_countdown_penalty": "自分のペースで進めてね。"
+  },
+  "shop": {
+   "intro": "集めた花びらで、桜の苗や庭の飾りと交換できます。",
+   "tree_tab": "桜の苗",
+   "decoration_tab": "庭の飾り",
+   "confirm": "花びら{price}枚で「{name}」と交換しますか？",
+   "exchanged": "「{name}」が持ちものに増えました。",
+   "shortage": "花びらがあと{shortage}枚必要です。",
+   "unlocked": "「{name}」の苗がお店に並びました。",
+   "initial_tree": "最初のソメイヨシノの苗は、無料で受け取れます。",
+   "receive": "苗を受け取る",
+   "received": "ソメイヨシノの苗を受け取りました。"
+  },
+  "collection": {
+   "intro": "満開に育てた桜の姿を集めよう。",
+   "flower_color": "花の色",
+   "tree_shape": "木の形",
+   "description": "この桜について",
+   "enlarge": "花を大きく見る",
+   "all_standard_complete": "8種類の桜を満開に育てました！",
+   "illustration_note": "画像は、桜の特徴を参考にしたゲーム用のイラストです。"
+  },
+  "save": {
+   "local_saved": "この端末に保存しました。",
+   "local_failed": "保存できませんでした。画面を閉じずに、もう一度試してください。",
+   "cloud_syncing": "記録を同期しています。",
+   "cloud_synced": "記録を同期しました。",
+   "cloud_failed_local_ok": "この端末には保存済みです。同期は後でもう一度試します。"
+  },
+  "settings": {
+   "sound": "音",
+   "motion": "動きを少なくする",
+   "motion_help": "花びらや光の動きを控えめにします。"
+  }
+ },
+ "help_pages": [
+  {
+   "title": "桜ガーデンへようこそ",
+   "body": "タイピングで水と花びらを集め、桜を育てるゲームです。少しずつ、自分だけの庭を作りましょう。"
+  },
+  {
+   "title": "短い文章を打とう",
+   "body": "5問・10問・20問から選んで始めます。時間制限はありません。間違えても、打ち直して進められます。"
+  },
+  {
+   "title": "水と花びらを集めよう",
+   "body": "1問完成するたびに、水1と花びら1枚がもらえます。読みに使われるひらがなが累計20文字になるたびに、水が1増えます。"
+  },
+  {
+   "title": "桜に水やりしよう",
+   "body": "育てたい桜を選んで水を使います。苗木から若木、つぼみ、満開へ成長します。満開の桜には水を使いません。"
+  },
+  {
+   "title": "庭を飾ろう",
+   "body": "お店で苗や飾りと交換し、庭に置きます。一つの庭に置ける桜は3本です。持ちものの桜とは、いつでも入れ替えられます。"
+  },
+  {
+   "title": "満開の姿を集めよう",
+   "body": "桜を満開にすると、図鑑に育てた記録が残ります。花の色や木の形を見比べてみましょう。"
+  },
+  {
+   "title": "自分のペースで楽しもう",
+   "body": "遊ばない日があっても桜は枯れません。片付けた桜や飾りは持ちものに戻り、成長や記録も残ります。"
+  },
+  {
+   "title": "記録の保存について",
+   "body": "完成した問題や庭の変更は、その都度保存します。端末内だけに保存する場合は、同じ端末とブラウザで続きを遊びましょう。"
+  }
+ ]
+}
