@@ -480,9 +480,47 @@ export async function runRlsTests(db) {
     });
   }
 
+  console.log('桜ガーデンの記録（garden_events）');
+  {
+    const gev = (user, eventId, extra = {}) => {
+      const r = { user_id: user, event_id: eventId, event_type: 'solve', event_at: Date.now(), payload: JSON.stringify({ session: 's1', index: 0 }), ...extra };
+      const cols = Object.keys(r);
+      return [`insert into public.garden_events (${cols.join(',')}) values (${cols.map((_, i) => `$${i + 1}`).join(',')})`, cols.map((c) => r[c])];
+    };
+    // 生徒B1の記録（管理者として投入）と、アカウント削除の確認用の生徒A2の記録
+    await db.query(...gev(S_B1, 'b-1'));
+    await db.query(...gev(S_A2, 'a2-1'));
+    await as(S_A1, 'aal1', async () => {
+      check('生徒A1は自分の桜ガーデンの記録を追加できる', !(await fails(...gev(S_A1, 'e-1'))));
+      check('同じ出来事の ID は二重に登録されない', !!(await fails(...gev(S_A1, 'e-1'))));
+      await db.query('insert into public.garden_events (event_id, event_type, event_at, payload) values ($1, $2, $3, $4) on conflict do nothing', ['e-1', 'solve', Date.now(), '{}']);
+      check('再送（on conflict do nothing）では増えない', (await rows('select * from public.garden_events where event_id = $1', ['e-1'])).length === 1);
+      const r = await rows('select distinct user_id from public.garden_events');
+      check('生徒A1は自分の桜ガーデンの記録だけ見える', r.length === 1 && r[0].user_id === S_A1, JSON.stringify(r));
+      check('生徒A1は生徒B1の桜ガーデンの記録を指定しても見えない', (await rows('select * from public.garden_events where user_id = $1', [S_B1])).length === 0);
+      check('生徒A1は生徒B1として桜ガーデンの記録を追加できない', !!(await fails(...gev(S_B1, 'x-1'))));
+      check('桜ガーデンの記録を書き換えられない', !!(await fails("update public.garden_events set payload = '{}' where user_id = $1", [S_A1])));
+      check('桜ガーデンの記録を削除できない', !!(await fails('delete from public.garden_events where user_id = $1', [S_A1])));
+      check('知らない種類の出来事は登録できない', !!(await fails(...gev(S_A1, 'e-2', { event_type: 'grant_everything' }))));
+      check('未来の日時の出来事は登録できない', !!(await fails(...gev(S_A1, 'e-3', { event_at: Date.now() + 3600000 }))));
+      check('大きすぎる内容は登録できない', !!(await fails(...gev(S_A1, 'e-4', { payload: JSON.stringify({ x: 'あ'.repeat(3000) }) }))));
+    });
+    await as(S_SUSP, 'aal1', async () => {
+      check('停止中の生徒は桜ガーデンの記録を追加できない', !!(await fails(...gev(S_SUSP, 's-1'))));
+    });
+    await as(T_A, 'aal2', async () => {
+      check('先生も生徒の桜ガーデンの記録は見られない', (await rows('select * from public.garden_events where user_id in ($1, $2)', [S_A2, S_B1])).length === 0);
+    });
+    await as('anon', null, async () => {
+      check('未ログインでは桜ガーデンの記録を読めない', !!(await fails('select * from public.garden_events')));
+      check('未ログインでは桜ガーデンの記録を追加できない', !!(await fails(...gev(S_A1, 'n-1'))));
+    });
+  }
+
   console.log('アカウント削除');
   await db.query('delete from auth.users where id = $1', [S_A2]);
   check('アカウントを削除すると記録も消える', (await rows('select * from public.practice_results where user_id = $1', [S_A2])).length === 0);
+  check('アカウントを削除すると桜ガーデンの記録も消える', (await rows('select * from public.garden_events where user_id = $1', [S_A2])).length === 0);
 
   console.log(`\n${passed} 件成功 / ${failed} 件失敗`);
   return failed;

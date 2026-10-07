@@ -3,6 +3,7 @@
  * 遊べないゲーム（作成中など）は登録しません（遊べるように見せないため）。
  */
 import completeImage from '../../assets/game/stage_05_complete.webp';
+import gardenImage from '../../assets/garden/backgrounds/garden_day.webp';
 
 export interface GameEntry {
   id: string;
@@ -22,5 +23,13 @@ export const GAMES: readonly GameEntry[] = [
     path: '/game/sakurada',
     image: completeImage,
     imageAlt: '完成した大聖堂のゲーム用イラスト（AI で作成したイメージ）',
+  },
+  {
+    id: 'sakura-garden',
+    title: '桜ガーデン',
+    description: '短い文章を打って水と花びらを集め、桜を育てて自分の庭を作ります。時間制限はありません。',
+    path: '/game/garden',
+    image: gardenImage,
+    imageAlt: '春の和風の庭のゲーム用イラスト',
   },
 ];

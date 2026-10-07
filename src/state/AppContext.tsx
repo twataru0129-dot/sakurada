@@ -10,6 +10,7 @@ import type { ExamProblem } from '../core/exam';
 import type { ExamOutcome } from '../core/examResult';
 import { GUEST_EXAM_HISTORY_KEY, saveGuestExamRecord } from '../data/guestExamHistory';
 import { GUEST_GAME_BESTS_KEY, GUEST_GAME_HISTORY_KEY, saveGuestGameResult } from '../data/guestGameHistory';
+import { GUEST_GARDEN_KEY } from '../data/guestGarden';
 import type { GameResult } from '../core/game/result';
 import type { CourseId } from '../core/game/sakurada';
 
@@ -68,6 +69,8 @@ interface AppValue {
   currentGame: GameResult | null;
   recordGame: (r: GameResult) => void;
   retryGameSave: (id: string) => void;
+  /** 桜ガーデンの、まだアカウントに保存できていない変更の有無（ログアウト前の確認に使います） */
+  reportGardenUnsaved: (unsaved: boolean) => void;
   saveFailures: Record<string, SaveFailure>;
   notice: string | null;
   setNotice: (s: string | null) => void;
@@ -76,6 +79,8 @@ interface AppValue {
 }
 
 const Ctx = createContext<AppValue | null>(null);
+/** 保存の状態の一覧（saves）の中で、桜ガーデンの未送信を表す項目 */
+const GARDEN_SAVE_KEY = 'garden-sync';
 
 export function useApp(): AppValue {
   const v = useContext(Ctx);
@@ -92,7 +97,7 @@ function clearLocalTraces() {
     if (!store) continue;
     try {
       for (const k of Object.keys(store)) {
-        if (k === GUEST_HISTORY_KEY || k === GUEST_EXAM_HISTORY_KEY || k === GUEST_GAME_HISTORY_KEY || k === GUEST_GAME_BESTS_KEY) continue;
+        if (k === GUEST_HISTORY_KEY || k === GUEST_EXAM_HISTORY_KEY || k === GUEST_GAME_HISTORY_KEY || k === GUEST_GAME_BESTS_KEY || k === GUEST_GARDEN_KEY) continue;
         if (k.startsWith('sakura') || k.startsWith('sb-')) store.removeItem(k);
       }
     } catch {
@@ -366,6 +371,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIdleWarning(false);
   }, []);
 
+  const reportGardenUnsaved = useCallback((unsaved: boolean) => {
+    setSaves((s) => (s[GARDEN_SAVE_KEY] === (unsaved ? 'failed' : 'saved') ? s : { ...s, [GARDEN_SAVE_KEY]: unsaved ? 'failed' : 'saved' }));
+  }, []);
+
   const unsavedCount = Object.values(saves).filter((s) => s !== 'saved').length;
 
   const value = useMemo<AppValue>(
@@ -374,9 +383,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       sessionResults, saves, recordResult, retrySave, unsavedCount,
       lastConfig, setLastConfig, currentResult, setCurrentResult, historyFocus, setHistoryFocus, notice, setNotice, idleWarning, keepAlive,
       examSession, setExamSession, examOutcomes, currentExam, recordExam, retryExamSave,
-      gameSession, setGameSession, gameResults, currentGame, recordGame, retryGameSave, saveFailures,
+      gameSession, setGameSession, gameResults, currentGame, recordGame, retryGameSave, saveFailures, reportGardenUnsaved,
     }),
-    [gameSession, gameResults, currentGame, recordGame, retryGameSave, saveFailures, examSession, examOutcomes, currentExam, recordExam, retryExamSave, historyFocus, account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
+    [gameSession, gameResults, currentGame, recordGame, retryGameSave, saveFailures, reportGardenUnsaved, examSession, examOutcomes, currentExam, recordExam, retryExamSave, historyFocus, account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
