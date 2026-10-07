@@ -17,7 +17,8 @@ async function startCourse(page: Page, course: '標準コース' | '短縮コー
   await page.getByTestId('game-start').click();
   await expect(page.getByTestId('game-go')).toBeVisible();
 }
-const guideText = async (page: Page) => ((await page.locator('.game-romaji .romaji-next').textContent()) ?? '') + ((await page.locator('.game-romaji .romaji-rest').textContent()) ?? '');
+/** いまの文のガイド（これから打つローマ字。表示は行ごとに分かれるため、まとめた値を読みます） */
+const guideText = async (page: Page) => (await page.getByTestId('game-romaji').getAttribute('data-remaining')) ?? '';
 async function typeAll(page: Page, each?: () => Promise<void>) {
   for (let i = 0; i < 100; i++) {
     if (!(await page.locator('.game-romaji .romaji-next').count())) break;
@@ -144,7 +145,7 @@ test.describe('v1.3.0 PC の一画面の配置', () => {
           expect(b.y + b.height, id).toBeLessThanOrEqual(h + 0.5);
           expect(b.x + b.width, id).toBeLessThanOrEqual(w + 0.5);
         }
-        for (const sel of ['.kb', '.game-hands .hands', '.kb .key.target']) {
+        for (const sel of ['.gkb', '.game-hands .hands', '.gkb .key.target']) {
           const b = (await page.locator(sel).first().boundingBox())!;
           expect(b.y + b.height, sel).toBeLessThanOrEqual(h + 0.5);
         }
@@ -154,14 +155,14 @@ test.describe('v1.3.0 PC の一画面の配置', () => {
         // 文字・キーを小さくしすぎない
         const sizes = await page.evaluate(() => ({
           text: parseFloat(getComputedStyle(document.querySelector('[data-testid="game-text"]')!).fontSize),
-          key: document.querySelector('.kb .key')!.getBoundingClientRect().height,
+          key: document.querySelector('.gkb .gkb-key')!.getBoundingClientRect().height,
         }));
         expect(sizes.text).toBeGreaterThanOrEqual(20);
         expect(sizes.key).toBeGreaterThanOrEqual(34);
       };
       await check();
       const sentence = page.getByTestId('game-sentence');
-      const kb = page.locator('.kb');
+      const kb = page.locator('.gkb');
       const h0 = (await sentence.boundingBox())!.height;
       const k0 = (await kb.boundingBox())!.y;
       // 全部の文で、文の枠の高さとキーボードの位置が変わらないこと（ミスを続けても）
@@ -185,8 +186,8 @@ test.describe('v1.3.0 PC の一画面の配置', () => {
     await page.getByTestId('game-go').click();
     for (const id of ['building', 'game-text', 'game-romaji', 'gauge-bar', 'gauge-left', 'gauge-stage']) await expect(page.getByTestId(id)).toBeVisible();
     // 下のガイドまでスクロールで届く（隠していない）
-    await page.locator('.kb').scrollIntoViewIfNeeded();
-    await expect(page.locator('.kb')).toBeInViewport();
+    await page.locator('.gkb').scrollIntoViewIfNeeded();
+    await expect(page.locator('.gkb')).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   });
 

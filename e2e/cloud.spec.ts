@@ -371,7 +371,7 @@ async function playShortGame(page: Page) {
   await page.keyboard.press('q');
   for (let i = 0; i < 20; i++) {
     if (!(await page.locator('.game-romaji .romaji-next').count())) break;
-    const g = ((await page.locator('.game-romaji .romaji-next').textContent()) ?? '') + ((await page.locator('.game-romaji .romaji-rest').textContent()) ?? '');
+    const g = (await page.getByTestId('game-romaji').getAttribute('data-remaining')) ?? '';
     await page.keyboard.type(g);
   }
   await expect(page.getByTestId('game-complete-title')).toBeVisible();
