@@ -84,9 +84,10 @@ test.describe('入口とホームの配置（PC・Surface）', () => {
     await expect(page.getByTestId('home-game')).toContainText('桜を育てて庭を作ったり');
     await expect(page.getByTestId('home-game')).toContainText('サクラダファミリアを完成させよ');
     await expect(page.getByTestId('home-game')).toContainText('桜ガーデン');
+    await expect(page.getByTestId('home-game')).toContainText('ボウイの爆弾遊戯');
     await expect(page.getByTestId('home-exam')).toContainText('A4の用紙');
     await page.getByTestId('home-game').click();
-    await expect(page.locator('[data-testid^="game-card-"]')).toHaveCount(2);
+    await expect(page.locator('[data-testid^="game-card-"]')).toHaveCount(3);
     await page.goto('./#/home');
     await page.getByTestId('home-exam').click();
     await expect(page).toHaveURL(/#\/exam/);

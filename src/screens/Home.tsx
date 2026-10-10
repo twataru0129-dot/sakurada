@@ -31,10 +31,11 @@ export function Home() {
         </button>
         <button type="button" className="card-button home-mode" onClick={() => navigate('/game')} data-testid="home-game">
           <span className="title">② ゲームモード</span>
-          <span className="home-mode-desc">文章を打って建物を完成させたり、桜を育てて庭を作ったりできます。</span>
+          <span className="home-mode-desc">文章を打って建物を完成させたり、桜を育てて庭を作ったり、爆弾を解除したりできます。</span>
           <span className="home-mode-sub">
             <span>・サクラダファミリアを完成させよ</span>
             <span>・桜ガーデン</span>
+            <span>・ボウイの爆弾遊戯</span>
           </span>
           <span className="home-mode-foot">
             <span className="badge badge-ok">遊べます</span>

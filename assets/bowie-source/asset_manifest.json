@@ -1,0 +1,344 @@
+{
+  "title": "ボウイの爆弾遊戯",
+  "version": "delivery_1.0",
+  "images": [
+    {
+      "key": "bowie_idle",
+      "path": "assets/images/characters/bowie_idle.png",
+      "use": "右手で顔を隠す待機・採用修正版",
+      "width": 1122,
+      "height": 1402,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "b31d803fa64b1843515fccb6da2996a0d263cd348923a1c4517f50c13ebfff03"
+    },
+    {
+      "key": "bowie_release_1",
+      "path": "assets/images/characters/bowie_release_1.png",
+      "use": "放つ動作1・手元に構える",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        254
+      ],
+      "sha256": "03a76ba8d6ce8c8b499b999447c7a1498d989a3e2395b611e390b7fb45fbfcea"
+    },
+    {
+      "key": "bowie_release_2",
+      "path": "assets/images/characters/bowie_release_2.png",
+      "use": "放つ動作2・腕を出す",
+      "width": 1122,
+      "height": 1402,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "87d52c6702aa1c40c44e17273b96b24490e55d3a9e7d5a2458e91db8f7cfdbae"
+    },
+    {
+      "key": "bowie_release_3",
+      "path": "assets/images/characters/bowie_release_3.png",
+      "use": "放つ動作3・放出瞬間・絵に爆弾あり",
+      "width": 1122,
+      "height": 1402,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "1e65d6a483786b4aa05ecc56b7e7b454f1db3abc17133347545b0bc2075ff874"
+    },
+    {
+      "key": "bowie_release_4",
+      "path": "assets/images/characters/bowie_release_4.png",
+      "use": "放つ動作4・空の手の余韻",
+      "width": 1122,
+      "height": 1402,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "6d67d4fad9004c0e7363ab26520cc4665fcafaa25a4a761e093207c2e4e723fe"
+    },
+    {
+      "key": "bowie_frustrated",
+      "path": "assets/images/characters/bowie_frustrated.png",
+      "use": "解除されて悔しい顔",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        254
+      ],
+      "sha256": "b2caa649f53f7039f054d24c2747a5edd588c3ea0c909bc49cd80d92ea957246"
+    },
+    {
+      "key": "bowie_laugh",
+      "path": "assets/images/characters/bowie_laugh.png",
+      "use": "憎たらしい笑い",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        254
+      ],
+      "sha256": "58ae59a9c965b3922096ac551c12c758c97ec318ac2a72e557d7f868b3c5d3dd"
+    },
+    {
+      "key": "bowie_despair",
+      "path": "assets/images/characters/bowie_despair.png",
+      "use": "全問クリア時の絶望",
+      "width": 1024,
+      "height": 1536,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        254
+      ],
+      "sha256": "135121d007617db1e55c78fe044a1e73fe1a97e5f7b25de21ea8ee03d4a3f94d"
+    },
+    {
+      "key": "hero_idle",
+      "path": "assets/images/characters/hero_idle.png",
+      "use": "主人公待機",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "3f2190104e4290df4ab51f12bc5fd2cf2db2b2a893120692a89e1c7a2c161d24"
+    },
+    {
+      "key": "hero_disarm",
+      "path": "assets/images/characters/hero_disarm.png",
+      "use": "解除成功の笑顔",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "6c5aa89f71ba42dd79cc26a20b930c0e9afe023fa92543701370dc97fbffba89"
+    },
+    {
+      "key": "hero_danger",
+      "path": "assets/images/characters/hero_danger.png",
+      "use": "ピンチ・汗",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "288b8fc52f7dae0c9a5ab7ce3e631c259fb488eb99fd5bed048bed0b7a85f53c"
+    },
+    {
+      "key": "hero_hit",
+      "path": "assets/images/characters/hero_hit.png",
+      "use": "被弾・ぐるぐる目",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "f2aeeba08a07d6f2314ed4078e0bf0e96c6f3e61eb0813f280a163d3e3a3696d"
+    },
+    {
+      "key": "hero_victory",
+      "path": "assets/images/characters/hero_victory.png",
+      "use": "勇ましい勝利",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "d799a5f40e88432b901e4638b1621e295e4f85c029fb59f508b78986517d41d4"
+    },
+    {
+      "key": "bomb",
+      "path": "assets/images/scenes/bomb.png",
+      "use": "青い紋様の魔力爆弾",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "a19ac7b2c84af1100d2ea9e1b37c3005dc7f22927458d0dcf810119dcbc864b3"
+    },
+    {
+      "key": "title_logo",
+      "path": "assets/images/scenes/title_logo.png",
+      "use": "正式タイトルロゴ",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGBA",
+      "alpha_range": [
+        0,
+        255
+      ],
+      "sha256": "6087ce6b5ee9fb462b16c32f84228198e6310d14717e25239720fae61d48b753"
+    },
+    {
+      "key": "game_icon",
+      "path": "assets/images/scenes/game_icon.png",
+      "use": "ゲーム一覧のアイコン",
+      "width": 1254,
+      "height": 1254,
+      "mode": "RGB",
+      "alpha_range": null,
+      "sha256": "9d21e01e8ebda5a5f77f139c4894dc3040f30001994107eb2e5034f14bdcb08f"
+    },
+    {
+      "key": "stage_background",
+      "path": "assets/images/scenes/stage_background.png",
+      "use": "採用済みファンタジー背景",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "alpha_range": null,
+      "sha256": "90adf34ddbc2a8d49f5b324cca310a7f4b5e4061cd305c237fd0ad7f5484dc59"
+    },
+    {
+      "key": "speed_cutin",
+      "path": "assets/images/scenes/speed_cutin.png",
+      "use": "採用済み全面加速カットイン・文字入り",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "alpha_range": null,
+      "sha256": "0098e16aa9f96a4431adb6370ef3fa4dd19b7815a43ffa5d4c9f246d0950e308"
+    },
+    {
+      "key": "game_over_clean",
+      "path": "assets/images/scenes/game_over_clean.png",
+      "use": "ゲームオーバー採用版・固定点数とボタン削除済み",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "alpha_range": null,
+      "sha256": "09174177b5a34feeeae7d8c288eb12a79c8816e5e2c82b20d6fb64be00aed826"
+    }
+  ],
+  "audio": [
+    {
+      "path": "assets/audio/bowie_throw.mp3",
+      "file": "bowie_throw.mp3",
+      "event": "投球・手を離れる瞬間",
+      "volume": 0.65,
+      "duration_seconds": 0.783673,
+      "sha256": "1962e83618736411210d217398b250b80e8412c34e414d2c86fcde9f76f9ded3"
+    },
+    {
+      "path": "assets/audio/bowie_disarm.mp3",
+      "file": "bowie_disarm.mp3",
+      "event": "解除成功",
+      "volume": 0.6,
+      "duration_seconds": 0.600816,
+      "sha256": "87cc21a3e62c63ee59ddc8b720be442a06800965e4d08a46410450eda7e64792"
+    },
+    {
+      "path": "assets/audio/bowie_typo.mp3",
+      "file": "bowie_typo.mp3",
+      "event": "ミスタイプ・連続再生は80ms以上間隔",
+      "volume": 0.35,
+      "duration_seconds": 0.156735,
+      "sha256": "2e971d16af402b60a6543bab1149d87bbd992a1e1898d4a88dbe55f69bff4e41"
+    },
+    {
+      "path": "assets/audio/bowie_danger.mp3",
+      "file": "bowie_danger.mp3",
+      "event": "危険エリア初回侵入・毎フレーム再生禁止",
+      "volume": 0.45,
+      "duration_seconds": 0.679184,
+      "sha256": "6440fe904aa8d63e2f63fb60dfe70d22829b82ba475c910dd6b0fb949da0fb01"
+    },
+    {
+      "path": "assets/audio/bowie_explosion.mp3",
+      "file": "bowie_explosion.mp3",
+      "event": "被弾・ゲームオーバーへの遷移前",
+      "volume": 0.8,
+      "duration_seconds": 1.28,
+      "sha256": "c983db97934602c7d735db5e629707311d04f65e3c668d4904882155e909875c"
+    },
+    {
+      "path": "assets/audio/bowie_cutin_shine.mp3",
+      "file": "bowie_cutin_shine.mp3",
+      "event": "カットイン登場",
+      "volume": 0.65,
+      "duration_seconds": 0.835918,
+      "sha256": "80e926cdaf170c223e04593c38eb6e319fc908fe1f317bbe268ab89e90f0db03"
+    },
+    {
+      "path": "assets/audio/bowie_cutin_rumble.mp3",
+      "file": "bowie_cutin_rumble.mp3",
+      "event": "カットイン背後・セリフ中は音量0.18",
+      "volume": 0.4,
+      "duration_seconds": 1.828571,
+      "sha256": "f42bdc355d87dc8592e33d5bdcbfb35298eec5848fdac1003d53549bb563b785"
+    },
+    {
+      "path": "assets/audio/bowie_victory.mp3",
+      "file": "bowie_victory.mp3",
+      "event": "全問クリア",
+      "volume": 0.8,
+      "duration_seconds": 2.977959,
+      "sha256": "0f1be64477bbfcbbb3572ab3f55282d692fc0cc49b5be6469fd9900ebf5da392"
+    },
+    {
+      "path": "assets/audio/bowie_defeat.mp3",
+      "file": "bowie_defeat.mp3",
+      "event": "主人公被弾・爆発後のゲームオーバー画面",
+      "volume": 0.8,
+      "duration_seconds": 4.284082,
+      "sha256": "5fb5ab566ec334adf6f73e7377c66535c68ba2bb5fdf34c856c92bf5319ebe7c"
+    },
+    {
+      "path": "assets/audio/bowie_loss_line.mp3",
+      "file": "bowie_loss_line.mp3",
+      "event": "主人公が全問クリア・勝利音が終わった後、ボウイの絶望画像と再生",
+      "volume": 0.85,
+      "duration_seconds": 2.011429,
+      "sha256": "46811a6d5f21976a71162ba67e102dd60b228df6b5dc2bbe96145dc857b40de1"
+    },
+    {
+      "path": "assets/audio/bowie_laugh.mp3",
+      "file": "bowie_laugh.mp3",
+      "event": "プレイヤー敗北音の後・ボウイの煽り画像",
+      "volume": 0.8,
+      "duration_seconds": 4.493061,
+      "sha256": "24e1d6a1f680555ffb86e6781f97219e9dcbace8d2045a1c4db02286e1c45510"
+    },
+    {
+      "path": "assets/audio/bowie_level_up.mp3",
+      "file": "bowie_level_up.mp3",
+      "event": "加速カットイン「少しテンポを落とそうか」",
+      "volume": 0.9,
+      "duration_seconds": 1.541224,
+      "sha256": "6a50bd4d95b9851ce08aefe015eb124d89bc92a352bc3d51d7cce62318ac9740"
+    }
+  ],
+  "notes": [
+    "原PNGを画質変更せずコピー。実装時に足元・表示サイズを合わせる。",
+    "旧タイトルのティザー、誤った待機ポーズ、固定248点入りの旧画像は採用素材から除外。",
+    "voice字幕は加速セリフ以外未確認。未確認のセリフを推測して表示しない。"
+  ]
+}

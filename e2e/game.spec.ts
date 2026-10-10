@@ -53,8 +53,8 @@ test.describe('ゲームモード', () => {
     await expect(page.getByRole('button', { name: /検定モード/ })).toBeEnabled();
     await expect(page.getByRole('button', { name: /タイピングモード/ })).toBeEnabled();
     await page.getByTestId('home-game').click();
-    // 遊べるゲーム：サクラダファミリアを完成させよ（v1.2.0）・桜ガーデン（v1.4.0）
-    await expect(page.locator('[data-testid^="game-card-"]')).toHaveCount(2);
+    // 遊べるゲーム：サクラダファミリアを完成させよ（v1.2.0）・桜ガーデン（v1.4.0）・ボウイの爆弾遊戯（v1.5.0）
+    await expect(page.locator('[data-testid^="game-card-"]')).toHaveCount(3);
     await expect(page.getByTestId('game-card-sakura-garden')).toContainText('桜ガーデン');
     await page.getByTestId('game-card-sakurada-familia').click();
     for (const t of ['正しく打つと工事が進む', 'ミス1回で記録に5秒加算', '最後まで打つと完成']) await expect(page.getByText(t)).toBeVisible();

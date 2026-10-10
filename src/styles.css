@@ -1125,3 +1125,143 @@ body:has(.entry-main) {
   .home-modes { grid-template-columns: 1fr; }
   .home-settings { grid-template-columns: 1fr; }
 }
+
+/* =====================================================================
+   ボウイの爆弾遊戯（青い魔力と金の装飾のファンタジー。文字は高コントラスト）
+   ===================================================================== */
+.bowie-title { max-width: 1100px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.bowie-title-logo { width: min(640px, 92%); height: auto; }
+.bowie-howto { width: 100%; background: #101a3f; color: #f3f5ff; border: 2px solid #c9a24a; border-radius: 16px; padding: 14px 22px; }
+.bowie-howto h2 { color: #ffd76a; margin-bottom: 6px; }
+.bowie-howto ul { margin: 0 0 8px; padding-left: 1.3em; line-height: 1.8; font-size: 1.08rem; }
+.bowie-howto .hint { color: #c9d2f5; margin: 0; }
+.bowie-title-row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: center; }
+.bowie-best { margin: 0; font-size: 1.2rem; }
+.bowie-best strong { font-size: 1.6rem; color: var(--accent-dark); }
+.bowie-title-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.bowie-start { min-height: 60px; font-size: 1.25rem; padding: 10px 32px; }
+.bowie-sound { display: inline-flex; align-items: center; gap: 8px; }
+.bowie-volume { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.bowie-volume input { width: 120px; accent-color: #c9a24a; }
+.bowie-sound.is-compact .bowie-volume input { width: 90px; }
+
+/* プレイ：画面いっぱいに（上：情報、中：ステージ、下：入力） */
+#root:has(.bowie-main) { height: 100vh; height: 100dvh; }
+.bowie-main {
+  flex: 1 1 0; min-height: 0; max-width: none; padding: 4px 8px 8px; display: flex; flex-direction: column; gap: 6px;
+  background: #0a1131; color: #f4f6ff;
+}
+body:has(.bowie-main) { background: #0a1131; }
+.bowie-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; padding: 2px 10px; background: rgba(16, 26, 63, 0.95); border: 1px solid #c9a24a; border-radius: 12px; }
+.bowie-bar .spacer { flex: 1; }
+.bowie-bar-logo { height: 42px; width: auto; }
+.bowie-stat { font-size: 1.05rem; font-weight: 700; white-space: nowrap; }
+.bowie-stat strong { font-size: 1.4rem; color: #ffd76a; font-variant-numeric: tabular-nums; }
+.bowie-bar .btn { min-height: 40px; }
+.bowie-bar .btn-small, .bowie-dialog .btn:not(.btn-primary), .bowie-result .btn:not(.btn-primary) { background: #18245a; color: #fff; border-color: #c9a24a; }
+
+.bowie-stage {
+  position: relative; flex: 1 1 0; min-height: 240px; overflow: hidden; border-radius: 14px;
+  background-size: cover; background-position: center 72%; border: 1px solid #2a3a7a;
+}
+.bowie-main.is-danger .bowie-stage { box-shadow: inset 0 0 70px 14px rgba(255, 40, 60, 0.5); border-color: #ff5a6e; }
+.bowie-fig { position: absolute; opacity: 0; pointer-events: none; z-index: 2; }
+.bowie-fig.is-on { opacity: 1; }
+.bowie-fig img { width: 100%; height: 100%; display: block; transform-origin: 50% 100%; }
+.bowie-guide { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.bowie-tick { position: absolute; width: 2px; background: rgba(255, 255, 255, 0.28); transform: translateX(-1px); }
+.bowie-tick-label { position: absolute; transform: translateX(-50%); font-size: 15px; font-weight: 700; color: rgba(255, 236, 170, 0.6); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); }
+.bowie-danger-line { position: absolute; width: 0; border-left: 2px dashed rgba(255, 90, 110, 0.75); }
+.bowie-danger-line span { position: absolute; top: 0; left: 4px; font-size: 14px; font-weight: 800; color: #ff9aa8; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+.bowie-hit-line { position: absolute; width: 0; border-left: 3px solid rgba(255, 215, 106, 0.55); }
+.bowie-bomb { position: absolute; left: 0; top: 0; z-index: 5; will-change: transform; pointer-events: none; }
+.bowie-bomb img { position: relative; width: 100%; height: 100%; display: block; transform-origin: 39.6% 63.2%; }
+.bowie-bomb-trail { position: absolute; left: 50%; top: 35%; width: 220%; height: 50%; border-radius: 999px; background: linear-gradient(90deg, rgba(90, 210, 255, 0.55), rgba(90, 210, 255, 0)); filter: blur(4px); }
+.bowie-bomb.is-exploding img { transform: scale(1.6); opacity: 0; transition: transform 0.35s, opacity 0.35s; }
+.bowie-bomb.is-exploding::after { content: ''; position: absolute; inset: -60%; border-radius: 50%; background: radial-gradient(circle, rgba(255, 240, 180, 0.95), rgba(255, 120, 40, 0.75) 40%, rgba(255, 60, 0, 0) 70%); }
+.bowie-pop { position: absolute; z-index: 6; transform: translate(-50%, -50%); font-size: 34px; font-weight: 900; color: #ffe27a; text-shadow: 0 0 10px rgba(90, 210, 255, 0.9), 0 2px 2px #000; pointer-events: none; }
+.bowie-banner { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); z-index: 7; display: flex; flex-direction: column; align-items: center; padding: 8px 32px; background: rgba(10, 17, 49, 0.85); border: 2px solid #c9a24a; border-radius: 14px; }
+.bowie-banner strong { font-size: 2.2rem; color: #ffd76a; }
+.bowie-banner span { font-size: 1.3rem; font-weight: 700; }
+
+/* 入力の欄：大きく、位置を動かさない */
+.bowie-panel {
+  flex: none; min-height: clamp(150px, 27vh, 280px); display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  padding: 10px 24px; background: #0f1840; border: 2px solid #c9a24a; border-radius: 16px;
+}
+.bowie-text { font-size: clamp(26px, 3.6vh, 42px); font-weight: 800; line-height: 1.3; color: #ffffff; }
+.bowie-segs { display: flex; flex-wrap: wrap; gap: 4px 30px; }
+.bowie-seg { display: inline-flex; flex-direction: column; }
+.bowie-kana { font-size: clamp(20px, 2.7vh, 30px); color: #dfe6ff; letter-spacing: 0.04em; }
+.bowie-kana .k-done { color: #8d9cc9; }
+.bowie-kana .k-cur { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; color: #ffffff; }
+.bowie-romaji { font-size: clamp(26px, 3.9vh, 46px); font-weight: 800; letter-spacing: 0.06em; font-family: 'Consolas', 'Menlo', 'Noto Sans Mono', monospace; color: #f4f6ff; }
+.bowie-romaji .r-done { color: #7fe0a0; }
+.bowie-romaji .r-next { color: #ffd34d; text-decoration: underline; text-decoration-thickness: 4px; text-underline-offset: 6px; }
+.bowie-wait { margin: 0; font-size: clamp(20px, 2.6vh, 28px); color: #aab6e6; }
+.bowie-ime { margin: 0; color: #ffe08a; font-weight: 700; }
+.bowie-panel.typo-a, .bowie-panel.typo-b { border-color: #ff4d64; }
+
+/* 全面のカットイン：右の外から入り、全面を覆い、左の外へ抜けます */
+.bowie-cutin { position: fixed; inset: 0; z-index: 80; overflow: hidden; pointer-events: none; background: transparent; }
+.bowie-cutin img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: bowie-cutin var(--cutin-ms, 2200ms) linear forwards; }
+.bowie-cutin.is-paused img { animation-play-state: paused; }
+@keyframes bowie-cutin { 0% { transform: translateX(100%); } 11.36% { transform: translateX(0); } 88.64% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+
+.bowie-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(5, 8, 25, 0.72); display: flex; align-items: center; justify-content: center; }
+.bowie-dialog { background: #101a3f; color: #fff; border: 2px solid #c9a24a; border-radius: 16px; padding: 20px 28px; max-width: 520px; }
+.bowie-dialog h2 { color: #ffd76a; }
+.bowie-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.bowie-count { font-size: 7rem; font-weight: 900; color: #ffd76a; margin: 0; text-shadow: 0 0 20px rgba(90, 210, 255, 0.8); }
+
+/* 結果：画像は切らずに全体を表示し、点数とボタンは下の帯に置きます */
+.bowie-result { position: fixed; inset: 0; z-index: 85; display: flex; flex-direction: column; background: rgba(6, 10, 30, 0.94); color: #fff; }
+.bowie-result-art { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 8px; }
+.bowie-result-art img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
+.bowie-result-figure { height: 100%; }
+.bowie-result-panel { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 28px; padding: 10px 24px 14px; background: #101a3f; border-top: 2px solid #c9a24a; }
+.bowie-result-panel h2 { margin: 0; color: #ffd76a; font-size: 1.8rem; }
+.bowie-result-panel p { margin: 0; font-size: 1.15rem; }
+.bowie-result-score strong { font-size: 2.2rem; color: #ffd76a; }
+.bowie-new { margin-left: 8px; color: #7fe0a0; font-weight: 800; }
+.bowie-result .btn { min-height: 52px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .bowie-fig.is-on.is-idle img { animation: bowie-breathe 2.6s ease-in-out infinite; }
+  .bowie-fig.is-on.is-laugh img { animation: bowie-laugh 0.42s ease-in-out infinite; }
+  .hero-figure.is-on.is-disarm img { animation: bowie-hop 0.5s ease-out; }
+  .hero-figure.is-on.is-danger img { animation: bowie-tremble 0.18s linear infinite; }
+  .hero-figure.is-on.is-victory img { animation: bowie-hop 0.7s ease-out 2; }
+  .bowie-bomb img { animation: bowie-spin 1.1s linear infinite; }
+  .bowie-pop { animation: bowie-pop 0.9s ease-out forwards; }
+  .bowie-panel.typo-a { animation: bowie-typo-a 0.18s linear; }
+  .bowie-panel.typo-b { animation: bowie-typo-b 0.18s linear; }
+  .bowie-stage.shake-0 { animation: bowie-shake-a 0.45s linear; }
+  .bowie-stage.shake-1 { animation: bowie-shake-b 0.45s linear; }
+  .bowie-banner { animation: bowie-fade 1.3s ease-out forwards; }
+}
+@keyframes bowie-breathe { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-1.2%) scale(1.008); } }
+@keyframes bowie-laugh { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-1.2deg) translateY(-0.6%); } }
+@keyframes bowie-hop { 0% { transform: translateY(0); } 40% { transform: translateY(-7%); } 100% { transform: translateY(0); } }
+@keyframes bowie-tremble { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-0.8%); } 75% { transform: translateX(0.8%); } }
+@keyframes bowie-spin { to { transform: rotate(-360deg); } }
+@keyframes bowie-pop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); } 20% { opacity: 1; transform: translate(-50%, -60%) scale(1.1); } 100% { opacity: 0; transform: translate(-50%, -160%) scale(1); } }
+@keyframes bowie-typo-a { 0%, 100% { transform: translateX(0); } 33% { transform: translateX(-5px); } 66% { transform: translateX(5px); } }
+@keyframes bowie-typo-b { 0%, 100% { transform: translateX(0); } 33% { transform: translateX(-5px); } 66% { transform: translateX(5px); } }
+@keyframes bowie-shake-a { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-8px, 4px); } 40% { transform: translate(7px, -4px); } 60% { transform: translate(-5px, 3px); } 80% { transform: translate(3px, -2px); } }
+@keyframes bowie-shake-b { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-8px, 4px); } 40% { transform: translate(7px, -4px); } 60% { transform: translate(-5px, 3px); } 80% { transform: translate(3px, -2px); } }
+@keyframes bowie-fade { 0% { opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* 低い画面（1280×720 など）：上の帯と入力の欄を少し詰めます */
+@media (max-height: 760px) {
+  .bowie-bar-logo { height: 34px; }
+  .bowie-panel { min-height: clamp(130px, 26vh, 220px); padding: 6px 18px; }
+}
+/* 縦長の画面：横向きの案内 */
+@media (orientation: portrait) and (max-width: 900px) {
+  .bowie-main::before { content: '横向きにすると遊びやすくなります（キーボードでの操作を前提にしています）'; display: block; padding: 4px 8px; color: #ffe08a; font-weight: 700; text-align: center; }
+}
+/* プレイ中は通常のヘッダーを細くし、画面をゲームに使います（バージョンの表示は残します） */
+body:has(.bowie-main) .app-header { min-height: 34px; padding: 2px 12px; }
+body:has(.bowie-main) .app-header .brand img { width: 26px; height: 26px; }
+.bowie-sound-hint { margin: 0; color: var(--muted); font-weight: 700; }

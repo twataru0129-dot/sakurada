@@ -11,6 +11,7 @@ import type { ExamOutcome } from '../core/examResult';
 import { GUEST_EXAM_HISTORY_KEY, saveGuestExamRecord } from '../data/guestExamHistory';
 import { GUEST_GAME_BESTS_KEY, GUEST_GAME_HISTORY_KEY, saveGuestGameResult } from '../data/guestGameHistory';
 import { GUEST_GARDEN_KEY } from '../data/guestGarden';
+import { BOWIE_RECORD_KEY, BOWIE_VOLUME_KEY } from '../data/bowieRecords';
 import type { GameResult } from '../core/game/result';
 import type { CourseId } from '../core/game/sakurada';
 
@@ -97,7 +98,7 @@ function clearLocalTraces() {
     if (!store) continue;
     try {
       for (const k of Object.keys(store)) {
-        if (k === GUEST_HISTORY_KEY || k === GUEST_EXAM_HISTORY_KEY || k === GUEST_GAME_HISTORY_KEY || k === GUEST_GAME_BESTS_KEY || k === GUEST_GARDEN_KEY) continue;
+        if (k === GUEST_HISTORY_KEY || k === GUEST_EXAM_HISTORY_KEY || k === GUEST_GAME_HISTORY_KEY || k === GUEST_GAME_BESTS_KEY || k === GUEST_GARDEN_KEY || k === BOWIE_RECORD_KEY || k === BOWIE_VOLUME_KEY) continue;
         if (k.startsWith('sakura') || k.startsWith('sb-')) store.removeItem(k);
       }
     } catch {
