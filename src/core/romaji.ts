@@ -7,6 +7,7 @@
  * - 促音「っ」は、次の単位の子音を重ねる打ち方（kka など）と、単独入力（xtu / ltu など）の両方に対応します。
  * - 「ん」は nn / xn / n' を基本とし、次の文字が母音・や行・な行・「ん」以外で始まる場合に限り n 1回でも確定します。
  *   読みの最後の「ん」は n 1回では確定しません（一般的な日本語入力と同じ）。
+ * - モードごとの決まり（RomajiRules）を渡すと、そのモードの判定だけを変えられます。渡さないときは上のとおりです。
  */
 
 /** 単独のかな（1文字）の打ち方。先頭がガイドに表示する標準の打ち方です。 */
@@ -71,6 +72,16 @@ const VOWELS = new Set(['a', 'i', 'u', 'e', 'o']);
 /** 「ん」を n 1回で確定できない次の文字の先頭 */
 const N_BLOCKERS = new Set(['a', 'i', 'u', 'e', 'o', 'y', 'n', "'"]);
 const N_CANDS = ['nn', 'xn', "n'"];
+
+/**
+ * モードごとの判定の決まり（省略時はすべて false で、これまでどおりの判定です）。
+ * - strictN：「ん」はどこでも nn だけで確定します（n 1回・xn・n' では確定しません）。
+ * - zuForDu：「づ」を du に加えて zu でも受け付けます（お手本は du のまま。「ず」は zu だけで、du は受け付けません）。
+ */
+export interface RomajiRules {
+  strictN?: boolean;
+  zuForDu?: boolean;
+}
 
 export interface RomajiUnit {
   /** 表示用のかな（例: 「しゃ」「っか」「ん」） */
@@ -158,13 +169,13 @@ function preferStyle(kana: string, cands: string[], style: RomajiStyle): string[
 }
 
 /** 読みを入力単位に分けます。対応していない文字があれば例外を投げます。 */
-export function tokenize(reading: string, style: RomajiStyle = 'hepburn'): RomajiUnit[] {
+export function tokenize(reading: string, style: RomajiStyle = 'hepburn', rules: RomajiRules = {}): RomajiUnit[] {
   const chars = [...normalizeReading(reading)];
   const base: RomajiUnit[] = [];
   for (let i = 0; i < chars.length; i++) {
     const ch = chars[i]!;
     if (ch === 'ん') {
-      base.push({ kana: 'ん', cands: N_CANDS, isN: true });
+      base.push({ kana: 'ん', cands: rules.strictN ? ['nn'] : N_CANDS, isN: true });
       continue;
     }
     const next = chars[i + 1];
@@ -173,7 +184,7 @@ export function tokenize(reading: string, style: RomajiStyle = 'hepburn'): Romaj
       i++;
       continue;
     }
-    const c = candsOf(ch);
+    const c = ch === 'づ' && rules.zuForDu ? ['du', 'zu'] : candsOf(ch);
     if (!c) throw new UnsupportedCharError(ch);
     base.push({ kana: ch, cands: preferStyle(ch, c, style), isN: false });
   }
@@ -227,16 +238,18 @@ export class RomajiMatcher {
   private buffer = '';
   private typed = '';
   private missAt: boolean[];
+  private readonly rules: RomajiRules;
 
-  constructor(reading: string, style: RomajiStyle = 'hepburn') {
-    this.units = tokenize(reading, style);
+  constructor(reading: string, style: RomajiStyle = 'hepburn', rules: RomajiRules = {}) {
+    this.rules = rules;
+    this.units = tokenize(reading, style, rules);
     this.missAt = this.units.map(() => false);
   }
 
   /** 状態をそのまま写した別の判定器（試しに打ってみるため） */
   clone(): RomajiMatcher {
     const c = Object.create(RomajiMatcher.prototype) as RomajiMatcher;
-    Object.assign(c, { units: this.units, index: this.index, buffer: this.buffer, typed: this.typed, missAt: [...this.missAt] });
+    Object.assign(c, { units: this.units, rules: this.rules, index: this.index, buffer: this.buffer, typed: this.typed, missAt: [...this.missAt] });
     return c;
   }
 
@@ -281,7 +294,7 @@ export class RomajiMatcher {
 
     if (unit.isN && this.buffer === 'n' && matches.length === 0) {
       // 「ん」を n 1回で確定し、このキーを次の単位の入力として扱う
-      if (!this.singleNAllowed() || N_BLOCKERS.has(key)) return false;
+      if (this.rules.strictN || !this.singleNAllowed() || N_BLOCKERS.has(key)) return false;
       const next = this.units[this.index + 1]!;
       if (!next.cands.some((c) => c.startsWith(key))) return false;
       this.index++;

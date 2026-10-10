@@ -110,9 +110,16 @@ test.describe('桜ガーデン', () => {
     await openGarden(page);
     await page.getByTestId('garden-count-5').check();
     await page.getByTestId('garden-start').click();
+    // 開始待ちの画面が出てからスペースで始めます（画面が切り替わる前のスペースは届きません）
+    await expect(page.getByTestId('garden-go')).toBeVisible();
     await page.keyboard.press(' ');
-    for (let i = 0; i < 2; i++) await page.keyboard.type(await guide(page));
-    // 3問目は途中まで（未精算）
+    await expect(page.getByTestId('garden-go')).toHaveCount(0);
+    for (let i = 0; i < 2; i++) {
+      await expect(page.getByTestId('garden-progress')).toHaveText(`${i + 1} / 5`);
+      await page.keyboard.type(await guide(page));
+    }
+    // 3問目は途中まで（未精算）。次の問題に切り替わってからガイドを読みます
+    await expect(page.getByTestId('garden-progress')).toHaveText('3 / 5');
     const g = await guide(page);
     await page.keyboard.type(g.slice(0, 4));
     await expect(page.getByTestId('garden-progress')).toHaveText('3 / 5');

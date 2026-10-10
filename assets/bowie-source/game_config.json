@@ -1,0 +1,51 @@
+{
+  "title": "ボウイの爆弾遊戯",
+  "questions_per_stage": 20,
+  "total_questions": 80,
+  "single_bomb": true,
+  "stage_timings_seconds": [
+    {
+      "stage": 1,
+      "first_ten": 5,
+      "last_ten": 4.5
+    },
+    {
+      "stage": 2,
+      "first_ten": 6,
+      "last_ten": 5.5
+    },
+    {
+      "stage": 3,
+      "first_ten": 7,
+      "last_ten": 6.5
+    },
+    {
+      "stage": 4,
+      "first_ten": 15,
+      "last_ten": 14
+    }
+  ],
+  "cutin_before_stage_question": 11,
+  "cutin_count": 4,
+  "word_max_points": 10,
+  "sentence_max_points": 20,
+  "score_formula": "max(1, ceil(maxPoints * (1 - progress))) ; progress >= 1 means collision, no score",
+  "design_defaults": {
+    "throw_motion_seconds": 0.35,
+    "danger_remaining_fraction": 0.2,
+    "cutin_entry_seconds": 0.25,
+    "cutin_exit_seconds": 0.25,
+    "cutin_hold": "level-up voice duration plus short tail",
+    "cutin_direction": "right_to_left_fullscreen"
+  },
+  "lose_sequence": [
+    "bowie_explosion.mp3",
+    "bowie_defeat.mp3",
+    "bowie_laugh.mp3"
+  ],
+  "win_sequence": [
+    "bowie_disarm.mp3",
+    "bowie_victory.mp3",
+    "bowie_loss_line.mp3"
+  ]
+}

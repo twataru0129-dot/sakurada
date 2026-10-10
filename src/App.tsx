@@ -21,6 +21,8 @@ import { SakuradaPlay } from './screens/game/SakuradaPlay';
 import { SakuradaResult } from './screens/game/SakuradaResult';
 import { GardenScreen } from './screens/garden/GardenScreen';
 import { GardenProvider } from './state/GardenContext';
+import { BowieScreen } from './screens/bowie/BowieScreen';
+import { TitleCallCurtain } from './ui/bowie/TitleCall';
 
 function Screens() {
   const path = useRoute();
@@ -33,7 +35,7 @@ function Screens() {
   }, [needsAccount, account]);
 
   if (needsAccount && !account) return null;
-  const practicing = path === '/practice' || path === '/exam/practice' || path === '/game/sakurada/play' || path === '/game/garden/play';
+  const practicing = path === '/practice' || path === '/exam/practice' || path === '/game/sakurada/play' || path === '/game/garden/play' || path === '/game/bowie/play';
   let screen;
   if (path === '/') screen = <Entry />;
   else if (path === '/login') screen = <Login />;
@@ -51,6 +53,8 @@ function Screens() {
   else if (path === '/game/sakurada/play') screen = <SakuradaPlay />;
   else if (path === '/game/sakurada/result') screen = <SakuradaResult />;
   // 庭と練習は同じ画面です（練習を始めても、庭の表示はそのまま残ります）
+  // タイトルとプレイは同じ画面です（再挑戦でも作り直しません）
+  else if (path === '/game/bowie' || path === '/game/bowie/play') screen = <BowieScreen key="bowie" mode={path === '/game/bowie/play' ? 'play' : 'title'} />;
   else if (path === '/game/garden' || path === '/game/garden/play') screen = <GardenScreen key="garden" mode={path === '/game/garden/play' ? 'play' : 'garden'} />;
   else if (path === '/teacher') screen = <TeacherHome tab="classes" />;
   else if (path === '/teacher/materials') screen = <TeacherHome tab="materials" />;
@@ -62,6 +66,7 @@ function Screens() {
       <Header practicing={practicing} />
       {screen}
       <IdleWarning />
+      <TitleCallCurtain />
     </>
   );
 }

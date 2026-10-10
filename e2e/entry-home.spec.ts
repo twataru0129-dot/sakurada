@@ -84,9 +84,10 @@ test.describe('入口とホームの配置（PC・Surface）', () => {
     await expect(page.getByTestId('home-game')).toContainText('桜を育てて庭を作ったり');
     await expect(page.getByTestId('home-game')).toContainText('サクラダファミリアを完成させよ');
     await expect(page.getByTestId('home-game')).toContainText('桜ガーデン');
+    await expect(page.getByTestId('home-game')).toContainText('ボウイの爆弾遊戯');
     await expect(page.getByTestId('home-exam')).toContainText('A4の用紙');
     await page.getByTestId('home-game').click();
-    await expect(page.locator('[data-testid^="game-card-"]')).toHaveCount(2);
+    await expect(page.locator('[data-testid^="game-card-"]')).toHaveCount(3);
     await page.goto('./#/home');
     await page.getByTestId('home-exam').click();
     await expect(page).toHaveURL(/#\/exam/);
@@ -106,12 +107,14 @@ test.describe('入口とホームの配置（PC・Surface）', () => {
     await page.getByRole('button', { name: /タイピングモード/ }).click();
     await expect(page).toHaveURL(/#\/typing/);
     await expect(page.locator('main')).toBeVisible();
-    expect((await box(page, 'main')).width).toBeLessThanOrEqual(1180.5);
+    // 画面の切り替えの直後は前の画面の幅のことがあるため、落ち着くまで待って測ります
+    await expect.poll(async () => (await box(page, 'main')).width).toBeLessThanOrEqual(1180.5);
     await page.getByRole('button', { name: /ホームにもどる/ }).first().click();
     await page.getByRole('button', { name: '練習の記録' }).click();
     await expect(page).toHaveURL(/#\/history/);
     await expect(page.locator('main')).toBeVisible();
-    expect((await box(page, 'main')).width).toBeLessThanOrEqual(1180.5);
+    // 画面の切り替えの直後は前の画面の幅のことがあるため、落ち着くまで待って測ります
+    await expect.poll(async () => (await box(page, 'main')).width).toBeLessThanOrEqual(1180.5);
   });
 });
 

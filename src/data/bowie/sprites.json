@@ -1,0 +1,151 @@
+{
+ "bowie": {
+  "bowie_idle": {
+   "file": "bowie_idle.webp",
+   "w": 509,
+   "h": 908,
+   "footX": 0.5,
+   "footY": 0.9956,
+   "bodyH": 0.9912
+  },
+  "bowie_release_1": {
+   "file": "bowie_release_1.webp",
+   "w": 484,
+   "h": 907,
+   "footX": 0.5281,
+   "footY": 0.996,
+   "bodyH": 0.992
+  },
+  "bowie_release_2": {
+   "file": "bowie_release_2.webp",
+   "w": 630,
+   "h": 908,
+   "footX": 0.6196,
+   "footY": 0.9956,
+   "bodyH": 0.9912
+  },
+  "bowie_release_3": {
+   "file": "bowie_release_3.webp",
+   "w": 744,
+   "h": 908,
+   "footX": 0.6873,
+   "footY": 0.9955,
+   "bodyH": 0.9909,
+   "bomb": {
+    "x": 0.057,
+    "y": 0.1668,
+    "glyphW": 0.1055
+   }
+  },
+  "bowie_release_4": {
+   "file": "bowie_release_4.webp",
+   "w": 638,
+   "h": 908,
+   "footX": 0.6267,
+   "footY": 0.9956,
+   "bodyH": 0.9911
+  },
+  "bowie_frustrated": {
+   "file": "bowie_frustrated.webp",
+   "w": 472,
+   "h": 907,
+   "footX": 0.4987,
+   "footY": 0.996,
+   "bodyH": 0.992
+  },
+  "bowie_laugh": {
+   "file": "bowie_laugh.webp",
+   "w": 449,
+   "h": 907,
+   "footX": 0.4987,
+   "footY": 0.996,
+   "bodyH": 0.9921
+  },
+  "bowie_despair": {
+   "file": "bowie_despair.webp",
+   "w": 315,
+   "h": 907,
+   "footX": 0.5,
+   "footY": 0.996,
+   "bodyH": 0.9919
+  }
+ },
+ "hero": {
+  "hero_idle": {
+   "file": "hero_idle.webp",
+   "w": 610,
+   "h": 675,
+   "footX": 0.5085,
+   "footY": 0.9949,
+   "bodyH": 0.9898
+  },
+  "hero_disarm": {
+   "file": "hero_disarm.webp",
+   "w": 643,
+   "h": 630,
+   "footX": 0.4915,
+   "footY": 0.9945,
+   "bodyH": 0.9891
+  },
+  "hero_danger": {
+   "file": "hero_danger.webp",
+   "w": 609,
+   "h": 660,
+   "footX": 0.4505,
+   "footY": 0.9948,
+   "bodyH": 0.9896
+  },
+  "hero_hit": {
+   "file": "hero_hit.webp",
+   "w": 645,
+   "h": 610,
+   "footX": 0.5027,
+   "footY": 0.9944,
+   "bodyH": 0.9887
+  },
+  "hero_victory": {
+   "file": "hero_victory.webp",
+   "w": 683,
+   "h": 642,
+   "footX": 0.5143,
+   "footY": 0.9946,
+   "bodyH": 0.9893
+  }
+ },
+ "scenes": {
+  "stage_background": {
+   "file": "stage_background.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "speed_cutin": {
+   "file": "speed_cutin.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_clean": {
+   "file": "game_over_clean.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "title_logo": {
+   "file": "title_logo.webp",
+   "w": 1100,
+   "h": 550
+  },
+  "game_icon": {
+   "file": "game_icon.webp",
+   "w": 640,
+   "h": 640
+  }
+ },
+ "bomb": {
+  "file": "bomb.webp",
+  "w": 360,
+  "h": 384,
+  "bodyX": 0.3956,
+  "bodyY": 0.6316,
+  "bodyW": 0.9641,
+  "bodyPerGlyph": 1.2873
+ }
+}

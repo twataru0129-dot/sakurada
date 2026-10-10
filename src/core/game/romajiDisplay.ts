@@ -7,7 +7,7 @@
  *   改行は表示上だけで、Enter やスペースの入力は必要ありません。
  * - 入力済みの単位は、実際に打った文字（shi / si など）を表示します。これからの単位はお手本の打ち方を表示します。
  */
-import { RomajiMatcher, type RomajiStyle } from '../romaji';
+import { RomajiMatcher, type RomajiRules, type RomajiStyle } from '../romaji';
 
 export interface DisplayUnit {
   index: number;
@@ -34,8 +34,8 @@ const breaksAfter = (kana: string) => /[、。！？]$/.test(kana);
  * いまの入力の状態（打った文字列）から、表示用の行を作ります。
  * matcher と同じ読み・お手本で、打った文字を1文字ずつたどり直して、各文字がどの単位のものかを求めます。
  */
-export function displayLines(reading: string, style: RomajiStyle, typed: string): DisplayLines {
-  const m = new RomajiMatcher(reading, style);
+export function displayLines(reading: string, style: RomajiStyle, typed: string, rules: RomajiRules = {}): DisplayLines {
+  const m = new RomajiMatcher(reading, style, rules);
   const typedOf: string[] = m.units.map(() => '');
   for (const ch of typed) {
     m.input(ch);

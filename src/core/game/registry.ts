@@ -4,6 +4,7 @@
  */
 import completeImage from '../../assets/game/stage_05_complete.webp';
 import gardenImage from '../../assets/garden/backgrounds/garden_day.webp';
+import bowieIcon from '../../assets/bowie/scenes/game_icon.webp';
 
 export interface GameEntry {
   id: string;
@@ -31,5 +32,13 @@ export const GAMES: readonly GameEntry[] = [
     path: '/game/garden',
     image: gardenImage,
     imageAlt: '春の和風の庭のゲーム用イラスト',
+  },
+  {
+    id: 'bowie-bomb',
+    title: 'ボウイの爆弾遊戯',
+    description: 'ボウイが投げる魔力の爆弾を、表示された文字を打って解除します。早く解除するほど高得点。80問を解除すれば勝利です。',
+    path: '/game/bowie',
+    image: bowieIcon,
+    imageAlt: 'ボウイの爆弾遊戯のアイコン（ゲーム用のイラスト）',
   },
 ];
