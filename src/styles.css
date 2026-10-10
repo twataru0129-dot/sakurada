@@ -1265,3 +1265,13 @@ body:has(.bowie-main) { background: #0a1131; }
 body:has(.bowie-main) .app-header { min-height: 34px; padding: 2px 12px; }
 body:has(.bowie-main) .app-header .brand img { width: 26px; height: 26px; }
 .bowie-sound-hint { margin: 0; color: var(--muted); font-weight: 700; }
+
+/* ボウイの爆弾遊戯：ゲームの選択からのタイトルコールの幕（ヘッダーも含めた画面全体を覆います。白・黒の切り替えは明るさの変化だけで、動きはありません） */
+.bowie-curtain { position: fixed; inset: 0; z-index: 10000; pointer-events: auto; cursor: progress; background: #fff; }
+.bowie-curtain.is-white { animation: bowie-curtain-white var(--curtain-ms) linear both; }
+.bowie-curtain.is-black { animation: bowie-curtain-black var(--curtain-ms) linear both; }
+.bowie-curtain.is-hold { background: #000; }
+.bowie-curtain.is-reveal { background: #000; animation: bowie-curtain-reveal var(--curtain-ms) linear both; }
+@keyframes bowie-curtain-white { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bowie-curtain-black { from { background: #fff; } to { background: #000; } }
+@keyframes bowie-curtain-reveal { from { opacity: 1; } to { opacity: 0; } }

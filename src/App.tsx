@@ -22,6 +22,7 @@ import { SakuradaResult } from './screens/game/SakuradaResult';
 import { GardenScreen } from './screens/garden/GardenScreen';
 import { GardenProvider } from './state/GardenContext';
 import { BowieScreen } from './screens/bowie/BowieScreen';
+import { TitleCallCurtain } from './ui/bowie/TitleCall';
 
 function Screens() {
   const path = useRoute();
@@ -65,6 +66,7 @@ function Screens() {
       <Header practicing={practicing} />
       {screen}
       <IdleWarning />
+      <TitleCallCurtain />
     </>
   );
 }

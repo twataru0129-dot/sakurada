@@ -12,7 +12,7 @@
  * - 解除・被弾・加点・次の問題への切り替えは、1つの爆弾につき1回だけです。
  */
 import { RomajiMatcher, type RomajiStyle } from '../romaji';
-import { BOWIE_CONFIG, CUTIN_TOTAL_MS, landingMsFor, pointsFor, STAGES, type StageNo } from './config';
+import { BOWIE_CONFIG, BOWIE_ROMAJI_RULES, CUTIN_TOTAL_MS, landingMsFor, pointsFor, STAGES, type StageNo } from './config';
 import type { BowieQuestion } from './questions';
 
 export type Phase = 'ready' | 'intro' | 'throwing' | 'flying' | 'cutin' | 'paused' | 'hit' | 'won';
@@ -176,7 +176,7 @@ export class BowieGame {
     this.landingMs = this.ms(landingMsFor(this.stage, this.qIndex + 1, this.perStage));
     this.dangerFired = false;
     // 爆弾が手を離れた瞬間に、問題の表示と入力・制限時間を同時に始めます
-    this.matcher = new RomajiMatcher(q.reading, this.style);
+    this.matcher = new RomajiMatcher(q.reading, this.style, BOWIE_ROMAJI_RULES);
     out.push({ type: 'release', at, landingMs: this.landingMs, question: q });
   }
 

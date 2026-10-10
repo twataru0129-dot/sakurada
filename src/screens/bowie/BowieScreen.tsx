@@ -8,9 +8,9 @@
  * 爆弾の位置は毎フレーム、ゲームの時間から計算して直接描きます（再描画はイベントのときだけ）。
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { BOWIE_CONFIG, BOWIE_TITLE, STAGES } from '../../core/bowie/config';
+import { BOWIE_CONFIG, BOWIE_TITLE, STAGES, type StageNo } from '../../core/bowie/config';
 import { BowieGame, type BowieEvent } from '../../core/bowie/engine';
-import { drawPlay, type BowieQuestion } from '../../core/bowie/questions';
+import { BOWIE_POOLS, drawPlay, type BowieQuestion } from '../../core/bowie/questions';
 import { displaySegments, shown } from '../../core/bowie/display';
 import { loadBowieRecord, saveBowieResult, type BowieRecord } from '../../data/bowieRecords';
 import { useApp } from '../../state/AppContext';
@@ -30,18 +30,30 @@ const SCENE = {
 
 /** 開発用の確認（通常の画面には何も出しません）。sessionStorage に設定があるときだけ、出題数と時間の倍率を変えます */
 const DEV_KEY = 'sakura-type:bowie-dev';
-function devOptions(): { perStage?: number; timeScale?: number } {
+function devOptions(): { perStage?: number; timeScale?: number; ids?: string[] } {
   try {
     const raw = sessionStorage.getItem(DEV_KEY);
     if (!raw) return {};
-    const d = JSON.parse(raw) as { perStage?: unknown; timeScale?: unknown };
-    const out: { perStage?: number; timeScale?: number } = {};
+    const d = JSON.parse(raw) as { perStage?: unknown; timeScale?: unknown; ids?: unknown };
+    const out: { perStage?: number; timeScale?: number; ids?: string[] } = {};
+    // ids：各段階の最初に出す問題（確認用。登録された問題の ID だけ）
+    if (Array.isArray(d.ids)) out.ids = d.ids.filter((x): x is string => typeof x === 'string').slice(0, 80);
     if (typeof d.perStage === 'number' && d.perStage >= 1 && d.perStage <= 20) out.perStage = Math.floor(d.perStage);
     if (typeof d.timeScale === 'number' && d.timeScale > 0 && d.timeScale <= 10) out.timeScale = d.timeScale;
     return out;
   } catch {
     return {};
   }
+}
+
+/** 開発用：指定した問題を、その段階の最初に出します（同じ問題は二度出しません） */
+function withFirst(play: BowieQuestion[][], ids: string[], perStage: number): BowieQuestion[][] {
+  if (!ids.length) return play;
+  return play.map((stage, i) => {
+    const pool = BOWIE_POOLS[(i + 1) as StageNo];
+    const first = ids.map((id) => pool.find((q) => q.id === id)).filter((q): q is BowieQuestion => !!q);
+    return [...first, ...stage.filter((q) => !first.includes(q))].slice(0, perStage);
+  });
 }
 
 type HeroFace = 'hero_idle' | 'hero_disarm' | 'hero_danger' | 'hero_hit' | 'hero_victory';
@@ -266,7 +278,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     resetView();
     const dev = devOptions();
     const perStage = dev.perStage ?? BOWIE_CONFIG.questionsPerStage;
-    const g = new BowieGame(drawPlay(perStage), settings.romajiStyle, { perStage, timeScale: dev.timeScale ?? 1 });
+    const g = new BowieGame(withFirst(drawPlay(perStage), dev.ids ?? [], perStage), settings.romajiStyle, { perStage, timeScale: dev.timeScale ?? 1 });
     gameRef.current = g;
     if (mode !== 'play') navigate('/game/bowie/play');
     handle(g.start(performance.now()));

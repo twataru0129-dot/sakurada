@@ -3,8 +3,10 @@
  * - 判定は RomajiMatcher のまま。入力済みは実際に打った文字、これからの部分はお手本の打ち方で表示します
  *   （別の打ち方を選ぶと、残りの表示もそれに合わせて変わります）。
  * - まとまりの間の空白は表示だけで、入力は続けて打ちます。
+ * - 判定と同じ決まり（BOWIE_ROMAJI_RULES：「ん」は NN、「づ」は DU・ZU）でたどるため、表示と判定はずれません。
  */
 import { displayLines, type DisplayUnit } from '../game/romajiDisplay';
+import { BOWIE_ROMAJI_RULES } from './config';
 import type { RomajiStyle } from '../romaji';
 import type { BowieQuestion } from './questions';
 
@@ -14,7 +16,7 @@ export interface DisplaySegment {
 }
 
 export function displaySegments(q: Pick<BowieQuestion, 'reading' | 'readingSegments'>, style: RomajiStyle, typed: string): DisplaySegment[] {
-  const units = displayLines(q.reading, style, typed).flat();
+  const units = displayLines(q.reading, style, typed, BOWIE_ROMAJI_RULES).flat();
   const ends: number[] = [];
   let acc = 0;
   for (const s of q.readingSegments) ends.push((acc += [...s].length));

@@ -3,6 +3,8 @@
  * 元の値は assets/bowie-source/game_config.json（納品された設定）です。
  */
 
+import type { RomajiRules } from '../romaji';
+
 export const BOWIE_TITLE = 'ボウイの爆弾遊戯';
 export const BOWIE_RULE_VERSION = 'bowie-rule-v1';
 
@@ -46,6 +48,31 @@ export const BOWIE_CONFIG = {
   typoSoundGapMs: 80,
   /** 解除の演出（光・+点数・主人公の笑顔）を見せる時間。次の投球はすぐに始まります */
   disarmFxMs: 650,
+} as const;
+
+/**
+ * このモードだけのローマ字の決まり（ほかのモードの判定は変えません）。
+ * - 「ん」はすべて nn で入力します（語末・母音・や行・な行の前も同じ。n 1回・n' では確定しません）。お手本も NN です。
+ * - 「づ」は du・zu のどちらも正解（お手本は DU）。「ず」は zu だけです。
+ */
+export const BOWIE_ROMAJI_RULES: RomajiRules = { strictN: true, zuForDu: true };
+
+/**
+ * ゲームの選択からの画面の切り替え（タイトルコール）。
+ * 選択 → 音声と同時に白へ（whiteInMs）→ 音声が終わるまで白のまま → 白から黒へ（toBlackMs）→ 黒のまま（blackHoldMs）→ ゲーム画面へ（fadeInMs）。
+ * 白から黒へ移るのは音声の実際の終わり（ended）です。音を出さないとき・読み込めないとき・再生を拒否されたときは、
+ * 音声の長さ（callSeconds）が過ぎたときに進めます。音声が終わらないまま止まったときも、callSeconds＋maxWaitExtraMs で先へ進めます。
+ */
+export const BOWIE_TITLE_CALL = {
+  whiteInMs: 350,
+  toBlackMs: 350,
+  blackHoldMs: 150,
+  fadeInMs: 400,
+  /** bowie_title_call.mp3 の長さ（秒） */
+  callSeconds: 3.864,
+  maxWaitExtraMs: 2500,
+  /** 白の間にゲーム画面の画像を読み込みます。読み込みが遅いときも、これ以上は待ちません */
+  imageWaitMs: 2500,
 } as const;
 
 /** カットインの全体の長さ */

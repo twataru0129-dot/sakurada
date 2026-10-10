@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import data from '../../data/bowie/questions.json';
-import { findUnsupportedChar, RomajiMatcher } from '../romaji';
-import { BOWIE_CONFIG, CUTIN_TOTAL_MS, landingMsFor, pointsFor, type StageNo } from './config';
+import { findUnsupportedChar, RomajiMatcher, tokenize } from '../romaji';
+import { BOWIE_CONFIG, BOWIE_ROMAJI_RULES, CUTIN_TOTAL_MS, landingMsFor, pointsFor, type StageNo } from './config';
 import { BOWIE_POOLS, drawPlay, drawQuestions, type BowieQuestion } from './questions';
 import { BowieGame, type BowieEvent } from './engine';
 import { displaySegments } from './display';
 
 const seeded = (seed: number) => () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
 const typeAll = (m: RomajiMatcher, s: string) => [...s].map((c) => m.input(c));
+/** このモードの判定（「ん」は NN、「づ」は DU・ZU） */
+const bm = (reading: string) => new RomajiMatcher(reading, 'hepburn', BOWIE_ROMAJI_RULES);
 
 describe('問題データ（questions.json をそのまま使う）', () => {
   it('登録数は 111・106・113・110。ID は重複せず、読みはすべて既存のローマ字判定で入力できる', () => {
@@ -24,26 +26,36 @@ describe('問題データ（questions.json をそのまま使う）', () => {
         expect(q.keystrokes, q.id).toBeLessThanOrEqual(range[s]![1]);
       }
   });
-  it('データの表示例のローマ字（例：SAMURAI）も、既存の判定でそのまま最後まで入力できる（判定の正解は1つに固定しない）', () => {
-    // 例外：表示例が「づ」を ZU と書いている3問。既存の判定（日本語入力と同じ）では「づ」は DU で、ZU は「ず」です。
-    // 判定は変えず、画面のお手本は判定に合わせて DU と表示します（表示と判定がずれないように）。
-    const DZU = ['sentence_030', 'sentence_056', 'sentence_057'];
-    const bad: string[] = [];
+  it('データの表示例のローマ字（例：SAMURAI）は、「ん」を NN にすればこのモードの判定でそのまま最後まで入力できる（「づ」の ZU も正解）', () => {
+    // このモードの「ん」は NN だけです。表示例で N 1つになっている「ん」だけ N を足して打ちます（ほかの文字は表示例のまま）
+    const zuIds: string[] = [];
     for (const st of data.stages)
       for (const q of st.questions as { id: string; reading: string; romaji: string }[]) {
-        const m = new RomajiMatcher(q.reading, 'hepburn');
-        const r = typeAll(m, q.romaji.toLowerCase());
-        if (!(r.every((x) => x === 'correct') && m.done)) bad.push(q.id);
+        const m = bm(q.reading);
+        for (const c of q.romaji.toLowerCase().replace(/[^a-z\-]/g, '')) {
+          let r = m.input(c);
+          if (r === 'miss' && m.units[m.unitIndex]!.isN && m.nextKey() === 'n') {
+            expect(m.input('n'), q.id).toBe('correct');
+            r = m.input(c);
+          }
+          expect(r, `${q.id} ${q.romaji} @${m.typedText}`).toBe('correct');
+        }
+        expect(m.done, q.id).toBe(true);
+        if (q.reading.includes('づ')) zuIds.push(q.id);
+        // お手本どおりに打っても最後まで入力できる。お手本の「ん」はすべて NN、「づ」は DU
+        const g = bm(q.reading);
+        const guide = g.remaining();
+        expect(typeAll(g, guide).every((x) => x === 'correct') && g.done, q.id).toBe(true);
+        const nn = [...q.reading].filter((c) => c === 'ん').length;
+        expect(tokenize(q.reading, 'hepburn', BOWIE_ROMAJI_RULES).filter((u) => u.isN).every((u) => u.cands.join() === 'nn'), q.id).toBe(true);
+        expect(nn === 0 || guide.includes('nn'), q.id).toBe(true);
       }
-    expect(bad).toEqual(DZU);
-    for (const id of DZU) {
-      const q = BOWIE_POOLS[4].find((x) => x.id === id)!;
-      expect(q.reading).toContain('づ');
-      const m = new RomajiMatcher(q.reading, 'hepburn');
-      const guide = m.remaining();
-      expect(guide).toContain('du');
-      expect(typeAll(m, guide).every((x) => x === 'correct') && m.done).toBe(true);
-    }
+    // 表示例が「づ」を ZU と書いている3問も、ZU のまま入力できる（お手本は DU）
+    expect(zuIds).toEqual(expect.arrayContaining(['sentence_030', 'sentence_056', 'sentence_057']));
+    for (const id of zuIds) expect(bm(BOWIE_POOLS[4].find((x) => x.id === id)!.reading).remaining(), id).toContain('du');
+    // ほかのモード（決まりを渡さない判定）は変わらない：「づ」は DU だけ
+    const other = new RomajiMatcher('つづく', 'hepburn');
+    expect(typeAll(other, 'tsuz')).toEqual(['correct', 'correct', 'correct', 'miss']);
   });
   it('文章の読みのまとまりをつなぐと読みと一致する。確認済みの読み（79・84・86・110）と原文（10の「賢い物」）を変えていない', () => {
     for (const q of BOWIE_POOLS[4]) expect(q.readingSegments.join(''), q.id).toBe(q.reading);
@@ -226,7 +238,7 @@ describe('進行', () => {
 });
 
 describe('ローマ字の別表記・ん・促音・長音・文節の表示', () => {
-  const m = (reading: string) => new RomajiMatcher(reading, 'hepburn');
+  const m = bm;
   it('し・ち・つ・ふ・じ・しゃ の別表記', () => {
     for (const [reading, typed] of [['しちつふじしゃ', 'sitituhuzisya'], ['しちつふじしゃ', 'shichitsufujisha']] as const) {
       const x = m(reading);
@@ -234,19 +246,68 @@ describe('ローマ字の別表記・ん・促音・長音・文節の表示', (
       expect(x.done).toBe(true);
     }
   });
-  it('「ん」：子音の前は n 1回、母音・や行の前は nn。語の途中で n を語末として完了させない。語末の ん は nn', () => {
-    const a = m('さんぜん');
-    typeAll(a, 'sanze');
-    typeAll(a, 'n');
+  it('「ん」はすべて NN：語末・子音・母音・や行・な行の前も同じ。N 1回・N\' では確定せず、1回目の N は入力の途中', () => {
+    const cases: [string, string][] = [
+      ['かん', 'kann'],
+      ['かんい', 'kanni'],
+      ['しんよう', 'shinnyou'],
+      ['きんにく', 'kinnniku'],
+      ['かんな', 'kannna'],
+      ['さんぜん', 'sannzenn'],
+    ];
+    for (const [reading, typed] of cases) {
+      const x = bm(reading);
+      expect(typeAll(x, typed).every((r) => r === 'correct'), reading).toBe(true);
+      expect(x.done, reading).toBe(true);
+    }
+    // 1回目の N は正しい入力の途中。2回目の N で「ん」が確定します
+    const a = bm('かん');
+    typeAll(a, 'kan');
     expect(a.done).toBe(false);
-    typeAll(a, 'n');
+    expect(a.unitIndex).toBe(1);
+    expect(a.remaining()).toBe('n');
+    expect(a.input('n')).toBe('correct');
     expect(a.done).toBe(true);
-    const b = m('しませんよ');
-    typeAll(b, 'shimasen');
-    expect(b.input('y')).toBe('miss');
-    expect(b.input('n')).toBe('correct');
-    typeAll(b, 'yo');
-    expect(b.done).toBe(true);
+    // N 1回のあとに次の文字・N' ・XN は受け付けません（語末も、子音の前も）
+    for (const [reading, typed, bad] of [
+      ['さんぜん', 'san', 'z'],
+      ['かんい', 'kan', 'i'],
+      ['しんよう', 'shin', 'y'],
+      ['かん', 'kan', "'"],
+    ] as const) {
+      const x = bm(reading);
+      typeAll(x, typed);
+      expect(x.input(bad), `${reading} ${typed}+${bad}`).toBe('miss');
+      expect(x.remaining().startsWith('n'), reading).toBe(true);
+    }
+    expect(typeAll(bm('かん'), 'kaxn')).toEqual(['correct', 'correct', 'miss', 'correct']);
+    // 「きんにく」の NNN：ん の NN と に の N を混同しない（N 2回で ん、3回目は に の N）
+    const k = bm('きんにく');
+    typeAll(k, 'kinn');
+    expect(k.unitIndex).toBe(2);
+    expect(k.remaining()).toBe('niku');
+    // ほかのモード（決まりを渡さない判定）は変わらない：子音の前は N 1回でもよい
+    const other = new RomajiMatcher('さんぜん', 'hepburn');
+    expect(typeAll(other, 'sanzenn').every((r) => r === 'correct') && other.done).toBe(true);
+  });
+  it('「づ」は DU・ZU のどちらも正解で、ZU で打つと表示も追従する。「ず」は ZU だけ（DU は不正解）', () => {
+    for (const t of ['tsuduku', 'tsuzuku']) {
+      const x = bm('つづく');
+      expect(typeAll(x, t).every((r) => r === 'correct') && x.done, t).toBe(true);
+    }
+    const x = bm('つづく');
+    expect(x.remaining()).toBe('tsuduku');
+    typeAll(x, 'tsuz');
+    expect(x.remaining()).toBe('uku');
+    const q = { reading: 'つづく', readingSegments: ['つづく'] } as BowieQuestion;
+    expect(displaySegments(q, 'hepburn', '')[0]!.units.map((u) => u.typed + u.next + u.rest).join('')).toBe('tsuduku');
+    const d = displaySegments(q, 'hepburn', 'tsuz')[0]!.units;
+    expect(d[1]).toMatchObject({ state: 'current', typed: 'z', next: 'u', rest: '' });
+    const z = bm('すずめ');
+    expect(typeAll(z, 'sud')).toEqual(['correct', 'correct', 'miss']);
+    expect(typeAll(z, 'zume').every((r) => r === 'correct') && z.done).toBe(true);
+    // 促音つき（っづ）も DDU・ZZU
+    for (const t of ['kadduku', 'kazzuku']) expect(typeAll(bm('かっづく'), t).every((r) => r === 'correct'), t).toBe(true);
   });
   it('促音（っ）と長音（ー → -）', () => {
     const a = m('ちってもぴあのそなーた');
@@ -254,6 +315,20 @@ describe('ローマ字の別表記・ん・促音・長音・文節の表示', (
     expect(a.done).toBe(true);
     const b = m('ちっても');
     expect(typeAll(b, 'chixtutemo').every((r) => r === 'correct')).toBe(true);
+  });
+  it('文章のまとまりの表示も NN：1回目の N は「ん」の入力済み、次の N も同じ「ん」。まとまりの境目で隣の N と混ざらない', () => {
+    const q = { reading: 'さんぜんなみだ', readingSegments: ['さんぜん', 'なみだ'] } as BowieQuestion;
+    const all = (t: string) => displaySegments(q, 'hepburn', t).map((s) => s.units.map((u) => u.typed + u.next + u.rest).join(''));
+    expect(all('')).toEqual(['sannzenn', 'namida']);
+    const s1 = displaySegments(q, 'hepburn', 'san');
+    expect(s1[0]!.units[1]).toMatchObject({ kana: 'ん', state: 'current', typed: 'n', next: 'n' });
+    // 語末の「ん」の N 2回で前のまとまりが終わり、3回目の N は「な」の N
+    const s2 = displaySegments(q, 'hepburn', 'sannzenn');
+    expect(s2[0]!.units.every((u) => u.state === 'done')).toBe(true);
+    expect(s2[1]!.units[0]).toMatchObject({ kana: 'な', state: 'current', typed: '', next: 'n', rest: 'a' });
+    const s3 = displaySegments(q, 'hepburn', 'sannzennn');
+    expect(s3[1]!.units[0]).toMatchObject({ kana: 'な', typed: 'n', next: 'a' });
+    expect(all('sannzennn')).toEqual(['sannzenn', 'namida']);
   });
   it('文章は読みのまとまりで表示し、別表記で打つと残りの表示も追従する', () => {
     const q = { reading: 'さむらいがしろをまもる', readingSegments: ['さむらいが', 'しろを', 'まもる'] } as BowieQuestion;
