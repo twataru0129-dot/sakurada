@@ -17,13 +17,13 @@ import { useApp } from '../../state/AppContext';
 import { navigate } from '../../state/router';
 import { BowieAudio, loadVolume, saveVolume, type Playing } from '../../ui/bowie/audio';
 import { BOWIE_SPRITES, bombCenter, HERO_SPRITES, stageGeometry, type Box, type StageGeometry } from '../../ui/bowie/geometry';
+import { BOWIE_TAUNTS, drawBowieTaunt, type BowieTaunt } from '../../ui/bowie/taunts';
 
 const img = import.meta.glob('../../assets/bowie/{characters,scenes}/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const url = (file: string) => Object.entries(img).find(([p]) => p.endsWith(`/${file}`))?.[1] ?? '';
 const SCENE = {
   background: url('stage_background.webp'),
   cutin: url('speed_cutin.webp'),
-  gameOver: url('game_over_clean.webp'),
   logo: url('title_logo.webp'),
   bomb: url('bomb.webp'),
 };
@@ -68,6 +68,7 @@ interface Result {
   record: BowieRecord;
   newBest: boolean;
   saved: boolean;
+  taunt?: BowieTaunt;
 }
 
 const isControl = (el: EventTarget | null) => !!(el as HTMLElement | null)?.closest?.('button, input, select, textarea, a, label');
@@ -84,6 +85,10 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   // 画面を開いたときに音声を先読みし、離れるときにすべて止めます
   useEffect(() => {
     audio.preload();
+    for (const taunt of BOWIE_TAUNTS) {
+      const image = new Image();
+      image.src = taunt.src;
+    }
     return () => audio.dispose();
   }, [audio]);
   useEffect(() => audio.setVolume(volume, muted), [audio, volume, muted]);
@@ -215,8 +220,9 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   async function runLose() {
     const g = gameRef.current!;
     const my = gen.current;
-    const base = finish('lose', g);
-    if (!base) return;
+    const finishedResult = finish('lose', g);
+    if (!finishedResult) return;
+    const base = { ...finishedResult, taunt: drawBowieTaunt() };
     setHeroFace('hero_hit');
     setBowieMood('bowie_laugh');
     setDanger(false);
@@ -251,6 +257,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     gen.current++;
     audio.stopAll();
     setResult({ ...result, step: result.kind === 'lose' ? 'taunt' : 'despair' });
+    if (result.kind === 'lose') audio.play('laugh');
   };
 
   // ---------------------------------------------------------------- 開始・再挑戦・終了
@@ -608,7 +615,6 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
           onSkip={skip}
           heroVictory={url(HERO_SPRITES.hero_victory!.file)}
           bowieDespair={url(BOWIE_SPRITES.bowie_despair!.file)}
-          gameOver={SCENE.gameOver}
         />
       )}
     </main>
@@ -669,7 +675,7 @@ function SoundControls({ muted, volume, onMute, onVolume, compact }: { muted: bo
   );
 }
 
-function ResultView({ result, onRetry, onHome, onSkip, heroVictory, bowieDespair, gameOver }: { result: Result; onRetry: () => void; onHome: () => void; onSkip: () => void; heroVictory: string; bowieDespair: string; gameOver: string }) {
+function ResultView({ result, onRetry, onHome, onSkip, heroVictory, bowieDespair }: { result: Result; onRetry: () => void; onHome: () => void; onSkip: () => void; heroVictory: string; bowieDespair: string }) {
   const lose = result.kind === 'lose';
   const playing = result.step === 'explode' || result.step === 'defeat' || result.step === 'victory';
   const busy = useRef(false);
@@ -682,7 +688,7 @@ function ResultView({ result, onRetry, onHome, onSkip, heroVictory, bowieDespair
     <div className={`bowie-result is-${result.kind} step-${result.step}`} data-testid="bowie-result" data-kind={result.kind} data-step={result.step}>
       <div className="bowie-result-art">
         {lose ? (
-          result.step === 'taunt' ? <img src={gameOver} alt="ゲームオーバー：笑うボウイと、目を回した主人公" /> : null
+          result.step === 'taunt' && result.taunt ? <img src={result.taunt.src} alt={`ボウイ「${result.taunt.line}」`} data-testid="bowie-taunt" data-taunt-id={result.taunt.id} /> : null
         ) : result.step === 'victory' ? (
           <img className="bowie-result-figure" src={heroVictory} alt="勝利した主人公" />
         ) : (

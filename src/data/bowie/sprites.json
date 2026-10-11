@@ -137,6 +137,56 @@
    "file": "game_icon.webp",
    "w": 640,
    "h": 640
+  },
+  "game_over_01": {
+   "file": "game_over_01.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_02": {
+   "file": "game_over_02.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_03": {
+   "file": "game_over_03.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_04": {
+   "file": "game_over_04.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_05": {
+   "file": "game_over_05.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_06": {
+   "file": "game_over_06.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_07": {
+   "file": "game_over_07.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_08": {
+   "file": "game_over_08.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_09": {
+   "file": "game_over_09.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_10": {
+   "file": "game_over_10.webp",
+   "w": 1672,
+   "h": 941
   }
  },
  "bomb": {
