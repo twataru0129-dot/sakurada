@@ -1,4 +1,4 @@
-/** 効果音（設定で ON にしたときだけ鳴らします。初期状態は OFF） */
+/** 効果音（設定で ON にしたときだけ鳴らします。初期状態は ON） */
 let ctx: AudioContext | null = null;
 
 function tone(freq: number, ms: number, volume: number, type: OscillatorType = 'sine') {

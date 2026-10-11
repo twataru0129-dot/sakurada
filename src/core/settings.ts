@@ -6,7 +6,7 @@ export interface LearningSettings {
   romajiGuide: boolean;
   keyboardGuide: boolean;
   fingerGuide: boolean;
-  /** 音（初期状態は OFF） */
+  /** 音（初期状態は ON。利用者が OFF に変更できます） */
   sound: boolean;
   minutes: Minutes;
   difficulty: Difficulty | 'mixed';
@@ -18,7 +18,7 @@ export const APP_DEFAULT_SETTINGS: LearningSettings = {
   romajiGuide: true,
   keyboardGuide: true,
   fingerGuide: true,
-  sound: false,
+  sound: true,
   minutes: 3,
   difficulty: 'mixed',
   romajiStyle: 'hepburn',
