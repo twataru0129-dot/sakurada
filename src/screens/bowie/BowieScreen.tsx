@@ -8,7 +8,7 @@
  * 爆弾の位置は毎フレーム、ゲームの時間から計算して直接描きます（再描画はイベントのときだけ）。
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_TITLE, STAGES, type StageNo } from '../../core/bowie/config';
+import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_LEVEL_UPS, BOWIE_TITLE, STAGES, type StageNo } from '../../core/bowie/config';
 import { BowieGame, type BowieEvent } from '../../core/bowie/engine';
 import { BOWIE_POOLS, drawPlay, type BowieQuestion } from '../../core/bowie/questions';
 import { displaySegments, shown } from '../../core/bowie/display';
@@ -29,6 +29,8 @@ const SCENE = {
   /** 敗北の音声の間に出す画像（v1.5.3） */
   defeat: url('bowie_defeat.webp'),
   logo: url('title_logo.webp'),
+  /** 開始前の画面の背景（v1.6.1。プレイ中の背景は stage_background のまま） */
+  titleBackground: url('bowie_title_background.webp'),
   bomb: url('bomb.webp'),
   /** 全問クリアのダンス（v1.6.0）：両手を上げた姿・下げた姿 */
   danceUp: url('hero_dance_up.webp'),
@@ -91,6 +93,18 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   /** サウンド設定（音楽・効果音・ボイス）。全体の ON／OFF は共通の「音」の設定です */
   const [levels, setLevelsState] = useState<BowieSoundLevels>(loadBowieSound);
   const [soundOpen, setSoundOpen] = useState(false);
+  /** 開始前の画面の「遊び方」（説明の全文をダイアログで見せます。開いている間はスペースで始まりません） */
+  const [howtoOpen, setHowtoOpen] = useState(false);
+  const howtoButton = useRef<HTMLButtonElement>(null);
+  const howtoClose = useRef<HTMLButtonElement>(null);
+  const closeHowto = () => {
+    setHowtoOpen(false);
+    // 閉じたら「遊び方」のボタンへ戻します
+    window.setTimeout(() => howtoButton.current?.focus(), 0);
+  };
+  useEffect(() => {
+    if (howtoOpen) howtoClose.current?.focus();
+  }, [howtoOpen]);
   const muted = !settings.sound;
   const [record, setRecord] = useState<BowieRecord>(() => loadBowieRecord(profile));
   useEffect(() => setRecord(loadBowieRecord(profile)), [profile]);
@@ -129,6 +143,10 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   const [bowieMood, setBowieMood] = useState<BowieMood>('bowie_idle');
   const [throwFrame, setThrowFrame] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [banner, setBanner] = useState<{ key: number; text: string; sub: string } | null>(null);
+  /** 段階アップ（第2〜4段階の始まり）の表示中（key：表示し直すため） */
+  const [levelUp, setLevelUp] = useState<{ key: number; stage: 2 | 3 | 4 } | null>(null);
+  /** 段階アップのボイス：まだ流していないか（1回だけ流します） */
+  const levelUpVoice = useRef<{ stage: 2 | 3 | 4; played: boolean } | null>(null);
   /** 表示中のカットイン（key：表示し直すため、no：何回目か） */
   const [cutin, setCutin] = useState<{ key: number; no: number } | null>(null);
   const [danger, setDanger] = useState(false);
@@ -170,13 +188,29 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
       for (const e of events) {
         switch (e.type) {
           case 'stage': {
-            const st = STAGES.find((s) => s.no === e.stage)!;
-            setBanner({ key: Date.now(), text: `第${st.no}段階`, sub: st.name });
             setBowieMood(e.stage === 1 ? 'bowie_idle' : 'bowie_frustrated');
             setDanger(false);
+            if (e.levelUp) {
+              // 段階アップ：中央の帯と文字（金属音）。ボイスは文字が出たあと（毎フレームの更新の中）で1回だけ
+              const stage = e.stage as 2 | 3 | 4;
+              setBanner(null);
+              setLevelUp({ key: Date.now(), stage });
+              levelUpVoice.current = { stage, played: false };
+              audio.metal();
+            } else {
+              // 第1段階の始まり：これまでどおりの表示（段階アップの表示・ボイスは使いません）
+              const st = STAGES.find((s) => s.no === e.stage)!;
+              setBanner({ key: Date.now(), text: `第${st.no}段階`, sub: st.name });
+            }
             break;
           }
           case 'throw':
+            if (levelUpVoice.current) {
+              // 段階アップの終わり（ボイスは最後まで終わっています）：BGM の大きさを戻します
+              levelUpVoice.current = null;
+              setLevelUp(null);
+              audio.setDuck(1, 300);
+            }
             setBanner(null);
             setDanger(false);
             setBowieMood('bowie_idle');
@@ -326,9 +360,12 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     setCountdown(null);
     setImeHint(false);
     setSoundOpen(false);
+    setHowtoOpen(false);
     setResult(null);
     finished.current = false;
     cutinSounds.current = { rumble: null, line: false, no: 0 };
+    setLevelUp(null);
+    levelUpVoice.current = null;
   };
 
   const startGame = useCallback(() => {
@@ -346,6 +383,8 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
       timeScale: dev.timeScale ?? 1,
       // セリフを読み込めていれば、その実際の長さでカットインの長さを決めます（セリフを途中で切らないため）
       cutinVoiceMs: (no) => audio.durationMs(BOWIE_CUTINS[Math.min(BOWIE_CUTINS.length, no) - 1]!.voice),
+      // 段階アップも同じく、ボイスの実際の長さで演出の長さを決めます（ボイスが終わってから投球）
+      levelUpVoiceMs: (stage) => audio.durationMs(BOWIE_LEVEL_UPS[stage].voice),
     });
     gameRef.current = g;
     if (mode !== 'play') navigate('/game/bowie/play');
@@ -356,7 +395,12 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   const leave = (to: string) => {
     gen.current++;
     audio.stopAll();
-    audio.stopBgm();
+    if (to === '/game/bowie') {
+      // 一時停止の「やめる」で開始前の画面へ：前のゲームの音は止め、BGM は大きさを戻して開始待ちのまま流します
+      audio.resume(); // 一時停止で止めた音を戻します
+      audio.setDuck(1, 0);
+      if (!audio.bgmPlaying) audio.startBgm();
+    } else audio.stopBgm();
     gameRef.current = null;
     resetView();
     navigate(to);
@@ -445,6 +489,13 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
         const spec = BOWIE_CUTINS[Math.min(BOWIE_CUTINS.length, Math.max(1, cutinSounds.current.no)) - 1]!;
         audio.play(spec.voice);
       }
+      // 段階アップ：文字が出たあとに、その段階のボウイのボイスを1回だけ。ボイスの間は BGM を小さく
+      const lu = levelUpVoice.current;
+      if (ph === 'intro' && lu && !lu.played && gt - g.phaseStart >= g.scaled(BOWIE_CONFIG.levelUp.voiceDelayMs)) {
+        lu.played = true;
+        audio.setDuck(BGM_DUCK);
+        audio.play(BOWIE_LEVEL_UPS[lu.stage].voice);
+      }
       // 解除の笑顔の時間が過ぎたら、危険なら焦り顔、そうでなければ待機
       const p = g.progress(now);
       const el = bombRef.current;
@@ -468,7 +519,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     const onKey = (e: KeyboardEvent) => {
       const g = gameRef.current;
       if (mode === 'title' || !g) {
-        if (soundOpen) return; // サウンド設定を開いている間は始めません
+        if (soundOpen || howtoOpen) return; // サウンド設定・遊び方を開いている間は始めません
         if ((e.key === ' ' || e.code === 'Space') && !isControl(e.target) && !e.repeat) {
           e.preventDefault();
           startGame();
@@ -497,7 +548,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true });
-  }, [countdown, handle, mode, pause, paused, result, soundOpen, startGame]);
+  }, [countdown, handle, howtoOpen, mode, pause, paused, result, soundOpen, startGame]);
 
   // 解除の笑顔のあと、危険の状態に合わせて顔を戻します
   useEffect(() => {
@@ -516,39 +567,63 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   // ---------------------------------------------------------------- 表示
   if (mode === 'title' || !game) {
     return (
-      <main className="bowie-title" data-testid="bowie-title">
-        <img className="bowie-title-logo" src={SCENE.logo} alt={BOWIE_TITLE} width={1100} height={550} />
-        <section className="bowie-howto" aria-labelledby="bowie-howto-title">
-          <h2 id="bowie-howto-title">遊び方</h2>
-          <ul>
-            <li>ボウイが爆弾を放ったら、表示された文字を入力して解除します。</li>
-            <li>早く解除するほど高得点（単語は最大10点、文章は最大20点）。</li>
-            <li>ミスしても減点はありません。正しいキーを打てば続けられます。</li>
-            <li>爆弾が主人公に届くと、その場で終了です。</li>
-            <li>短い単語・中くらいの単語・長い単語・文章の各20問、全80問を解除すれば勝利です。</li>
-          </ul>
-          <p className="hint">ローマ字は小文字のまま打てます（Shift は要りません）。日本語入力はオフ（英数）にしてください。Esc で一時停止します。</p>
-        </section>
-        <div className="bowie-title-row">
-          <p className="bowie-best" data-testid="bowie-best">
-            ハイスコア <strong>{record.best}</strong> 点
-          </p>
-          <SoundControls muted={muted} onMute={(m) => updateSettings({ sound: !m })} onSettings={() => setSoundOpen(true)} />
+      <main className="bowie-title" data-testid="bowie-title" style={{ backgroundImage: `url(${SCENE.titleBackground})` }}>
+        <div className="bowie-title-inner">
+          <img className="bowie-title-logo" src={SCENE.logo} alt={BOWIE_TITLE} width={1100} height={550} />
+          <button type="button" className="btn btn-primary bowie-start" onClick={startGame} data-testid="bowie-start">
+            スタート<small>（スペースキーでも始まります）</small>
+          </button>
+          <div className="bowie-title-sub">
+            <p className="bowie-best" data-testid="bowie-best">
+              ハイスコア <strong>{record.best}</strong> 点
+            </p>
+            <SoundControls muted={muted} onMute={(m) => updateSettings({ sound: !m })} onSettings={() => setSoundOpen(true)} />
+            <button type="button" className="btn btn-small" ref={howtoButton} onClick={() => setHowtoOpen(true)} aria-haspopup="dialog" data-testid="bowie-howto-open">
+              遊び方
+            </button>
+            <button type="button" className="btn btn-small" onClick={() => leave('/game')}>
+              ゲームの選択にもどる
+            </button>
+          </div>
+          {muted && <p className="bowie-sound-hint">「音：OFF」を押して ON にすると、音楽・効果音・ボイスが流れます。</p>}
         </div>
-        {muted && <p className="bowie-sound-hint">「音：OFF」を押して ON にすると、音楽・効果音・ボイスが流れます。</p>}
+        {howtoOpen && (
+          <div className="bowie-overlay" onClick={(e) => e.target === e.currentTarget && closeHowto()}>
+            <div
+              className="bowie-dialog bowie-howto"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="bowie-howto-title"
+              data-testid="bowie-howto"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  closeHowto();
+                }
+              }}
+            >
+              <h2 id="bowie-howto-title">遊び方</h2>
+              <ul>
+                <li>ボウイが爆弾を放ったら、表示された文字を入力して解除します。</li>
+                <li>早く解除するほど高得点（単語は最大10点、文章は最大20点）。</li>
+                <li>ミスしても減点はありません。正しいキーを打てば続けられます。</li>
+                <li>爆弾が主人公に届くと、その場で終了です。</li>
+                <li>短い単語・中くらいの単語・長い単語・文章の各20問、全80問を解除すれば勝利です。</li>
+              </ul>
+              <p className="hint">ローマ字は小文字のまま打てます（Shift は要りません）。日本語入力はオフ（英数）にしてください。Esc で一時停止します。</p>
+              <div className="bowie-actions">
+                <button type="button" className="btn btn-primary" ref={howtoClose} onClick={closeHowto} data-testid="bowie-howto-close">
+                  閉じる
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {soundOpen && (
           <div className="bowie-overlay" role="dialog" aria-modal="true" aria-label="サウンド設定">
             <div className="bowie-dialog">{soundPanel}</div>
           </div>
         )}
-        <div className="bowie-title-actions">
-          <button type="button" className="btn btn-primary bowie-start" onClick={startGame} data-testid="bowie-start">
-            スタート（スペースキーでも始まります）
-          </button>
-          <button type="button" className="btn" onClick={() => leave('/game')}>
-            ゲームの選択にもどる
-          </button>
-        </div>
       </main>
     );
   }
@@ -605,6 +680,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
           <span className="bowie-bomb-trail" />
           <img src={SCENE.bomb} alt="" />
         </div>
+        {levelUp && <LevelUp key={levelUp.key} stage={levelUp.stage} paused={paused} />}
         {banner && (
           <div key={banner.key} className="bowie-banner" data-testid="bowie-banner">
             <strong>{banner.text}</strong>
@@ -644,7 +720,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
           </>
         ) : (
           <p className="bowie-wait" data-testid="bowie-wait">
-            {ph === 'cutin' ? '' : ph === 'intro' ? `第${stage.no}段階：${stage.name}` : 'ボウイが爆弾を構えている…'}
+            {ph === 'cutin' ? '' : ph === 'intro' ? (levelUp ? 'ボウイがレベルアップしました' : `第${stage.no}段階：${stage.name}`) : 'ボウイが爆弾を構えている…'}
           </p>
         )}
         {imeHint && (
@@ -755,6 +831,27 @@ function SoundControls({ muted, onMute, onSettings, compact }: { muted: boolean;
         </button>
       )}
     </span>
+  );
+}
+
+/**
+ * 段階アップ（第2〜4段階の始まり）：ステージの中央に横長の黒い帯が走り、赤と金の光とともに大きな文字と小さなレベル表示が出ます。
+ * 文字は一瞬大きくなって収まります。帯は半透明で、後ろのゲーム画面は見えたままです。ボイスのセリフは字幕にしません。
+ */
+function LevelUp({ stage, paused }: { stage: 2 | 3 | 4; paused: boolean }) {
+  const spec = BOWIE_LEVEL_UPS[stage];
+  return (
+    <div className={`bowie-levelup ${paused ? 'is-paused' : ''}`} role="status" aria-label={`${spec.title}　${spec.level}`} data-testid="bowie-levelup" data-stage={stage}>
+      <div className="blu-band">
+        <span className="blu-flare" aria-hidden="true" />
+        <strong className="blu-title" data-testid="bowie-levelup-title">
+          {spec.title}
+        </strong>
+        <span className="blu-level" data-testid="bowie-levelup-level">
+          {spec.level}
+        </span>
+      </div>
+    </div>
   );
 }
 

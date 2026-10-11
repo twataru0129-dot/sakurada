@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import data from '../../data/bowie/questions.json';
 import { findUnsupportedChar, RomajiMatcher, tokenize } from '../romaji';
-import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_ROMAJI_RULES, CUTIN_TOTAL_MS, cutinTotalMs, landingMsFor, pointsFor, type StageNo } from './config';
+import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_LEVEL_UPS, BOWIE_ROMAJI_RULES, CUTIN_TOTAL_MS, cutinTotalMs, levelUpTotalMs, landingMsFor, pointsFor, type StageNo } from './config';
 import { BOWIE_POOLS, drawPlay, drawQuestions, type BowieQuestion } from './questions';
 import { BowieGame, type BowieEvent } from './engine';
 import { displaySegments } from './display';
@@ -110,8 +110,8 @@ describe('着弾時間と得点', () => {
 });
 
 /** ゲームを時刻つきで動かす道具 */
-function runner(perStage = 20, random = seeded(7), cutinVoiceMs?: (no: number) => number) {
-  const g = new BowieGame(drawPlay(perStage, random), 'hepburn', { perStage, cutinVoiceMs });
+function runner(perStage = 20, random = seeded(7), cutinVoiceMs?: (no: number) => number, levelUpVoiceMs?: (stage: 2 | 3 | 4) => number) {
+  const g = new BowieGame(drawPlay(perStage, random), 'hepburn', { perStage, cutinVoiceMs, levelUpVoiceMs });
   let t = 1000;
   const events: BowieEvent[] = [];
   const at = (ms: number) => {
@@ -225,9 +225,10 @@ describe('進行', () => {
   it('カットインは通算10・30・50・70問目のあとの4回。回ごとに決まったセリフの長さに合わせて保持し、そのあいだ爆弾・着弾・投球は止まる', () => {
     // 1回目は従来どおり約 2.2 秒（0.25＋1.541＋0.16＋0.25）。2〜4回目はセリフ（2.43・3.37・1.78 秒）が最後まで終わってから抜けます
     expect(CUTIN_TOTAL_MS).toBe(2201);
-    expect(BOWIE_CUTINS.map((c) => c.image)).toEqual(['speed_cutin.webp', 'bowie_cutin_02.webp', 'bowie_cutin_03.webp', 'bowie_cutin_04.webp']);
+    // 2〜4回目は文字入りの画像（v1.6.1）。ボイスはこれまでどおり
+    expect(BOWIE_CUTINS.map((c) => c.image)).toEqual(['speed_cutin.webp', 'bowie_cutin_02_text.webp', 'bowie_cutin_03_text.webp', 'bowie_cutin_04_text.webp']);
     expect(BOWIE_CUTINS.map((c) => c.voice)).toEqual(['level_up', 'cutin_voice_02', 'cutin_voice_03', 'cutin_voice_04']);
-    expect(BOWIE_CUTINS.slice(1).every((c) => c.line === '')).toBe(true);
+    expect(BOWIE_CUTINS.map((c) => c.line)).toEqual(['少しテンポを落とそうか', '次の戦いの準備をしよう', 'さて、私が流れを変えてみせよう', '払いのける！']);
     const r = runner();
     const solvedAt: number[] = [];
     for (let i = 0; i < 80; i++) {
@@ -255,6 +256,55 @@ describe('進行', () => {
     expect(solvedAt).toEqual([10, 30, 50, 70]);
     expect(r.events.filter((e) => e.type === 'cutin').map((e) => (e as { no: number }).no)).toEqual([1, 2, 3, 4]);
     expect(r.g.phase).toBe('won');
+  });
+  it('段階アップは通算20・40・60問の解除のあとの3回（第1段階の始まりは従来の表示）。ボイスが終わるまで投球・爆弾・着弾・入力は止まり、終わってから投球', () => {
+    // 段階とボイスの対応（ファイル名で厳守）：第2段階＝212302、第3段階＝212407、第4段階＝212220
+    expect(BOWIE_LEVEL_UPS[2]).toMatchObject({ title: 'ボウイ覚醒', level: 'LEVEL 02', voice: 'levelup_voice_2', voiceMs: 3500 });
+    expect(BOWIE_LEVEL_UPS[3]).toMatchObject({ title: '力の解放', level: 'LEVEL 03', voice: 'levelup_voice_3', voiceMs: 3762 });
+    expect(BOWIE_LEVEL_UPS[4]).toMatchObject({ title: '終焉の遊戯', level: 'FINAL LEVEL', voice: 'levelup_voice_4', voiceMs: 1541 });
+    const r = runner();
+    const first = r.events.find((e) => e.type === 'stage') as Extract<BowieEvent, { type: 'stage' }>;
+    expect(first).toMatchObject({ stage: 1, levelUp: false });
+    expect(r.g.introMs).toBe(BOWIE_CONFIG.stageIntroMs);
+    const ups: { solved: number; stage: number; ms: number }[] = [];
+    for (let i = 0; i < 80; i++) {
+      r.solve(1);
+      if (r.g.phase === 'intro') {
+        const stage = r.g.stage as 2 | 3 | 4;
+        const len = levelUpTotalMs(BOWIE_LEVEL_UPS[stage].voiceMs);
+        ups.push({ solved: r.g.solved, stage, ms: r.g.introMs });
+        expect(r.g.introMs).toBe(len);
+        // 演出の終わりの直前まで：投球しない・爆弾は出ない・キーは捨てる（次の問題へ持ち越さない）
+        const start = r.now();
+        r.at(start + len - 5);
+        expect(r.g.phase).toBe('intro');
+        expect(r.g.progress(r.now())).toBe(0);
+        for (const c of 'abcdefg') r.key(c);
+        expect(r.g.matcher).toBeNull();
+        r.at(start + len + 1);
+        expect(r.g.phase).toBe('throwing');
+        r.toRelease();
+        // 次の問題は最初から（途中の入力・時間を持ち越さない）
+        expect(r.g.matcher!.typedText).toBe('');
+        expect(r.g.progress(r.now())).toBeLessThan(0.01);
+      }
+    }
+    expect(ups.map((u) => [u.solved, u.stage])).toEqual([[20, 2], [40, 3], [60, 4]]);
+    expect(r.events.filter((e) => e.type === 'stage').map((e) => (e as { levelUp: boolean }).levelUp)).toEqual([false, true, true, true]);
+    expect(r.g.phase).toBe('won');
+  });
+  it('段階アップのボイスの実際の長さが登録より長いときは、そちらに合わせる', () => {
+    const r = runner(2, seeded(5), undefined, (st) => (st === 3 ? 5000 : 10));
+    const lens: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      r.solve(1);
+      if (r.g.phase === 'intro') {
+        lens.push(r.g.introMs);
+        r.at(r.now() + r.g.introMs + 1);
+      }
+      if (r.g.phase === 'cutin') r.at(r.now() + r.g.cutinMs + 1);
+    }
+    expect(lens).toEqual([levelUpTotalMs(3500), levelUpTotalMs(5000), levelUpTotalMs(1541)]);
   });
   it('セリフの実際の長さが登録より長いときは、そちらに合わせる（短いときは登録の長さのまま）', () => {
     const r = runner(2, seeded(3), (no) => (no === 3 ? 4000 : 100));

@@ -1129,17 +1129,44 @@ body:has(.entry-main) {
 /* =====================================================================
    ボウイの爆弾遊戯（青い魔力と金の装飾のファンタジー。文字は高コントラスト）
    ===================================================================== */
-.bowie-title { max-width: 1100px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .bowie-title-logo { width: min(640px, 92%); height: auto; }
 .bowie-howto { width: 100%; background: #101a3f; color: #f3f5ff; border: 2px solid #c9a24a; border-radius: 16px; padding: 14px 22px; }
 .bowie-howto h2 { color: #ffd76a; margin-bottom: 6px; }
 .bowie-howto ul { margin: 0 0 8px; padding-left: 1.3em; line-height: 1.8; font-size: 1.08rem; }
 .bowie-howto .hint { color: #c9d2f5; margin: 0; }
-.bowie-title-row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: center; }
 .bowie-best { margin: 0; font-size: 1.2rem; }
 .bowie-best strong { font-size: 1.6rem; color: var(--accent-dark); }
-.bowie-title-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .bowie-start { min-height: 60px; font-size: 1.25rem; padding: 10px 32px; }
+/* 開始前の画面（v1.6.1）：星空と城の舞台の背景を画面いっぱいに（引き伸ばさず cover で配置）。
+   中央の上にロゴ、その下に大きなスタート、補助の操作は薄い暗色の面にまとめて控えめに */
+#root:has(.bowie-title) { min-height: 100vh; min-height: 100dvh; }
+body:has(.bowie-title) { background: #0b0f2e; }
+main.bowie-title {
+  flex: 1 0 auto; max-width: none; width: 100%; margin: 0; padding: clamp(10px, 3vh, 36px) 16px clamp(16px, 4vh, 40px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background-color: #0b0f2e; background-size: cover; background-position: center 70%; background-repeat: no-repeat; color: #fff;
+}
+.bowie-title-inner { width: min(1100px, 100%); display: flex; flex-direction: column; align-items: center; gap: clamp(10px, 2.4vh, 24px); }
+.bowie-title .bowie-title-logo { width: min(680px, 88vw, 164vh); max-height: 46vh; object-fit: contain; filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6)); }
+.bowie-title .bowie-start {
+  min-height: 72px; min-width: min(420px, 90vw); font-size: 1.6rem; letter-spacing: 0.12em; padding: 10px 36px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2;
+  background: linear-gradient(#d23a5c, #9e1638); border: 2px solid #ffd76a; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.35), 0 8px 28px rgba(210, 58, 92, 0.55);
+}
+.bowie-title .bowie-start small { font-size: 0.85rem; letter-spacing: 0; font-weight: 700; opacity: 0.9; }
+.bowie-title-sub {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; padding: 8px 16px;
+  background: rgba(8, 10, 34, 0.62); border: 1px solid rgba(201, 162, 74, 0.55); border-radius: 12px; backdrop-filter: blur(2px);
+}
+.bowie-title-sub .bowie-best { color: #fff; text-shadow: 0 1px 2px #000; }
+.bowie-title-sub .bowie-best strong { color: #ffd76a; }
+.bowie-title-sub .btn { background: rgba(24, 36, 90, 0.85); color: #fff; border-color: #c9a24a; min-height: 40px; }
+.bowie-title .bowie-sound-hint { color: #fff; background: rgba(8, 10, 34, 0.62); padding: 4px 12px; border-radius: 8px; text-shadow: 0 1px 2px #000; }
+.bowie-dialog.bowie-howto { max-width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; }
+.bowie-dialog.bowie-howto .bowie-actions { justify-content: center; margin-top: 12px; }
+@media (max-width: 640px) {
+  .bowie-title .bowie-start { min-height: 64px; font-size: 1.35rem; }
+  .bowie-title-sub { padding: 8px 10px; }
+}
 .bowie-sound { display: inline-flex; align-items: center; gap: 8px; }
 
 /* プレイ：画面いっぱいに（上：情報、中：ステージ、下：入力） */
@@ -1330,3 +1357,30 @@ body:has(.bowie-main) .app-header .brand img { width: 26px; height: 26px; }
 }
 @keyframes bowie-dance-jump { 0% { transform: translateY(0) scaleY(0.97); } 30% { transform: translateY(-7%) scaleY(1.02); } 60% { transform: translateY(0) scaleY(1); } 100% { transform: translateY(0) scaleY(0.98); } }
 @keyframes bowie-dance-sway { 0%, 100% { transform: translateX(-4%) rotate(-4deg); } 50% { transform: translateX(4%) rotate(4deg); } }
+
+/* ボウイの爆弾遊戯：段階アップ（v1.6.1）。ステージの中央に横長の黒い帯が走り、赤と金の光とともに文字が出ます（後ろのゲーム画面は見えたまま） */
+.bowie-levelup { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.blu-band {
+  position: relative; width: 100%; padding: clamp(10px, 3.2vh, 30px) 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; overflow: hidden;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(4, 2, 8, 0.86) 14%, rgba(4, 2, 8, 0.9) 50%, rgba(4, 2, 8, 0.86) 86%, rgba(0, 0, 0, 0) 100%);
+  border-top: 2px solid rgba(255, 196, 80, 0.85); border-bottom: 2px solid rgba(220, 30, 50, 0.85);
+  box-shadow: 0 0 26px rgba(220, 30, 50, 0.55), 0 0 60px rgba(255, 190, 70, 0.25);
+}
+.blu-title {
+  font-size: clamp(2.2rem, 7.5vw, 5.4rem); line-height: 1.05; letter-spacing: 0.14em; font-weight: 900;
+  background: linear-gradient(180deg, #fff6d0 0%, #ffd76a 42%, #e08a1e 70%, #ffe9a8 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 10px rgba(230, 40, 50, 0.85)) drop-shadow(0 2px 0 #4a0a0a);
+}
+.blu-level { font-size: clamp(0.95rem, 2.2vw, 1.5rem); letter-spacing: 0.45em; font-weight: 800; color: #fff; text-shadow: 0 0 6px rgba(255, 60, 60, 0.9), 0 1px 2px #000; padding-left: 0.45em; }
+.blu-flare { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 0%, transparent 40%, rgba(255, 220, 140, 0.55) 48%, rgba(255, 80, 60, 0.35) 52%, transparent 60%, transparent 100%); transform: translateX(-100%); }
+@media (prefers-reduced-motion: no-preference) {
+  .blu-band { animation: blu-band 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .blu-title { animation: blu-pop 520ms cubic-bezier(0.2, 1.4, 0.4, 1) 120ms both; }
+  .blu-level { animation: blu-fade 360ms ease-out 300ms both; }
+  .blu-flare { animation: blu-flare 900ms ease-out 140ms both; }
+  .bowie-levelup.is-paused * { animation-play-state: paused; }
+}
+@keyframes blu-band { from { transform: scaleX(0); opacity: 0.4; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes blu-pop { 0% { transform: scale(1.7); opacity: 0; } 55% { transform: scale(0.94); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes blu-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes blu-flare { from { transform: translateX(-100%); } to { transform: translateX(100%); } }

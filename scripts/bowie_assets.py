@@ -167,6 +167,9 @@ def main():
     # 2〜4回目のカットイン（回ごとに専用の画像）と、敗北の音声の間に出す DEFEAT の画像（v1.5.3）
     for name in ['bowie_cutin_02', 'bowie_cutin_03', 'bowie_cutin_04', 'bowie_defeat']:
         sprites['scenes'][name] = scene(name, 1672, False)
+    # 2〜4回目のカットインの文字入り版と、開始前の画面の背景（v1.6.1）
+    for name in ['bowie_cutin_02_text', 'bowie_cutin_03_text', 'bowie_cutin_04_text', 'bowie_title_background']:
+        sprites['scenes'][name] = scene(name, 1672, False)
     sprites['dance'] = dance()
     (OUT / 'audio').mkdir(parents=True, exist_ok=True)
     for f in sorted((SRC / 'audio').glob('*.mp3')):
