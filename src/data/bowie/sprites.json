@@ -217,5 +217,17 @@
   "bodyY": 0.6316,
   "bodyW": 0.9641,
   "bodyPerGlyph": 1.2873
+ },
+ "dance": {
+  "hero_dance_up": {
+   "file": "hero_dance_up.webp",
+   "w": 1012,
+   "h": 820
+  },
+  "hero_dance_down": {
+   "file": "hero_dance_down.webp",
+   "w": 1012,
+   "h": 820
+  }
  }
 }

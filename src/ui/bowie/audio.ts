@@ -1,13 +1,17 @@
 /**
  * ボウイの爆弾遊戯の音（Web Audio）。
  *
- * - 12種類の音声を画面を開いたときに読み込み（先読み）、開始の操作（ボタン・スペース）で再生できるようにします。
- * - 全体の音量・ミュートのほか、効果音とボイスを別の経路にして、ボイスが効果音に埋もれないようにします。
+ * - 音声を画面を開いたときに読み込み（先読み）、利用者の操作のあとで再生できるようにします。
+ * - 音は3つの種類に分け、それぞれの音量（サウンド設定）を掛けます：音楽（通常の BGM・クリアの曲）／効果音／ボイス（セリフ・声）。
+ *   全体の ON／OFF は桜打の共通の「音」の設定です。最後にリミッターを通し、音量を上げても音が割れないようにします。
+ * - 各音の音量（SOUNDS の volume）は、同じ種類の中で平均の大きさがそろうように決めています（ボイスは約 −21.5dB、効果音は約 −21dB）。
  * - 再生した音はすべて記録し、stopAll() で止めます（再挑戦・ホームへ戻るときに、前のゲームの音を残しません）。
- * - 再生できない（読み込みの失敗・ブラウザの拒否・ミュート）ときも、ended は音の長さのあとに終わるため、演出は先へ進みます。
+ *   通常の BGM は別に管理し（startBgm／stopBgm）、段階やカットインで最初から流し直しません。
+ * - 再生できない（読み込みの失敗・ブラウザの拒否）ときも、ended は音の長さのあとに終わるため、演出は先へ進みます。
+ *   OFF・音量0のときも、音は無音で流れて本当の長さで終わります。
  */
 import manifest from '../../../assets/bowie-source/asset_manifest.json';
-import { BOWIE_VOLUME_KEY } from '../../data/bowieRecords';
+import { BOWIE_SOUND_DEFAULTS, type BowieSoundLevels } from '../../data/bowieSound';
 
 const urls = import.meta.glob('../../assets/bowie/audio/*.mp3', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const urlOf = (file: string) => Object.entries(urls).find(([p]) => p.endsWith(`/${file}`))?.[1] ?? '';
@@ -15,6 +19,7 @@ const urlOf = (file: string) => Object.entries(urls).find(([p]) => p.endsWith(`/
 export type SoundKey =
   | 'throw'
   | 'disarm'
+  | 'disarm_v2'
   | 'typo'
   | 'danger'
   | 'explosion'
@@ -27,10 +32,19 @@ export type SoundKey =
   | 'level_up'
   | 'cutin_voice_02'
   | 'cutin_voice_03'
-  | 'cutin_voice_04';
+  | 'cutin_voice_04'
+  | 'hero_hit_voice'
+  | 'hero_cry'
+  | 'bgm'
+  | 'hero_clear_bgm';
 
-/** ボイス（セリフ・笑い声・元動画の勝利・敗北の音）は、効果音とは別の経路で少し大きめにします */
-const VOICE: ReadonlySet<SoundKey> = new Set(['victory', 'defeat', 'loss_line', 'laugh', 'level_up', 'cutin_voice_02', 'cutin_voice_03', 'cutin_voice_04']);
+export type SoundKind = 'music' | 'sfx' | 'voice';
+
+/** 音楽：通常の BGM・クリアのダンスの曲 */
+const MUSIC: ReadonlySet<SoundKey> = new Set(['bgm', 'hero_clear_bgm']);
+/** ボイス：ボウイのセリフ・笑い声、主人公の声、VICTORY／DEFEAT の音声（タイトルコールは TitleCall.tsx で同じボイスの音量を使います） */
+const VOICE: ReadonlySet<SoundKey> = new Set(['victory', 'defeat', 'loss_line', 'laugh', 'level_up', 'cutin_voice_02', 'cutin_voice_03', 'cutin_voice_04', 'hero_hit_voice', 'hero_cry']);
+export const kindOf = (key: SoundKey): SoundKind => (MUSIC.has(key) ? 'music' : VOICE.has(key) ? 'voice' : 'sfx');
 
 interface Meta {
   file: string;
@@ -38,23 +52,33 @@ interface Meta {
   duration: number;
 }
 /**
- * 納品の manifest にない、あとから追加した音（v1.5.3：2〜4回目のカットインのセリフ）。
- * 音量は、1回目のセリフ（level_up・0.9）と平均の大きさがそろうように決めています（新しいセリフは約2dB大きく録音されています）。
+ * 納品の manifest にない、あとから追加した音と、音量を調整し直した音。
+ * - v1.5.3：2〜4回目のカットインのセリフ
+ * - v1.6.0：通常の BGM、新しい解除の音、主人公の被弾の声・鳴き声、クリアのダンスの曲
+ * - v1.6.0：VICTORY（−13.5dB）・DEFEAT（−16.8dB）は納品の音量（0.8）だとほかのボイスより大きいため下げ、
+ *   投げる音も少し下げました。クリアの曲は、通常の BGM（1.0）より大きく（2.0）して演出として聞こえるようにしています。
  */
 const EXTRA: Record<string, Meta> = {
-  cutin_voice_02: { file: 'bowie_cutin_02_voice.mp3', volume: 0.75, duration: 2.429388 },
-  cutin_voice_03: { file: 'bowie_cutin_03_voice.mp3', volume: 0.75, duration: 3.369796 },
-  cutin_voice_04: { file: 'bowie_cutin_04_voice.mp3', volume: 0.8, duration: 1.776327 },
+  cutin_voice_02: { file: 'bowie_cutin_02_voice.mp3', volume: 0.7, duration: 2.429388 },
+  cutin_voice_03: { file: 'bowie_cutin_03_voice.mp3', volume: 0.7, duration: 3.369796 },
+  cutin_voice_04: { file: 'bowie_cutin_04_voice.mp3', volume: 0.75, duration: 1.776327 },
+  bgm: { file: 'bowie_bgm.mp3', volume: 1, duration: 116.323265 },
+  disarm_v2: { file: 'bowie_disarm_v2.mp3', volume: 0.75, duration: 1.201633 },
+  hero_hit_voice: { file: 'bowie_hero_hit_voice.mp3', volume: 0.95, duration: 3.369796 },
+  hero_cry: { file: 'bowie_hero_cry.mp3', volume: 1, duration: 3.552653 },
+  hero_clear_bgm: { file: 'bowie_hero_clear_bgm.mp3', volume: 2, duration: 5.903673 },
 };
-export const SOUNDS: Record<SoundKey, Meta> = {
-  ...Object.fromEntries(
+const RETUNE: Partial<Record<SoundKey, number>> = { victory: 0.45, defeat: 0.6, throw: 0.5 };
+export const SOUNDS: Record<SoundKey, Meta> = (() => {
+  const base = Object.fromEntries(
     (manifest.audio as { file: string; volume: number; duration_seconds: number }[]).map((a) => [
       a.file.replace(/^bowie_/, '').replace(/\.mp3$/, ''),
       { file: a.file, volume: a.volume, duration: a.duration_seconds },
     ]),
-  ),
-  ...EXTRA,
-} as Record<SoundKey, Meta>;
+  ) as Record<string, Meta>;
+  for (const [k, v] of Object.entries(RETUNE)) if (base[k]) base[k] = { ...base[k]!, volume: v! };
+  return { ...base, ...EXTRA } as Record<SoundKey, Meta>;
+})();
 
 export interface Playing {
   /** 音が終わったとき（再生できなかったときも、音の長さのあとに終わります） */
@@ -63,18 +87,28 @@ export interface Playing {
   setGain: (v: number, rampMs?: number) => void;
 }
 
-const BUS_GAIN = { sfx: 0.8, voice: 1 };
+/** BGM のつなぎ目：曲の先頭の無音を飛ばし、曲の終わりを短く消して、先頭へ戻るときのプツッという音を防ぎます */
+const BGM_TAIL_FADE_S = 0.015;
+const BGM_HEAD_THRESHOLD = 1e-3;
 
 export class BowieAudio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  private buses: { sfx: GainNode; voice: GainNode } | null = null;
+  private buses: Record<SoundKind, GainNode> | null = null;
+  /** 音楽の一時的な下げ（カットインのセリフの間）。音楽の音量の設定とは別に掛けます */
+  private duck: GainNode | null = null;
   private raw = new Map<SoundKey, Promise<ArrayBuffer | null>>();
   private buffers = new Map<SoundKey, AudioBuffer>();
+  private decoding = new Map<SoundKey, Promise<AudioBuffer | null>>();
   private active = new Set<{ stop: () => void }>();
-  private volume = 0.8;
+  private levels: BowieSoundLevels = { ...BOWIE_SOUND_DEFAULTS };
   private muted = false;
   private lastTypo = 0;
+  /** 通常の BGM：流したい状態か・いま流している音 */
+  private bgmWanted = false;
+  private bgm: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  /** BGM を流し始めた回数（確認用：重複していないことを調べます） */
+  bgmStarts = 0;
   failed = 0;
 
   /** 音声のファイルを読み込みます（再生の許可は要りません） */
@@ -93,38 +127,63 @@ export class BowieAudio {
     }
   }
 
-  /** 利用者の操作（開始ボタン・スペース）の中で呼び、音を出せるようにします */
+  /** 利用者の操作のあと（開始ボタン・スペース・ゲームの選択）に呼び、音を出せるようにします */
   unlock(): void {
     this.preload();
     try {
       if (!this.ctx) {
         const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        this.ctx = new AC();
-        this.master = this.ctx.createGain();
-        this.master.connect(this.ctx.destination);
-        const sfx = this.ctx.createGain();
-        const voice = this.ctx.createGain();
-        sfx.gain.value = BUS_GAIN.sfx;
-        voice.gain.value = BUS_GAIN.voice;
+        const ctx = new AC();
+        this.ctx = ctx;
+        // 全体 → リミッター → スピーカー（音量を上げても割れないように）
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -4;
+        limiter.knee.value = 4;
+        limiter.ratio.value = 12;
+        limiter.attack.value = 0.003;
+        limiter.release.value = 0.2;
+        limiter.connect(ctx.destination);
+        this.master = ctx.createGain();
+        this.master.connect(limiter);
+        const music = ctx.createGain();
+        const duck = ctx.createGain();
+        music.connect(duck).connect(this.master);
+        const sfx = ctx.createGain();
+        const voice = ctx.createGain();
         sfx.connect(this.master);
         voice.connect(this.master);
-        this.buses = { sfx, voice };
-        this.applyVolume();
-        for (const [key, p] of this.raw) {
-          void p.then(async (buf) => {
-            if (!buf || !this.ctx) return void (this.failed += buf ? 0 : 1);
-            try {
-              this.buffers.set(key, await this.ctx.decodeAudioData(buf.slice(0)));
-            } catch {
-              this.failed++;
-            }
-          });
-        }
+        this.buses = { music, sfx, voice };
+        this.duck = duck;
+        this.apply();
+        for (const key of this.raw.keys()) void this.decode(key);
       }
       if (this.ctx.state === 'suspended') void this.ctx.resume().catch(() => undefined);
     } catch {
       this.ctx = null;
     }
+  }
+
+  private decode(key: SoundKey): Promise<AudioBuffer | null> {
+    const have = this.decoding.get(key);
+    if (have) return have;
+    const p = (this.raw.get(key) ?? Promise.resolve(null)).then(async (buf) => {
+      const ctx = this.ctx;
+      if (!buf || !ctx) {
+        if (!buf) this.failed++;
+        return null;
+      }
+      try {
+        const b = await ctx.decodeAudioData(buf.slice(0));
+        if (this.ctx !== ctx) return null;
+        this.buffers.set(key, b);
+        return b;
+      } catch {
+        this.failed++;
+        return null;
+      }
+    });
+    this.decoding.set(key, p);
+    return p;
   }
 
   /** 音の長さ（ミリ秒）。読み込めていれば実際の長さ、まだなら登録した長さです */
@@ -133,13 +192,18 @@ export class BowieAudio {
     return Math.round((b ? b.duration : SOUNDS[key].duration) * 1000);
   }
 
-  setVolume(v: number, muted: boolean): void {
-    this.volume = Math.min(1, Math.max(0, v));
+  /** サウンド設定（音楽・効果音・ボイスの音量 0〜1）と、全体の OFF */
+  setLevels(levels: BowieSoundLevels, muted: boolean): void {
+    this.levels = { ...levels };
     this.muted = muted;
-    this.applyVolume();
+    this.apply();
   }
-  private applyVolume() {
-    if (this.master && this.ctx) this.master.gain.setValueAtTime(this.muted ? 0 : this.volume, this.ctx.currentTime);
+  private apply() {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || !this.buses) return;
+    const t = ctx.currentTime;
+    this.master.gain.setTargetAtTime(this.muted ? 0 : 1, t, 0.015);
+    for (const k of ['music', 'sfx', 'voice'] as const) this.buses[k].gain.setTargetAtTime(this.levels[k], t, 0.015);
   }
 
   play(key: SoundKey, opts: { gain?: number } = {}): Playing {
@@ -158,7 +222,7 @@ export class BowieAudio {
       src.buffer = buffer;
       const g = ctx.createGain();
       g.gain.value = meta.volume * (opts.gain ?? 1);
-      src.connect(g).connect(VOICE.has(key) ? this.buses.voice : this.buses.sfx);
+      src.connect(g).connect(this.buses[kindOf(key)]);
       const handle = {
         stop: () => {
           try {
@@ -202,6 +266,63 @@ export class BowieAudio {
     this.play('typo');
   }
 
+  // ---------------------------------------------------------------- 通常の BGM
+
+  /** 通常の BGM を最初から流します（すでに流れていれば何もしません。何度呼んでも1つだけです） */
+  startBgm(): void {
+    this.bgmWanted = true;
+    if (this.bgm) return;
+    if (!this.ctx) this.unlock();
+    void this.decode('bgm').then((buffer) => {
+      const ctx = this.ctx;
+      if (!buffer || !ctx || !this.buses || !this.bgmWanted || this.bgm) return;
+      prepareLoop(buffer);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+      src.loopStart = headOf(buffer);
+      src.loopEnd = buffer.duration;
+      const gain = ctx.createGain();
+      gain.gain.value = SOUNDS.bgm.volume;
+      src.connect(gain).connect(this.buses.music);
+      src.start();
+      this.bgm = { src, gain };
+      this.bgmStarts++;
+    });
+  }
+
+  /** 通常の BGM を止めます（短く消してから止めます） */
+  stopBgm(fadeMs = 80): void {
+    this.bgmWanted = false;
+    const b = this.bgm;
+    this.bgm = null;
+    this.setDuck(1, 0);
+    if (!b || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    try {
+      b.gain.gain.cancelScheduledValues(t);
+      b.gain.gain.setValueAtTime(b.gain.gain.value, t);
+      b.gain.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
+      b.src.stop(t + fadeMs / 1000 + 0.01);
+    } catch {
+      /* もう止まっています */
+    }
+  }
+
+  get bgmPlaying(): boolean {
+    return this.bgm !== null || this.bgmWanted;
+  }
+
+  /** 音楽を一時的に下げる（1 で元に戻す）。音楽の音量の設定はそのままです */
+  setDuck(level: number, rampMs = 200): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.duck) return;
+    const t = ctx.currentTime;
+    this.duck.gain.cancelScheduledValues(t);
+    this.duck.gain.setValueAtTime(this.duck.gain.value, t);
+    this.duck.gain.linearRampToValueAtTime(level, t + rampMs / 1000);
+  }
+
   /** 一時停止の間は、鳴っている音も止めます（再開すると続きから鳴ります） */
   suspend(): void {
     void this.ctx?.suspend().catch(() => undefined);
@@ -210,6 +331,7 @@ export class BowieAudio {
     void this.ctx?.resume().catch(() => undefined);
   }
 
+  /** 効果音・ボイス・クリアの曲をすべて止めます（通常の BGM は stopBgm で止めます） */
   stopAll(): void {
     for (const h of [...this.active]) h.stop();
     this.active.clear();
@@ -217,26 +339,32 @@ export class BowieAudio {
 
   dispose(): void {
     this.stopAll();
+    this.stopBgm(0);
     void this.ctx?.close().catch(() => undefined);
     this.ctx = null;
     this.buffers.clear();
+    this.decoding.clear();
   }
 }
 
-/** 全体の音量（この端末に保存します。ミュートは桜打の共通の「音」の設定を使います） */
-const VOLUME_KEY = BOWIE_VOLUME_KEY;
-export function loadVolume(): number {
-  try {
-    const v = Number(localStorage.getItem(VOLUME_KEY));
-    return Number.isFinite(v) && v > 0 && v <= 1 ? v : 0.8;
-  } catch {
-    return 0.8;
+const prepared = new WeakSet<AudioBuffer>();
+/** 曲の終わりの数ミリ秒を消して、先頭へ戻るときの段差（プツッという音）をなくします（1つの音につき1回だけ） */
+function prepareLoop(buffer: AudioBuffer) {
+  if (prepared.has(buffer)) return;
+  prepared.add(buffer);
+  const n = Math.min(buffer.length, Math.round(buffer.sampleRate * BGM_TAIL_FADE_S));
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const d = buffer.getChannelData(c);
+    for (let i = 0; i < n; i++) {
+      const j = buffer.length - 1 - i;
+      d[j] = (d[j] ?? 0) * (i / n);
+    }
   }
 }
-export function saveVolume(v: number): void {
-  try {
-    localStorage.setItem(VOLUME_KEY, String(v));
-  } catch {
-    /* 保存できなくても遊べます */
-  }
+/** 曲の先頭の無音（エンコードで付く分を含む）のあと、音が始まる少し前の時刻（2回目からの戻り先） */
+function headOf(buffer: AudioBuffer): number {
+  const d = buffer.getChannelData(0);
+  const limit = Math.min(d.length, buffer.sampleRate * 0.5);
+  for (let i = 0; i < limit; i++) if (Math.abs(d[i]!) > BGM_HEAD_THRESHOLD) return Math.max(0, i - buffer.sampleRate * 0.002) / buffer.sampleRate;
+  return 0;
 }

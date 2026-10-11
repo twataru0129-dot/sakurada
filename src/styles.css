@@ -1141,9 +1141,6 @@ body:has(.entry-main) {
 .bowie-title-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .bowie-start { min-height: 60px; font-size: 1.25rem; padding: 10px 32px; }
 .bowie-sound { display: inline-flex; align-items: center; gap: 8px; }
-.bowie-volume { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
-.bowie-volume input { width: 120px; accent-color: #c9a24a; }
-.bowie-sound.is-compact .bowie-volume input { width: 90px; }
 
 /* プレイ：画面いっぱいに（上：情報、中：ステージ、下：入力） */
 #root:has(.bowie-main) { height: 100vh; height: 100dvh; }
@@ -1288,3 +1285,48 @@ body:has(.bowie-main) .app-header .brand img { width: 26px; height: 26px; }
 @keyframes bowie-curtain-white { from { opacity: 0; } to { opacity: 1; } }
 @keyframes bowie-curtain-black { from { background: #fff; } to { background: #000; } }
 @keyframes bowie-curtain-reveal { from { opacity: 1; } to { opacity: 0; } }
+
+/* ボウイの爆弾遊戯：サウンド設定（v1.6.0。タイトル・一時停止の画面から開きます） */
+.bowie-dialog:has(.bowie-sound-settings) { max-width: min(760px, calc(100vw - 24px)); width: 100%; max-height: calc(100dvh - 24px); overflow: auto; padding: 16px 20px; }
+.bowie-sound-settings h2 { margin: 0 0 10px; text-align: center; color: #ffd76a; letter-spacing: 0.2em; border-bottom: 1px solid #3a4c9a; padding-bottom: 8px; }
+.bss-row { display: grid; grid-template-columns: 8.5em 1fr 4em; align-items: center; gap: 8px 14px; padding: 10px 0; }
+.bss-row.bss-main { grid-template-columns: 8.5em auto 1fr; }
+.bss-label { font-size: 1.15rem; font-weight: 700; text-align: right; display: flex; flex-direction: column; }
+.bss-label small { font-size: 0.78rem; font-weight: 400; color: #b8c2ea; }
+.bss-switch { display: inline-flex; border: 1px solid #5a6fd0; border-radius: 6px; overflow: hidden; }
+.bss-switch button { min-width: 5.5em; min-height: 46px; font-size: 1.1rem; font-weight: 700; border: 0; background: #1a2350; color: #c9d2f5; cursor: pointer; }
+.bss-switch button.is-on { background: linear-gradient(#3d63d8, #2a48b0); color: #fff; box-shadow: inset 0 0 0 2px #8fd8ff; }
+.bss-default { justify-self: end; min-height: 46px; background: #1d2a66; color: #fff; border-color: #6f86e8; }
+.bss-default:disabled { opacity: 0.5; }
+.bss-slider { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-weight: 700; color: #dfe5ff; }
+.bss-slider input[type="range"] { width: 100%; height: 36px; accent-color: #59c8ff; cursor: pointer; }
+.bss-value { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.bss-row.is-muted .bss-slider, .bss-row.is-muted .bss-value { opacity: 0.45; }
+.bss-note { margin: 4px 0 0; color: #c9d2f5; font-size: 0.95rem; }
+.bss-actions { display: flex; justify-content: center; margin-top: 10px; }
+.bss-actions .btn { min-height: 48px; min-width: 9em; }
+@media (max-width: 640px) {
+  .bss-row, .bss-row.bss-main { grid-template-columns: 1fr auto; }
+  .bss-label { text-align: left; grid-column: 1 / -1; }
+  .bss-slider { grid-column: 1; }
+  .bss-row.bss-main .bss-switch { grid-column: 1 / -1; justify-self: start; }
+  .bss-row.bss-main .bss-default { grid-column: 1 / -1; justify-self: start; }
+  .bss-switch button { min-width: 4.5em; }
+}
+
+/* ボウイの爆弾遊戯：全問クリアのダンス（v1.6.0）。ステージの背景の中央で主人公が大きく踊ります */
+.bowie-result.step-dance { background: #000; }
+.bowie-dance { position: relative; flex: 1 1 0; min-height: 0; overflow: hidden; background-size: cover; background-position: center bottom; display: flex; align-items: flex-end; justify-content: center; }
+.bowie-dance-sway { height: min(82%, calc(78vw * 820 / 1012)); aspect-ratio: 1012 / 820; margin-bottom: 4%; transform-origin: 50% 100%; }
+.bowie-dance-jump { position: relative; width: 100%; height: 100%; transform-origin: 50% 100%; }
+.bowie-dance-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; -webkit-user-drag: none; user-select: none; }
+/* 両手：上げた姿と下げた姿を半拍ずつ（同じ位置・同じ大きさで重ねて、見せる方だけを切り替えます） */
+.bowie-dance-frame.is-down { animation: bowie-dance-flap var(--beat, 400ms) steps(1, end) infinite; }
+.bowie-dance-frame.is-up { animation: bowie-dance-flap var(--beat, 400ms) steps(1, end) infinite reverse; }
+@keyframes bowie-dance-flap { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .bowie-dance-jump { animation: bowie-dance-jump var(--beat, 400ms) ease-out infinite; }
+  .bowie-dance-sway { animation: bowie-dance-sway calc(var(--beat, 400ms) * 2) ease-in-out infinite; }
+}
+@keyframes bowie-dance-jump { 0% { transform: translateY(0) scaleY(0.97); } 30% { transform: translateY(-7%) scaleY(1.02); } 60% { transform: translateY(0) scaleY(1); } 100% { transform: translateY(0) scaleY(0.98); } }
+@keyframes bowie-dance-sway { 0%, 100% { transform: translateX(-4%) rotate(-4deg); } 50% { transform: translateX(4%) rotate(4deg); } }
