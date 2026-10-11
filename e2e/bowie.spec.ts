@@ -130,9 +130,11 @@ test.describe('ボウイの爆弾遊戯', () => {
     await expect(result).toBeVisible({ timeout: 10_000 });
     await expect(result).toHaveAttribute('data-kind', 'lose');
     await expect(page.getByTestId('bowie-hero')).toBeAttached();
-    await expect(page.getByTestId('bowie-final-score')).toHaveText('0');
+    // 敗北の音声の間は DEFEAT の画像だけ（点数は煽りの画面で出します）
+    await expect(page.getByTestId('bowie-defeat')).toBeVisible();
     await page.getByTestId('bowie-skip').click();
     await expect(result).toHaveAttribute('data-step', 'taunt');
+    await expect(page.getByTestId('bowie-final-score')).toHaveText('0');
     expect(await result.locator('img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
     await page.getByTestId('bowie-home').click();
     await expect(page).toHaveURL(/#\/home/);

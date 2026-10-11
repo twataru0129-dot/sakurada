@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import data from '../../data/bowie/questions.json';
 import { findUnsupportedChar, RomajiMatcher, tokenize } from '../romaji';
-import { BOWIE_CONFIG, BOWIE_ROMAJI_RULES, CUTIN_TOTAL_MS, landingMsFor, pointsFor, type StageNo } from './config';
+import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_ROMAJI_RULES, CUTIN_TOTAL_MS, cutinTotalMs, landingMsFor, pointsFor, type StageNo } from './config';
 import { BOWIE_POOLS, drawPlay, drawQuestions, type BowieQuestion } from './questions';
 import { BowieGame, type BowieEvent } from './engine';
 import { displaySegments } from './display';
@@ -110,8 +110,8 @@ describe('着弾時間と得点', () => {
 });
 
 /** ゲームを時刻つきで動かす道具 */
-function runner(perStage = 20, random = seeded(7)) {
-  const g = new BowieGame(drawPlay(perStage, random), 'hepburn', { perStage });
+function runner(perStage = 20, random = seeded(7), cutinVoiceMs?: (no: number) => number) {
+  const g = new BowieGame(drawPlay(perStage, random), 'hepburn', { perStage, cutinVoiceMs });
   let t = 1000;
   const events: BowieEvent[] = [];
   const at = (ms: number) => {
@@ -221,6 +221,50 @@ describe('進行', () => {
     r.at(r.now() + 500);
     expect(r.g.progress(r.now())).toBeCloseTo(p + 0.1, 6);
     expect(r.g.phase).toBe('flying');
+  });
+  it('カットインは通算10・30・50・70問目のあとの4回。回ごとに決まったセリフの長さに合わせて保持し、そのあいだ爆弾・着弾・投球は止まる', () => {
+    // 1回目は従来どおり約 2.2 秒（0.25＋1.541＋0.16＋0.25）。2〜4回目はセリフ（2.43・3.37・1.78 秒）が最後まで終わってから抜けます
+    expect(CUTIN_TOTAL_MS).toBe(2201);
+    expect(BOWIE_CUTINS.map((c) => c.image)).toEqual(['speed_cutin.webp', 'bowie_cutin_02.webp', 'bowie_cutin_03.webp', 'bowie_cutin_04.webp']);
+    expect(BOWIE_CUTINS.map((c) => c.voice)).toEqual(['level_up', 'cutin_voice_02', 'cutin_voice_03', 'cutin_voice_04']);
+    expect(BOWIE_CUTINS.slice(1).every((c) => c.line === '')).toBe(true);
+    const r = runner();
+    const solvedAt: number[] = [];
+    for (let i = 0; i < 80; i++) {
+      r.solve(1);
+      if (r.g.phase === 'cutin') {
+        solvedAt.push(r.g.solved);
+        const no = r.g.cutinCount;
+        const len = cutinTotalMs(BOWIE_CUTINS[no - 1]!.voiceMs);
+        expect(r.g.cutinMs, `cutin ${no}`).toBe(len);
+        expect(len).toBe(BOWIE_CONFIG.cutin.entryMs + BOWIE_CUTINS[no - 1]!.voiceMs + BOWIE_CONFIG.cutin.tailMs + BOWIE_CONFIG.cutin.exitMs);
+        // カットインの終わりの直前まで：爆弾は出ず、進み具合 0、着弾しない。キーも受け付けない
+        const start = r.now();
+        r.at(start + len - 5);
+        expect(r.g.phase).toBe('cutin');
+        expect(r.g.progress(r.now())).toBe(0);
+        r.key('a');
+        expect(r.events.some((e) => e.type === 'hit')).toBe(false);
+        r.at(start + len + 1);
+        expect(r.g.phase).toBe('throwing');
+        // 投げ直した爆弾は 0 から（カットインの時間は足されません）
+        r.toRelease();
+        expect(r.g.progress(r.now())).toBeLessThan(0.01);
+      }
+    }
+    expect(solvedAt).toEqual([10, 30, 50, 70]);
+    expect(r.events.filter((e) => e.type === 'cutin').map((e) => (e as { no: number }).no)).toEqual([1, 2, 3, 4]);
+    expect(r.g.phase).toBe('won');
+  });
+  it('セリフの実際の長さが登録より長いときは、そちらに合わせる（短いときは登録の長さのまま）', () => {
+    const r = runner(2, seeded(3), (no) => (no === 3 ? 4000 : 100));
+    const lens: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      r.solve(1);
+      if (r.g.phase === 'cutin') lens.push(r.g.cutinMs);
+      if (r.g.phase === 'cutin') r.at(r.now() + r.g.cutinMs + 1);
+    }
+    expect(lens).toEqual([cutinTotalMs(1541), cutinTotalMs(2429), cutinTotalMs(4000), cutinTotalMs(1776)]);
   });
   it('カットイン中は時間が進んでも投球しない。一時停止するとカットインの残りも止まる', () => {
     const r = runner(2);

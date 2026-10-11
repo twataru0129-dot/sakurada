@@ -133,6 +133,9 @@ def main():
     for i in range(1, 11):
         name = f'game_over_{i:02d}'
         sprites['scenes'][name] = scene(name, 1672, False)
+    # 2〜4回目のカットイン（回ごとに専用の画像）と、敗北の音声の間に出す DEFEAT の画像（v1.5.3）
+    for name in ['bowie_cutin_02', 'bowie_cutin_03', 'bowie_cutin_04', 'bowie_defeat']:
+        sprites['scenes'][name] = scene(name, 1672, False)
     (OUT / 'audio').mkdir(parents=True, exist_ok=True)
     for f in sorted((SRC / 'audio').glob('*.mp3')):
         shutil.copyfile(f, OUT / 'audio' / f.name)

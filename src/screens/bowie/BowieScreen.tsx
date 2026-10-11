@@ -8,7 +8,7 @@
  * 爆弾の位置は毎フレーム、ゲームの時間から計算して直接描きます（再描画はイベントのときだけ）。
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { BOWIE_CONFIG, BOWIE_TITLE, STAGES, type StageNo } from '../../core/bowie/config';
+import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_TITLE, STAGES, type StageNo } from '../../core/bowie/config';
 import { BowieGame, type BowieEvent } from '../../core/bowie/engine';
 import { BOWIE_POOLS, drawPlay, type BowieQuestion } from '../../core/bowie/questions';
 import { displaySegments, shown } from '../../core/bowie/display';
@@ -23,7 +23,8 @@ const img = import.meta.glob('../../assets/bowie/{characters,scenes}/*.webp', { 
 const url = (file: string) => Object.entries(img).find(([p]) => p.endsWith(`/${file}`))?.[1] ?? '';
 const SCENE = {
   background: url('stage_background.webp'),
-  cutin: url('speed_cutin.webp'),
+  /** 敗北の音声の間に出す画像（v1.5.3） */
+  defeat: url('bowie_defeat.webp'),
   logo: url('title_logo.webp'),
   bomb: url('bomb.webp'),
 };
@@ -85,9 +86,10 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   // 画面を開いたときに音声を先読みし、離れるときにすべて止めます
   useEffect(() => {
     audio.preload();
-    for (const taunt of BOWIE_TAUNTS) {
+    // 結果・カットインの画像も先に読み込みます（出す瞬間に空の画面にならないように）
+    for (const src of [...BOWIE_TAUNTS.map((t) => t.src), ...BOWIE_CUTINS.map((c) => url(c.image)), SCENE.defeat]) {
       const image = new Image();
-      image.src = taunt.src;
+      image.src = src;
     }
     return () => audio.dispose();
   }, [audio]);
@@ -102,7 +104,8 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   const [bowieMood, setBowieMood] = useState<BowieMood>('bowie_idle');
   const [throwFrame, setThrowFrame] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [banner, setBanner] = useState<{ key: number; text: string; sub: string } | null>(null);
-  const [cutin, setCutin] = useState<number | null>(null);
+  /** 表示中のカットイン（key：表示し直すため、no：何回目か） */
+  const [cutin, setCutin] = useState<{ key: number; no: number } | null>(null);
   const [danger, setDanger] = useState(false);
   const [typo, setTypo] = useState(0);
   const [pops, setPops] = useState<{ key: number; text: string; x: number; y: number }[]>([]);
@@ -112,7 +115,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   const [result, setResult] = useState<Result | null>(null);
   const [shake, setShake] = useState(0);
   const disarmUntil = useRef(0);
-  const cutinSounds = useRef<{ rumble: Playing | null; line: boolean }>({ rumble: null, line: false });
+  const cutinSounds = useRef<{ rumble: Playing | null; line: boolean; no: number }>({ rumble: null, line: false, no: 0 });
   const finished = useRef(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const bombRef = useRef<HTMLDivElement>(null);
@@ -183,14 +186,16 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
             setBowieMood('bowie_laugh');
             break;
           case 'cutin':
-            setCutin(Date.now());
+            // 画像が入り始めると同時に「シャキーン」と地鳴り。セリフは画像が入りきったところで（毎フレームの更新の中）
+            setCutin({ key: Date.now(), no: e.no });
             audio.play('cutin_shine');
-            cutinSounds.current = { rumble: audio.play('cutin_rumble'), line: false };
+            cutinSounds.current = { rumble: audio.play('cutin_rumble'), line: false, no: e.no };
             break;
           case 'cutinEnd':
+            // セリフは最後まで終わっています（カットインの長さをセリフの長さに合わせているため）。地鳴りだけを止めます
             setCutin(null);
             cutinSounds.current.rumble?.stop();
-            cutinSounds.current = { rumble: null, line: false };
+            cutinSounds.current = { rumble: null, line: false, no: 0 };
             break;
           case 'hit':
             void runLose();
@@ -274,7 +279,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     setImeHint(false);
     setResult(null);
     finished.current = false;
-    cutinSounds.current = { rumble: null, line: false };
+    cutinSounds.current = { rumble: null, line: false, no: 0 };
   };
 
   const startGame = useCallback(() => {
@@ -285,7 +290,12 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     resetView();
     const dev = devOptions();
     const perStage = dev.perStage ?? BOWIE_CONFIG.questionsPerStage;
-    const g = new BowieGame(withFirst(drawPlay(perStage), dev.ids ?? [], perStage), settings.romajiStyle, { perStage, timeScale: dev.timeScale ?? 1 });
+    const g = new BowieGame(withFirst(drawPlay(perStage), dev.ids ?? [], perStage), settings.romajiStyle, {
+      perStage,
+      timeScale: dev.timeScale ?? 1,
+      // セリフを読み込めていれば、その実際の長さでカットインの長さを決めます（セリフを途中で切らないため）
+      cutinVoiceMs: (no) => audio.durationMs(BOWIE_CUTINS[Math.min(BOWIE_CUTINS.length, no) - 1]!.voice),
+    });
     gameRef.current = g;
     if (mode !== 'play') navigate('/game/bowie/play');
     handle(g.start(performance.now()));
@@ -372,11 +382,12 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
         frame = f < a ? 1 : f < a + b ? 2 : 3;
       } else if (ph === 'flying' && gt - g.releaseAt < g.scaled(BOWIE_CONFIG.followThroughMs)) frame = 4;
       setThrowFrame((cur) => (cur === frame ? cur : frame));
-      // カットイン：入りきったところでセリフ。セリフの間は轟音を小さく
+      // カットイン：入りきったところで、その回のセリフを1回だけ。セリフの間は地鳴りを小さく（セリフが聞き取れるように）
       if (ph === 'cutin' && !cutinSounds.current.line && gt - g.phaseStart >= g.scaled(BOWIE_CONFIG.cutin.entryMs)) {
         cutinSounds.current.line = true;
         cutinSounds.current.rumble?.setGain(0.18 / 0.4);
-        audio.play('level_up');
+        const spec = BOWIE_CUTINS[Math.min(BOWIE_CUTINS.length, Math.max(1, cutinSounds.current.no)) - 1]!;
+        audio.play(spec.voice);
       }
       // 解除の笑顔の時間が過ぎたら、危険なら焦り顔、そうでなければ待機
       const p = g.progress(now);
@@ -578,11 +589,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
         )}
       </section>
 
-      {cutin !== null && (
-        <div key={cutin} className={`bowie-cutin ${paused ? 'is-paused' : ''}`} style={{ ['--cutin-ms' as string]: `${game.cutinMs}ms` } as CSSProperties} data-testid="bowie-cutin" aria-label="ボウイ「少しテンポを落とそうか」">
-          <img src={SCENE.cutin} alt="" />
-        </div>
-      )}
+      {cutin !== null && <Cutin key={cutin.key} no={cutin.no} paused={paused} totalMs={game.cutinMs} entryMs={game.scaled(BOWIE_CONFIG.cutin.entryMs)} exitMs={game.scaled(BOWIE_CONFIG.cutin.exitMs)} />}
 
       {paused && !result && (
         <div className="bowie-overlay" role="dialog" aria-modal="true" aria-label="一時停止" data-testid="bowie-paused">
@@ -613,6 +620,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
           onRetry={startGame}
           onHome={() => leave('/home')}
           onSkip={skip}
+          defeatImage={SCENE.defeat}
           heroVictory={url(HERO_SPRITES.hero_victory!.file)}
           bowieDespair={url(BOWIE_SPRITES.bowie_despair!.file)}
         />
@@ -675,7 +683,25 @@ function SoundControls({ muted, volume, onMute, onVolume, compact }: { muted: bo
   );
 }
 
-function ResultView({ result, onRetry, onHome, onSkip, heroVictory, bowieDespair }: { result: Result; onRetry: () => void; onHome: () => void; onSkip: () => void; heroVictory: string; bowieDespair: string }) {
+/**
+ * 加速のカットイン：画面全体を右から左へ流れます。横長の画像は縦横比を保ったまま全体を見せ（キャラクターを切らない）、
+ * 画面との縦横比の差の部分は、同じ画像をぼかして敷きます。入る（entryMs）→ セリフの間は止まる → 抜ける（exitMs）。
+ */
+function Cutin({ no, paused, totalMs, entryMs, exitMs }: { no: number; paused: boolean; totalMs: number; entryMs: number; exitMs: number }) {
+  const spec = BOWIE_CUTINS[Math.min(BOWIE_CUTINS.length, Math.max(1, no)) - 1]!;
+  const src = url(spec.image);
+  const style = { ['--cutin-in' as string]: `${entryMs}ms`, ['--cutin-out' as string]: `${exitMs}ms`, ['--cutin-out-at' as string]: `${Math.max(0, totalMs - exitMs)}ms` } as CSSProperties;
+  return (
+    <div className={`bowie-cutin ${paused ? 'is-paused' : ''}`} style={style} data-testid="bowie-cutin" data-cutin={no} aria-label={spec.line ? `ボウイ「${spec.line}」` : 'ボウイの加速のカットイン'}>
+      <div className="bowie-cutin-strip">
+        <img className="bowie-cutin-back" src={src} alt="" />
+        <img className="bowie-cutin-img" src={src} alt="" data-testid="bowie-cutin-img" />
+      </div>
+    </div>
+  );
+}
+
+function ResultView({ result, onRetry, onHome, onSkip, defeatImage, heroVictory, bowieDespair }: { result: Result; onRetry: () => void; onHome: () => void; onSkip: () => void; defeatImage: string; heroVictory: string; bowieDespair: string }) {
   const lose = result.kind === 'lose';
   const playing = result.step === 'explode' || result.step === 'defeat' || result.step === 'victory';
   const busy = useRef(false);
@@ -684,6 +710,23 @@ function ResultView({ result, onRetry, onHome, onSkip, heroVictory, bowieDespair
     busy.current = true;
     fn();
   };
+  // 敗北の音声の間：DEFEAT の画像だけを画面全体に（セリフ・点数・操作の案内は重ねません）。音声が終わると自動で煽りの画面へ。
+  // 「演出を飛ばす」だけは、画像に重ならないよう画像の外（下の帯）に置きます
+  if (lose && result.step === 'defeat') {
+    return (
+      <div className="bowie-result is-lose step-defeat" data-testid="bowie-result" data-kind="lose" data-step="defeat">
+        <div className="bowie-defeat">
+          <img className="bowie-defeat-back" src={defeatImage} alt="" />
+          <img className="bowie-defeat-img" src={defeatImage} alt="DEFEAT" data-testid="bowie-defeat" />
+        </div>
+        <div className="bowie-defeat-bar">
+          <button type="button" className="btn bowie-skip-quiet" onClick={onSkip} data-testid="bowie-skip">
+            演出を飛ばす
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={`bowie-result is-${result.kind} step-${result.step}`} data-testid="bowie-result" data-kind={result.kind} data-step={result.step}>
       <div className="bowie-result-art">
