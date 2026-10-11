@@ -64,9 +64,9 @@ test.describe('入口とホームの配置（PC・Surface）', () => {
       const cb = await box(page, '.home-settings .switch input');
       expect(cb.width).toBeGreaterThanOrEqual(26);
       const sound = page.locator('.home-settings .switch', { hasText: '音' });
-      await expect(sound).toContainText('OFF');
-      await sound.locator('span').first().click();
       await expect(sound).toContainText('ON');
+      await sound.locator('span').first().click();
+      await expect(sound).toContainText('OFF');
       // 未練習の「今回の練習」は設定の欄より高くならない（大きな空白を作らない）
       const recent = await box(page, 'section[aria-labelledby="recent-title"]');
       const settings = await box(page, 'section[aria-labelledby="settings-title"]');
@@ -108,13 +108,13 @@ test.describe('入口とホームの配置（PC・Surface）', () => {
     await expect(page).toHaveURL(/#\/typing/);
     await expect(page.locator('main')).toBeVisible();
     // 画面の切り替えの直後は前の画面の幅のことがあるため、落ち着くまで待って測ります
-    await expect.poll(async () => (await box(page, 'main')).width).toBeLessThanOrEqual(1180.5);
+    await expect.poll(async () => (await page.locator('main').first().boundingBox())?.width ?? Infinity).toBeLessThanOrEqual(1180.5);
     await page.getByRole('button', { name: /ホームにもどる/ }).first().click();
     await page.getByRole('button', { name: '練習の記録' }).click();
     await expect(page).toHaveURL(/#\/history/);
     await expect(page.locator('main')).toBeVisible();
     // 画面の切り替えの直後は前の画面の幅のことがあるため、落ち着くまで待って測ります
-    await expect.poll(async () => (await box(page, 'main')).width).toBeLessThanOrEqual(1180.5);
+    await expect.poll(async () => (await page.locator('main').first().boundingBox())?.width ?? Infinity).toBeLessThanOrEqual(1180.5);
   });
 });
 
@@ -135,5 +135,26 @@ test.describe('入口とホームの配置（スマートフォン）', () => {
     expect(cards[1]!.y).toBeGreaterThan(cards[0]!.y + cards[0]!.height - 1);
     expect((await box(page, '.home-hero img')).width).toBeLessThanOrEqual(96.5);
     expect(await noHorizontalScroll(page)).toBe(true);
+  });
+});
+
+test.describe('音の初期状態（v1.5.2）', () => {
+  test('ゲストは音 ON で始まり、OFF にすると利用中は OFF のまま（ゲームの画面にも反映）。ゲストで新しく始めると ON に戻る', async ({ page }, info) => {
+    test.skip(info.project.name !== 'pc');
+    const soundSwitch = page.locator('.home-settings .switch', { hasText: '音' });
+    await page.goto('./');
+    await page.getByRole('button', { name: /ゲストで練習/ }).first().click();
+    await expect(soundSwitch).toContainText('ON');
+    await soundSwitch.locator('span').first().click();
+    await expect(soundSwitch).toContainText('OFF');
+    // 利用中はほかの画面でも OFF のまま
+    await page.goto('./#/game/bowie');
+    await expect(page.getByTestId('bowie-mute')).toContainText('OFF');
+    await page.goto('./#/home');
+    await expect(soundSwitch).toContainText('OFF');
+    // ゲストを終了して新しく始めると ON
+    await page.getByRole('button', { name: 'ゲストを終了' }).click();
+    await page.getByRole('button', { name: /ゲストで練習/ }).first().click();
+    await expect(soundSwitch).toContainText('ON');
   });
 });

@@ -238,7 +238,9 @@ test.describe('ボウイの爆弾遊戯：タイトルコールと画面の切�
     test.skip(info.project.name !== 'pc');
     await page.setViewportSize({ width: 1368, height: 912 });
     await guestSelect(page);
-    await soundOn(page);
+    await page.goto('./#/game/bowie');
+    await expect(page.getByTestId('bowie-mute')).toContainText('ON');
+    await page.goto('./#/game');
     await installLog(page);
     await page.getByTestId('game-card-bowie-bomb').click();
     const curtain = page.getByTestId('bowie-curtain');
@@ -293,6 +295,9 @@ test.describe('ボウイの爆弾遊戯：タイトルコールと画面の切�
   test('ミュートのときは音を鳴らさず、音声の長さで進む。キーでの決定でも同じ。連打しても演出・遷移は1回。ポインターを重ねるだけでは始まらない', async ({ page }, info) => {
     test.skip(info.project.name !== 'pc');
     await guestSelect(page);
+    await page.goto('./#/game/bowie');
+    await page.getByTestId('bowie-mute').click();
+    await expect(page.getByTestId('bowie-mute')).toContainText('OFF');
     await page.goto('./#/game');
     await installLog(page);
     const card = page.getByTestId('game-card-bowie-bomb');

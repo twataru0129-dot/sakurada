@@ -228,7 +228,7 @@ test.describe('v1.3.0 ミスの効果音と表示', () => {
     await guest(page);
     await page.getByTestId('home-game').click();
     await page.getByTestId('game-card-sakurada-familia').click();
-    await page.getByText('音：OFF').click();
+    await expect(page.getByText('音：ON')).toBeVisible();
     await page.getByRole('radio', { name: /短縮コース/ }).check();
     await page.getByTestId('game-start').click();
     await page.getByTestId('game-go').click();
@@ -259,6 +259,7 @@ test.describe('v1.3.0 ミスの効果音と表示', () => {
     test.skip(info.project.name !== 'pc');
     await countTones(page);
     await guest(page);
+    await page.locator('.home-settings .switch', { hasText: '音' }).locator('input').uncheck();
     await startCourse(page, '短縮コース');
     await page.getByTestId('game-go').click();
     await page.keyboard.press('q');
