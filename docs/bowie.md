@@ -55,6 +55,10 @@
 
 ## 素材
 
+- ゲームオーバーの煽り画像は `game_over_01`〜`game_over_10` の10枚です。敗北ごとに均等な確率で1枚を選び、結果画面の表示中は変えません。再挑戦時は改めて抽選します（同じ画像が続く場合もあります）。
+- 爆発 → 敗北の音 → 選ばれた煽り画像と笑い声（`bowie_laugh.mp3`）の順に出します。「演出を飛ばす」でも選んだ画像を表示し、笑い声を1回再生します。共通の音量・ミュートに従い、再挑戦・ホームへ戻ると再生中の音を止めます。
+- 10枚のセリフと対応は `src/ui/bowie/taunts.ts`。画像の元ファイルは `assets/bowie-source/images/scenes/game_over_01.png`〜`game_over_10.png`、配信用は `src/assets/bowie/scenes/` の同名 WebP です。旧画像 `game_over_clean` は履歴用に残していますが、結果画面では使いません。
+
 - 納品された素材の元ファイル（画像・音声・manifest・設定）は `assets/bowie-source/`（配信しません）。
 - `python3 scripts/bowie_assets.py` で、キャラクターの画像を余白で切り出し、足元・体の高さ・爆弾の位置を `src/data/bowie/sprites.json` に記録し、WebP に変換して `src/assets/bowie/` に出力します。音声（MP3）はそのまま複製します。
 

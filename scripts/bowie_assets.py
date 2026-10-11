@@ -130,6 +130,9 @@ def main():
         },
     }
     sprites['bomb'] = bomb()
+    for i in range(1, 11):
+        name = f'game_over_{i:02d}'
+        sprites['scenes'][name] = scene(name, 1672, False)
     (OUT / 'audio').mkdir(parents=True, exist_ok=True)
     for f in sorted((SRC / 'audio').glob('*.mp3')):
         shutil.copyfile(f, OUT / 'audio' / f.name)
