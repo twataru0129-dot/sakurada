@@ -98,6 +98,9 @@ test.describe('ボウイの爆弾遊戯', () => {
     }
     const result = page.getByTestId('bowie-result');
     await expect(result).toHaveAttribute('data-kind', 'win');
+    // まずクリアの曲に合わせて主人公のダンス（約5.9秒）。曲が終わると勝利の表示へ
+    await expect(result).toHaveAttribute('data-step', 'dance');
+    await expect(result).toHaveAttribute('data-step', 'victory', { timeout: 10_000 });
     await expect(result).toContainText('全問クリア');
     expect(await page.evaluate(() => (window as unknown as { __cutins: number }).__cutins)).toBe(4);
     const final = await num(page, 'bowie-final-score');

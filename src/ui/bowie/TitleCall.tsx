@@ -18,6 +18,9 @@ import { currentPath, navigate } from '../../state/router';
 import titleCallUrl from '../../assets/bowie/audio/bowie_title_call.mp3';
 import logoUrl from '../../assets/bowie/scenes/title_logo.webp';
 
+/** タイトルコールの音量（ボイスの音量に掛けます）。ほかのボイスと平均の大きさがそろうように（約 −18.3dB → −21.5dB） */
+export const TITLE_CALL_GAIN = 0.7;
+
 export type CurtainPhase = 'idle' | 'white' | 'black' | 'hold' | 'reveal';
 /** 音声の状態（確認用に幕の data-audio にも出します） */
 export type CallAudio = 'none' | 'muted' | 'loading' | 'playing' | 'ended' | 'failed' | 'timeout';

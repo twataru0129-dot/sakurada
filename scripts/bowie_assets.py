@@ -114,6 +114,37 @@ def bomb():
     }
 
 
+def dance():
+    """
+    クリアのダンス（v1.6.0）：主人公の「両手を上げた姿」「両手を下げた姿」。
+    2枚は顔・胴体・足元が同じ位置に描かれているため、同じ範囲で切り抜き、同じ大きさに縮小します（切り替えで体がずれないように）。
+    元の画像には、体から離れた場所にほぼ透明な点（不透明度 1〜16/255）が散らばっているため、
+    体の輪郭から 6px より外の点は完全に透明にします（背景に四角い枠が出ないように）。体と輪郭のぼかしはそのままです。
+    """
+    from scipy import ndimage
+
+    names = ['hero_dance_up', 'hero_dance_down']
+    imgs = [np.array(Image.open(SRC / 'images' / 'characters' / f'{n}.png').convert('RGBA')) for n in names]
+    for a in imgs:
+        body = ndimage.binary_dilation(a[..., 3] > 32, iterations=6)
+        a[..., 3][~body] = 0
+    boxes = [bbox(a[..., 3], 0) for a in imgs]
+    pad = 8
+    x0 = max(0, min(b[0] for b in boxes) - pad)
+    y0 = max(0, min(b[1] for b in boxes) - pad)
+    x1 = min(imgs[0].shape[1], max(b[2] for b in boxes) + pad)
+    y1 = min(imgs[0].shape[0], max(b[3] for b in boxes) + pad)
+    h = 820
+    out = {}
+    OUT.joinpath('characters').mkdir(parents=True, exist_ok=True)
+    for n, a in zip(names, imgs):
+        crop = Image.fromarray(a).crop((x0, y0, x1, y1))
+        img = crop.resize((round(crop.width * h / crop.height), h), Image.LANCZOS)
+        img.save(OUT / 'characters' / f'{n}.webp', 'WEBP', quality=Q, method=6)
+        out[n] = {'file': f'{n}.webp', 'w': img.width, 'h': img.height}
+    return out
+
+
 def main():
     def bowie_scale(box):
         return BOWIE_FIGURE_PX / (box[3] - box[1])
@@ -136,6 +167,7 @@ def main():
     # 2〜4回目のカットイン（回ごとに専用の画像）と、敗北の音声の間に出す DEFEAT の画像（v1.5.3）
     for name in ['bowie_cutin_02', 'bowie_cutin_03', 'bowie_cutin_04', 'bowie_defeat']:
         sprites['scenes'][name] = scene(name, 1672, False)
+    sprites['dance'] = dance()
     (OUT / 'audio').mkdir(parents=True, exist_ok=True)
     for f in sorted((SRC / 'audio').glob('*.mp3')):
         shutil.copyfile(f, OUT / 'audio' / f.name)

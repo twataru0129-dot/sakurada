@@ -2,8 +2,8 @@ import { GAMES, type GameEntry } from '../../core/game/registry';
 import { useApp } from '../../state/AppContext';
 import { navigate } from '../../state/router';
 import { BackLink } from '../../ui/common';
-import { loadVolume } from '../../ui/bowie/audio';
-import { startTitleCall } from '../../ui/bowie/TitleCall';
+import { loadBowieSound } from '../../data/bowieSound';
+import { startTitleCall, TITLE_CALL_GAIN } from '../../ui/bowie/TitleCall';
 
 /** ゲームの選択（遊べるゲームだけを並べます） */
 export function GameSelect() {
@@ -11,7 +11,7 @@ export function GameSelect() {
   // 決定（クリック・タップ・Enter／スペース）のときだけ呼ばれます。ポインターを重ねる・フォーカスを移すだけでは何もしません
   const open = (g: GameEntry) => {
     // ボウイの爆弾遊戯：タイトルコールと白・黒の幕を通ってゲーム画面へ（演出中にもう一度押しても二重になりません）
-    if (g.id === 'bowie-bomb') startTitleCall({ muted: !settings.sound, volume: loadVolume() });
+    if (g.id === 'bowie-bomb') startTitleCall({ muted: !settings.sound, volume: loadBowieSound().voice * TITLE_CALL_GAIN });
     else navigate(g.path);
   };
   return (
