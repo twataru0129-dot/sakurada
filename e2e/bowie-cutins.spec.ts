@@ -141,7 +141,8 @@ test.describe('ボウイの爆弾遊戯：回ごとのカットインと DEFEAT 
     expect(img.y + img.height).toBeLessThanOrEqual(bar.y + 0.5);
     await expect(result).toHaveAttribute('data-step', 'taunt', { timeout: 8000 });
     await expect(page.getByTestId('bowie-taunt')).toHaveCount(1);
-    await expect(page.getByTestId('bowie-final-score')).toHaveText('0');
+    // 煽りの場面にも点数は重ねません（点数は最後の戦績で出します）
+    await expect(page.getByTestId('bowie-final-score')).toHaveCount(0);
     await page.waitForTimeout(5000);
     const a = await rec(page);
     const m = await marks(page);
@@ -220,7 +221,9 @@ test.describe('ボウイの爆弾遊戯：回ごとのカットインと DEFEAT 
     // 飛ばした敗北の音声は止まっている（最後まで鳴った記録の終わりが、飛ばした時刻のすぐあと）
     const d = a.find((r) => near(r.d, DEFEAT))!;
     expect(d.e! - d.s).toBeLessThan(DEFEAT * 1000 - 1000);
-    // 再挑戦：結果の画面が消え、新しいゲームの音だけ
+    // 再挑戦：煽りの場面から飛ばして戦績へ → 結果の画面が消え、新しいゲームの音だけ
+    await page.getByTestId('bowie-skip').click();
+    await expect(result).toHaveAttribute('data-step', 'stats');
     await page.getByTestId('bowie-retry').click();
     await expect(result).toHaveCount(0);
     await expect(page.getByTestId('bowie-text')).toBeVisible({ timeout: 8000 });
@@ -229,8 +232,9 @@ test.describe('ボウイの爆弾遊戯：回ごとのカットインと DEFEAT 
     // もう一度負けて、すぐホームへ
     await expect(result).toHaveAttribute('data-step', 'defeat', { timeout: 15_000 });
     await page.getByTestId('bowie-skip').click();
-    await page.getByTestId('bowie-home').click();
-    await expect(page).toHaveURL(/#\/home/);
+    await page.getByTestId('bowie-skip').click();
+    await page.getByTestId('bowie-select').click();
+    await expect(page).toHaveURL(/#\/game$/);
     await expect(result).toHaveCount(0);
     await page.waitForTimeout(800);
     a = await rec(page);
@@ -266,8 +270,10 @@ test.describe('ボウイの爆弾遊戯：回ごとのカットインと DEFEAT 
     const t = (await page.getByTestId('bowie-taunt').boundingBox())!;
     expect(t.x + t.width).toBeLessThanOrEqual(vp.width + 0.5);
     expect(t.y + t.height).toBeLessThanOrEqual(vp.height + 0.5);
-    await expect(page.getByTestId('bowie-retry')).toBeInViewport();
-    await expect(page.getByTestId('bowie-home')).toBeInViewport();
     await page.screenshot({ path: test.info().outputPath(`taunt-${info.project.name}.png`) });
+    await page.getByTestId('bowie-skip').click();
+    await expect(page.getByTestId('bowie-result')).toHaveAttribute('data-step', 'stats');
+    await expect(page.getByTestId('bowie-retry')).toBeInViewport();
+    await expect(page.getByTestId('bowie-select')).toBeInViewport();
   });
 });

@@ -331,6 +331,54 @@ describe('進行', () => {
   });
 });
 
+describe('戦績の集計（正しい入力・ミスタイプ）', () => {
+  it('飛行中に判定が受け付けたキーは正しい入力、ミスはミスタイプ。無視・投球前・カットイン・段階アップのキーは数えない。最後の解除のキーを含める', () => {
+    const r = runner(2);
+    // 投球前（段階の表示中）のキーは数えない
+    for (const c of 'abc') r.key(c);
+    expect([r.g.correctKeyCount, r.g.mistypeCount]).toEqual([0, 0]);
+    r.toRelease();
+    const rem = r.g.matcher!.remaining();
+    r.key(';'); // ミスタイプ
+    r.key('ab'); // 2文字は判定に届かず無視（数えない）
+    for (const c of rem) r.key(c); // 最後の解除のキーまで
+    expect(r.g.solved).toBe(1);
+    expect(r.g.mistypeCount).toBe(1);
+    expect(r.g.correctKeyCount).toBe(rem.length);
+    // カットイン中のキーは数えない
+    expect(r.g.phase).toBe('cutin');
+    for (const c of 'zzz') r.key(c);
+    expect([r.g.correctKeyCount, r.g.mistypeCount]).toEqual([rem.length, 1]);
+  });
+  it('別の正しい打ち方（si / shi など）はミスにしない。着弾と同時のキーは数えない。勝敗のあとは変わらない。新しいゲームは0から', () => {
+    const r = runner(2);
+    r.toRelease();
+    const units = r.g.matcher!.units;
+    const rem = r.g.matcher!.remaining();
+    expect(units.length).toBeGreaterThan(0);
+    // 最後の1文字の手前まで打ち、着弾の時刻ちょうどに最後のキー（衝突が優先され、数えません）
+    for (const c of rem.slice(0, -1)) r.key(c);
+    const before = r.g.correctKeyCount;
+    r.at(r.g.releaseAt + r.g.landingMs + (r.now() - r.g.gameTime(r.now())));
+    r.key(rem.at(-1)!);
+    expect(r.g.phase).toBe('hit');
+    expect(r.g.correctKeyCount).toBe(before);
+    r.key('a');
+    expect(r.g.correctKeyCount).toBe(before);
+    expect(r.g.mistypeCount).toBe(0);
+    const again = runner(2);
+    expect([again.g.correctKeyCount, again.g.mistypeCount]).toEqual([0, 0]);
+    // 別表記
+    const m = new BowieGame([[{ id: 't', text: '詩', reading: 'し', readingSegments: ['し'], kind: 'word', keystrokes: 3 } as unknown as BowieQuestion], [], [], []], 'hepburn', { perStage: 1 });
+    let t = 0;
+    m.start(t);
+    for (; m.phase !== 'flying' && t < 5000; t += 10) m.update(t);
+    m.input('s', t);
+    m.input('i', t);
+    expect([m.correctKeyCount, m.mistypeCount]).toEqual([2, 0]);
+  });
+});
+
 describe('ローマ字の別表記・ん・促音・長音・文節の表示', () => {
   const m = bm;
   it('し・ち・つ・ふ・じ・しゃ の別表記', () => {
