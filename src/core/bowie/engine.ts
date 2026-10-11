@@ -12,13 +12,13 @@
  * - 解除・被弾・加点・次の問題への切り替えは、1つの爆弾につき1回だけです。
  */
 import { RomajiMatcher, type RomajiStyle } from '../romaji';
-import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_ROMAJI_RULES, cutinTotalMs, landingMsFor, pointsFor, STAGES, type StageNo } from './config';
+import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_LEVEL_UPS, BOWIE_ROMAJI_RULES, cutinTotalMs, levelUpTotalMs, landingMsFor, pointsFor, STAGES, type StageNo } from './config';
 import type { BowieQuestion } from './questions';
 
 export type Phase = 'ready' | 'intro' | 'throwing' | 'flying' | 'cutin' | 'paused' | 'hit' | 'won';
 
 export type BowieEvent =
-  | { type: 'stage'; stage: StageNo; at: number }
+  | { type: 'stage'; stage: StageNo; at: number; /** 段階アップ（第2〜4段階の始まり）か */ levelUp: boolean }
   | { type: 'throw'; at: number }
   | { type: 'release'; at: number; landingMs: number; question: BowieQuestion }
   | { type: 'correct' }
@@ -39,6 +39,8 @@ export interface BowieOptions {
    * BOWIE_CUTINS の長さより長いときだけ、そちらに合わせます（セリフを途中で切らないため）
    */
   cutinVoiceMs?: (no: number) => number;
+  /** 段階アップ（第2〜4段階）のボイスの実際の長さ（ミリ秒）。段階アップを始めるときに呼びます */
+  levelUpVoiceMs?: (stage: 2 | 3 | 4) => number;
 }
 
 export class BowieGame {
@@ -46,6 +48,9 @@ export class BowieGame {
   readonly total: number;
   private readonly timeScale: number;
   private readonly cutinVoiceMs: (no: number) => number;
+  private readonly levelUpVoiceMs: (stage: 2 | 3 | 4) => number;
+  /** いまの段階の表示（第1段階の表示・段階アップ）の長さ（倍率を掛ける前） */
+  private currentIntroMs: number = BOWIE_CONFIG.stageIntroMs;
   /** いまのカットインの長さ（倍率を掛ける前） */
   private currentCutinMs = 0;
   phase: Phase = 'ready';
@@ -75,6 +80,7 @@ export class BowieGame {
     this.perStage = opts.perStage ?? BOWIE_CONFIG.questionsPerStage;
     this.timeScale = opts.timeScale ?? 1;
     this.cutinVoiceMs = opts.cutinVoiceMs ?? (() => 0);
+    this.levelUpVoiceMs = opts.levelUpVoiceMs ?? (() => 0);
     this.total = questions.reduce((n, s) => n + Math.min(this.perStage, s.length), 0);
   }
 
@@ -106,8 +112,9 @@ export class BowieGame {
   get throwMs(): number {
     return this.ms(BOWIE_CONFIG.throwMs);
   }
+  /** いまの段階の表示の長さ（第1段階：1.3秒、段階アップ：ボイスの長さで変わります） */
   get introMs(): number {
-    return this.ms(BOWIE_CONFIG.stageIntroMs);
+    return this.ms(this.currentIntroMs);
   }
   /** いま（または直前）のカットインの長さ。回ごとのセリフの長さで変わります */
   get cutinMs(): number {
@@ -131,7 +138,8 @@ export class BowieGame {
     this.pausedTotal = 0;
     this.phase = 'intro';
     this.phaseStart = 0;
-    return [{ type: 'stage', stage: this.stage, at: 0 }];
+    this.currentIntroMs = BOWIE_CONFIG.stageIntroMs;
+    return [{ type: 'stage', stage: this.stage, at: 0, levelUp: false }];
   }
 
   /** その時刻までの、時間で起きる出来事を順に処理します */
@@ -141,7 +149,7 @@ export class BowieGame {
     const g = this.gameTime(real);
     for (let guard = 0; guard < 10; guard++) {
       if (this.phase === 'intro') {
-        const end = this.phaseStart + this.ms(BOWIE_CONFIG.stageIntroMs);
+        const end = this.phaseStart + this.introMs;
         if (g < end) break;
         this.beginThrow(end, out);
       } else if (this.phase === 'throwing') {
@@ -226,7 +234,12 @@ export class BowieGame {
       this.qIndex = 0;
       this.phase = 'intro';
       this.phaseStart = g;
-      out.push({ type: 'stage', stage: this.stage, at: g });
+      // 段階アップ：ボイスが最後まで終わってから次の投球（そのあいだ投球・爆弾・着弾の計時・入力の判定は進みません）
+      const st = this.stage as 2 | 3 | 4;
+      const spec = BOWIE_LEVEL_UPS[st];
+      const actual = this.levelUpVoiceMs(st);
+      this.currentIntroMs = levelUpTotalMs(Math.max(spec.voiceMs, Number.isFinite(actual) ? actual : 0));
+      out.push({ type: 'stage', stage: this.stage, at: g, levelUp: true });
       return out;
     }
     if (this.qIndex === half && half > 0) {

@@ -207,6 +207,26 @@
    "file": "bowie_defeat.webp",
    "w": 1672,
    "h": 941
+  },
+  "bowie_cutin_02_text": {
+   "file": "bowie_cutin_02_text.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "bowie_cutin_03_text": {
+   "file": "bowie_cutin_03_text.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "bowie_cutin_04_text": {
+   "file": "bowie_cutin_04_text.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "bowie_title_background": {
+   "file": "bowie_title_background.webp",
+   "w": 1672,
+   "h": 941
   }
  },
  "bomb": {

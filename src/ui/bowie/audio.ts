@@ -36,14 +36,17 @@ export type SoundKey =
   | 'hero_hit_voice'
   | 'hero_cry'
   | 'bgm'
-  | 'hero_clear_bgm';
+  | 'hero_clear_bgm'
+  | 'levelup_voice_2'
+  | 'levelup_voice_3'
+  | 'levelup_voice_4';
 
 export type SoundKind = 'music' | 'sfx' | 'voice';
 
 /** 音楽：通常の BGM・クリアのダンスの曲 */
 const MUSIC: ReadonlySet<SoundKey> = new Set(['bgm', 'hero_clear_bgm']);
 /** ボイス：ボウイのセリフ・笑い声、主人公の声、VICTORY／DEFEAT の音声（タイトルコールは TitleCall.tsx で同じボイスの音量を使います） */
-const VOICE: ReadonlySet<SoundKey> = new Set(['victory', 'defeat', 'loss_line', 'laugh', 'level_up', 'cutin_voice_02', 'cutin_voice_03', 'cutin_voice_04', 'hero_hit_voice', 'hero_cry']);
+const VOICE: ReadonlySet<SoundKey> = new Set(['victory', 'defeat', 'loss_line', 'laugh', 'level_up', 'cutin_voice_02', 'cutin_voice_03', 'cutin_voice_04', 'hero_hit_voice', 'hero_cry', 'levelup_voice_2', 'levelup_voice_3', 'levelup_voice_4']);
 export const kindOf = (key: SoundKey): SoundKind => (MUSIC.has(key) ? 'music' : VOICE.has(key) ? 'voice' : 'sfx');
 
 interface Meta {
@@ -67,6 +70,11 @@ const EXTRA: Record<string, Meta> = {
   hero_hit_voice: { file: 'bowie_hero_hit_voice.mp3', volume: 0.95, duration: 3.369796 },
   hero_cry: { file: 'bowie_hero_cry.mp3', volume: 1, duration: 3.552653 },
   hero_clear_bgm: { file: 'bowie_hero_clear_bgm.mp3', volume: 2, duration: 5.903673 },
+  // v1.6.1：段階アップのボイス（第2段階＝212302「賢いものは…」、第3段階＝212407「それで？…」、第4段階＝212220「勝負を決めますよ！」）。
+  // 平均の大きさ（−19.3dB・−19.3dB・−16.1dB）をほかのボイス（約 −21.5dB）にそろえています
+  levelup_voice_2: { file: 'bowie_voice_212302.mp3', volume: 0.78, duration: 3.500408 },
+  levelup_voice_3: { file: 'bowie_voice_212407.mp3', volume: 0.78, duration: 3.761633 },
+  levelup_voice_4: { file: 'bowie_voice_212220.mp3', volume: 0.55, duration: 1.541224 },
 };
 const RETUNE: Partial<Record<SoundKey, number>> = { victory: 0.45, defeat: 0.6, throw: 0.5 };
 export const SOUNDS: Record<SoundKey, Meta> = (() => {
@@ -255,6 +263,55 @@ export class BowieAudio {
       };
     } catch {
       return { ended, stop: () => (window.clearTimeout(timer), done()), setGain: () => undefined };
+    }
+  }
+
+  /**
+   * 段階アップの文字が出るときの短い金属音（約0.5秒、効果音の音量）。素材の音声はないため、
+   * 少しずれた高さの音（倍音）を重ねて、すぐに消える「キン」という音を作ります。
+   */
+  metal(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.buses) return;
+    try {
+      const t = ctx.currentTime;
+      const out = ctx.createGain();
+      out.gain.value = 0.32;
+      out.connect(this.buses.sfx);
+      const nodes: OscillatorNode[] = [];
+      for (const [f, a, d] of [
+        [1180, 1, 0.45],
+        [1835, 0.55, 0.32],
+        [2920, 0.35, 0.22],
+        [4410, 0.2, 0.14],
+      ] as const) {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.value = f;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(a, t + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+        o.connect(g).connect(out);
+        o.start(t);
+        o.stop(t + d + 0.05);
+        nodes.push(o);
+      }
+      const handle = {
+        stop: () => {
+          for (const o of nodes) {
+            try {
+              o.stop();
+            } catch {
+              /* もう止まっています */
+            }
+          }
+        },
+      };
+      this.active.add(handle);
+      nodes[0]!.onended = () => this.active.delete(handle);
+    } catch {
+      /* 鳴らせなくても演出は進みます */
     }
   }
 

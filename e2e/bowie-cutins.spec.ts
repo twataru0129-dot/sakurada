@@ -79,8 +79,9 @@ test.describe('ボウイの爆弾遊戯：回ごとのカットインと DEFEAT 
         await expect(cut).toHaveAttribute('data-cutin', String(no));
         await expect(page.getByTestId('bowie-cutin-img')).toHaveAttribute('src', new RegExp(images[no - 1]!));
         // 2〜4回目はセリフの文字を重ねない（画像にも文字はありません）
-        if (no > 1) await expect(cut).toHaveAttribute('aria-label', 'ボウイの加速のカットイン');
-        else await expect(cut).toHaveAttribute('aria-label', 'ボウイ「少しテンポを落とそうか」');
+        // 2〜4回目は文字入りの画像（v1.6.1）。セリフは画像の中にだけあり、画面の文字としては重ねません（読み上げ用の説明だけ）
+        if (no > 1) await expect(page.getByTestId('bowie-cutin-img')).toHaveAttribute('src', new RegExp(`${images[no - 1]}_text`));
+        await expect(cut).toHaveAttribute('aria-label', `ボウイ「${['少しテンポを落とそうか', '次の戦いの準備をしよう', 'さて、私が流れを変えてみせよう', '払いのける！'][no - 1]}」`);
         await expect(cut).not.toContainText(/./);
         // 画面全体を覆い、画像は縦横比を保って全体が見える
         await page.waitForTimeout(600);

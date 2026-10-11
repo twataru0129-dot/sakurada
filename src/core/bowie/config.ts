@@ -38,8 +38,13 @@ export const BOWIE_CONFIG = {
   followThroughMs: 420,
   /** 危険エリア：衝突まで残りの距離の割合 */
   dangerRemaining: 0.2,
-  /** 段階の始まりの表示 */
+  /** 第1段階の始まりの表示 */
   stageIntroMs: 1300,
+  /**
+   * 段階アップ（第2〜4段階の始まり。通算20・40・60問の解除のあと）：帯と文字が出て（金属音）、voiceDelayMs のあとに
+   * その段階のボウイのボイスを1回。ボイスが最後まで終わり、余韻（tailMs）のあとに次の問題の投球を始めます。
+   */
+  levelUp: { voiceDelayMs: 450, tailMs: 300 },
   /**
    * 加速のカットイン：入る・抜ける時間と、セリフのあとの余韻。
    * 画像が入りきったところでセリフを1回だけ流し、セリフが最後まで終わって余韻が過ぎてから画像が抜けます。
@@ -87,10 +92,29 @@ export const BOWIE_TITLE_CALL = {
  */
 export const BOWIE_CUTINS = [
   { image: 'speed_cutin.webp', voice: 'level_up', voiceMs: 1541, line: '少しテンポを落とそうか' },
-  { image: 'bowie_cutin_02.webp', voice: 'cutin_voice_02', voiceMs: 2429, line: '' },
-  { image: 'bowie_cutin_03.webp', voice: 'cutin_voice_03', voiceMs: 3370, line: '' },
-  { image: 'bowie_cutin_04.webp', voice: 'cutin_voice_04', voiceMs: 1776, line: '' },
+  // v1.6.1：2〜4回目は文字入りの画像（セリフは画像の中にあり、画面には重ねません。line は読み上げ用の説明だけに使います）
+  { image: 'bowie_cutin_02_text.webp', voice: 'cutin_voice_02', voiceMs: 2429, line: '次の戦いの準備をしよう' },
+  { image: 'bowie_cutin_03_text.webp', voice: 'cutin_voice_03', voiceMs: 3370, line: 'さて、私が流れを変えてみせよう' },
+  { image: 'bowie_cutin_04_text.webp', voice: 'cutin_voice_04', voiceMs: 1776, line: '払いのける！' },
 ] as const;
+
+/**
+ * 段階アップ（v1.6.1）：第2〜4段階の始まり（通算20・40・60問の解除のあと）。第1段階の始まりには使いません。
+ * - title・level：画面の中央の帯に出す文字（大きく・小さく）
+ * - voice：ボウイのボイス（src/ui/bowie/audio.ts の SoundKey）、voiceMs：その長さ（ミリ秒。前後の無音は切ってあります）
+ * - line：ボイスのセリフ（読み上げ用の説明だけ。字幕としては出しません）
+ * 音を出さないとき・読み込めないときも voiceMs の長さだけ表示します。読み込めたときは、実際の長さが長ければそちらに合わせます。
+ */
+export const BOWIE_LEVEL_UPS: Record<2 | 3 | 4, { title: string; level: string; voice: 'levelup_voice_2' | 'levelup_voice_3' | 'levelup_voice_4'; voiceMs: number; line: string }> = {
+  2: { title: 'ボウイ覚醒', level: 'LEVEL 02', voice: 'levelup_voice_2', voiceMs: 3500, line: '賢いものは私の邪魔をしませんよ' },
+  3: { title: '力の解放', level: 'LEVEL 03', voice: 'levelup_voice_3', voiceMs: 3762, line: 'それで？反撃すらできないのですか？' },
+  4: { title: '終焉の遊戯', level: 'FINAL LEVEL', voice: 'levelup_voice_4', voiceMs: 1541, line: '勝負を決めますよ！' },
+};
+
+/** 段階アップの全体の長さ（文字が出る → ボイス → 余韻） */
+export function levelUpTotalMs(voiceMs: number): number {
+  return BOWIE_CONFIG.levelUp.voiceDelayMs + voiceMs + BOWIE_CONFIG.levelUp.tailMs;
+}
 
 /** カットインの全体の長さ（入る＋セリフ＋余韻＋抜ける） */
 export function cutinTotalMs(voiceMs: number): number {

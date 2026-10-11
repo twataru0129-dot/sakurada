@@ -37,7 +37,10 @@ test.describe('ボウイの爆弾遊戯', () => {
     await curtainGone(page);
     const logo = page.locator('.bowie-title-logo');
     expect(await logo.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
-    for (const t of ['表示された文字を入力して解除', '早く解除するほど高得点', '減点はありません', 'その場で終了', '全80問を解除すれば勝利']) await expect(page.getByTestId('bowie-title')).toContainText(t);
+    // 遊び方は「遊び方」のボタンから開くダイアログに（全文はそのまま）
+    await page.getByTestId('bowie-howto-open').click();
+    for (const t of ['表示された文字を入力して解除', '早く解除するほど高得点', '減点はありません', 'その場で終了', '全80問を解除すれば勝利']) await expect(page.getByTestId('bowie-howto')).toContainText(t);
+    await page.getByTestId('bowie-howto-close').click();
     await page.keyboard.press(' ');
     await expect(page).toHaveURL(/#\/game\/bowie\/play/);
     await expect(page.getByTestId('bowie-banner')).toContainText('第1段階');
