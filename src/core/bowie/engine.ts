@@ -12,7 +12,7 @@
  * - 解除・被弾・加点・次の問題への切り替えは、1つの爆弾につき1回だけです。
  */
 import { RomajiMatcher, type RomajiStyle } from '../romaji';
-import { BOWIE_CONFIG, BOWIE_ROMAJI_RULES, CUTIN_TOTAL_MS, landingMsFor, pointsFor, STAGES, type StageNo } from './config';
+import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_ROMAJI_RULES, cutinTotalMs, landingMsFor, pointsFor, STAGES, type StageNo } from './config';
 import type { BowieQuestion } from './questions';
 
 export type Phase = 'ready' | 'intro' | 'throwing' | 'flying' | 'cutin' | 'paused' | 'hit' | 'won';
@@ -25,7 +25,7 @@ export type BowieEvent =
   | { type: 'typo' }
   | { type: 'disarm'; points: number; progress: number; at: number; question: BowieQuestion }
   | { type: 'danger'; at: number }
-  | { type: 'cutin'; at: number }
+  | { type: 'cutin'; at: number; /** 何回目のカットインか（1〜4） */ no: number }
   | { type: 'cutinEnd'; at: number }
   | { type: 'hit'; at: number }
   | { type: 'won'; at: number };
@@ -34,12 +34,20 @@ export interface BowieOptions {
   perStage?: number;
   /** 着弾時間などの倍率（開発用の確認だけで使います。通常は 1） */
   timeScale?: number;
+  /**
+   * n 回目（1始まり）のカットインのセリフの実際の長さ（ミリ秒）。カットインを始めるときに呼びます。
+   * BOWIE_CUTINS の長さより長いときだけ、そちらに合わせます（セリフを途中で切らないため）
+   */
+  cutinVoiceMs?: (no: number) => number;
 }
 
 export class BowieGame {
   readonly perStage: number;
   readonly total: number;
   private readonly timeScale: number;
+  private readonly cutinVoiceMs: (no: number) => number;
+  /** いまのカットインの長さ（倍率を掛ける前） */
+  private currentCutinMs = 0;
   phase: Phase = 'ready';
   private resumePhase: Phase = 'ready';
   stageIndex = 0;
@@ -66,6 +74,7 @@ export class BowieGame {
   ) {
     this.perStage = opts.perStage ?? BOWIE_CONFIG.questionsPerStage;
     this.timeScale = opts.timeScale ?? 1;
+    this.cutinVoiceMs = opts.cutinVoiceMs ?? (() => 0);
     this.total = questions.reduce((n, s) => n + Math.min(this.perStage, s.length), 0);
   }
 
@@ -100,8 +109,9 @@ export class BowieGame {
   get introMs(): number {
     return this.ms(BOWIE_CONFIG.stageIntroMs);
   }
+  /** いま（または直前）のカットインの長さ。回ごとのセリフの長さで変わります */
   get cutinMs(): number {
-    return this.ms(CUTIN_TOTAL_MS);
+    return this.ms(this.currentCutinMs);
   }
   scaled(v: number): number {
     return this.ms(v);
@@ -139,7 +149,7 @@ export class BowieGame {
         if (g < end) break;
         this.release(end, out);
       } else if (this.phase === 'cutin') {
-        const end = this.phaseStart + this.ms(CUTIN_TOTAL_MS);
+        const end = this.phaseStart + this.cutinMs;
         if (g < end) break;
         out.push({ type: 'cutinEnd', at: end });
         this.beginThrow(end, out);
@@ -222,9 +232,12 @@ export class BowieGame {
     if (this.qIndex === half && half > 0) {
       // 各段階の10問目を解除した直後、11問目の投球の前に1回だけ
       this.cutinsShown += 1;
+      const spec = BOWIE_CUTINS[Math.min(BOWIE_CUTINS.length, this.cutinsShown) - 1]!;
+      const actual = this.cutinVoiceMs(this.cutinsShown);
+      this.currentCutinMs = cutinTotalMs(Math.max(spec.voiceMs, Number.isFinite(actual) ? actual : 0));
       this.phase = 'cutin';
       this.phaseStart = g;
-      out.push({ type: 'cutin', at: g });
+      out.push({ type: 'cutin', at: g, no: this.cutinsShown });
       return out;
     }
     this.beginThrow(g, out);

@@ -187,6 +187,26 @@
    "file": "game_over_10.webp",
    "w": 1672,
    "h": 941
+  },
+  "bowie_cutin_02": {
+   "file": "bowie_cutin_02.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "bowie_cutin_03": {
+   "file": "bowie_cutin_03.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "bowie_cutin_04": {
+   "file": "bowie_cutin_04.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "bowie_defeat": {
+   "file": "bowie_defeat.webp",
+   "w": 1672,
+   "h": 941
   }
  },
  "bomb": {

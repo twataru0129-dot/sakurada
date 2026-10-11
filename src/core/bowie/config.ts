@@ -40,8 +40,12 @@ export const BOWIE_CONFIG = {
   dangerRemaining: 0.2,
   /** 段階の始まりの表示 */
   stageIntroMs: 1300,
-  /** 加速のカットイン：入る・抜ける時間と、保持（セリフの長さ＋余韻） */
-  cutin: { entryMs: 250, exitMs: 250, holdMs: 1541 + 160 },
+  /**
+   * 加速のカットイン：入る・抜ける時間と、セリフのあとの余韻。
+   * 画像が入りきったところでセリフを1回だけ流し、セリフが最後まで終わって余韻が過ぎてから画像が抜けます。
+   * 保持の長さは回ごとのセリフの長さ（BOWIE_CUTINS）で決まります。
+   */
+  cutin: { entryMs: 250, exitMs: 250, tailMs: 160 },
   /** 一時停止から再開するときのカウント（3・2・1） */
   resumeCountMs: 1500,
   /** ミスタイプの音の最短の間隔 */
@@ -75,8 +79,25 @@ export const BOWIE_TITLE_CALL = {
   imageWaitMs: 2500,
 } as const;
 
-/** カットインの全体の長さ */
-export const CUTIN_TOTAL_MS = BOWIE_CONFIG.cutin.entryMs + BOWIE_CONFIG.cutin.holdMs + BOWIE_CONFIG.cutin.exitMs;
+/**
+ * 各回のカットイン（各段階の10問目を解除したあと＝通算10・30・50・70問目のあと）。回ごとに決まった画像とセリフで、ランダムにはしません。
+ * - image：src/assets/bowie/scenes/ の画像、voice：セリフの音（src/ui/bowie/audio.ts の SoundKey）、voiceMs：セリフの長さ（ミリ秒）
+ * - line：画像の中に書かれているセリフ（読み上げ用の説明だけに使い、画面には重ねません）。2〜4回目の画像には文字がありません
+ * 音を出さないとき・読み込めないときも、voiceMs の長さだけ表示します。読み込めたときは、実際の音の長さが長ければそちらに合わせます。
+ */
+export const BOWIE_CUTINS = [
+  { image: 'speed_cutin.webp', voice: 'level_up', voiceMs: 1541, line: '少しテンポを落とそうか' },
+  { image: 'bowie_cutin_02.webp', voice: 'cutin_voice_02', voiceMs: 2429, line: '' },
+  { image: 'bowie_cutin_03.webp', voice: 'cutin_voice_03', voiceMs: 3370, line: '' },
+  { image: 'bowie_cutin_04.webp', voice: 'cutin_voice_04', voiceMs: 1776, line: '' },
+] as const;
+
+/** カットインの全体の長さ（入る＋セリフ＋余韻＋抜ける） */
+export function cutinTotalMs(voiceMs: number): number {
+  return BOWIE_CONFIG.cutin.entryMs + voiceMs + BOWIE_CONFIG.cutin.tailMs + BOWIE_CONFIG.cutin.exitMs;
+}
+/** 1回目のカットインの長さ（これまでと同じ約 2.2 秒） */
+export const CUTIN_TOTAL_MS = cutinTotalMs(BOWIE_CUTINS[0].voiceMs);
 
 /** その段階の何問目（1始まり）の着弾時間（ミリ秒） */
 export function landingMsFor(stage: StageNo, indexInStage: number, perStage: number = BOWIE_CONFIG.questionsPerStage): number {

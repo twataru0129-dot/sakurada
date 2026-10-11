@@ -1204,9 +1204,22 @@ body:has(.bowie-main) { background: #0a1131; }
 
 /* 全面のカットイン：右の外から入り、全面を覆い、左の外へ抜けます */
 .bowie-cutin { position: fixed; inset: 0; z-index: 80; overflow: hidden; pointer-events: none; background: transparent; }
-.bowie-cutin img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: bowie-cutin var(--cutin-ms, 2200ms) linear forwards; }
-.bowie-cutin.is-paused img { animation-play-state: paused; }
-@keyframes bowie-cutin { 0% { transform: translateX(100%); } 11.36% { transform: translateX(0); } 88.64% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+/* 画面全体の帯が右から入り、セリフの間は止まり、左へ抜けます（入る・抜けるの時間と抜け始める時刻は回ごとに変わります） */
+.bowie-cutin-strip { position: absolute; inset: 0; overflow: hidden; background: #2a0006; transform: translateX(100%);
+  animation: bowie-cutin-in var(--cutin-in, 250ms) linear forwards, bowie-cutin-out var(--cutin-out, 250ms) linear var(--cutin-out-at, 1950ms) forwards; }
+.bowie-cutin.is-paused .bowie-cutin-strip { animation-play-state: paused; }
+/* 縦横比を保って全体を見せ（キャラクターを切らない）、余白には同じ画像をぼかして敷きます */
+.bowie-cutin-back { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; filter: blur(18px) brightness(0.55); }
+.bowie-cutin-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+@keyframes bowie-cutin-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes bowie-cutin-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+/* 敗北の音声の間の DEFEAT の画像：16:9 の画像を縦横比を保って画面に収め、中央の文字と紋章を切りません */
+.bowie-result.step-defeat { background: #000; }
+.bowie-defeat { position: relative; flex: 1 1 0; min-height: 0; overflow: hidden; }
+.bowie-defeat-back { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; filter: blur(18px) brightness(0.45); }
+.bowie-defeat-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.bowie-defeat-bar { flex: none; display: flex; justify-content: flex-end; padding: 6px 16px; background: #000; }
+.bowie-result .btn.bowie-skip-quiet { min-height: 40px; background: transparent; color: #c9d2f5; border-color: #3a4270; }
 
 .bowie-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(5, 8, 25, 0.72); display: flex; align-items: center; justify-content: center; }
 .bowie-dialog { background: #101a3f; color: #fff; border: 2px solid #c9a24a; border-radius: 16px; padding: 20px 28px; max-width: 520px; }

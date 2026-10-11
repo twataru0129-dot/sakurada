@@ -59,7 +59,7 @@ test.describe('入口・アイコン・サブディレクトリ', () => {
       expect(overlap, sel).toBe(false);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-    await expect(page.locator('.app-header .version')).toHaveText('v1.5.2');
+    await expect(page.locator('.app-header .version')).toHaveText('v1.5.3');
   });
 
   test('3つのモードが使える（v1.2.0：② ゲームモード）', async ({ page }) => {

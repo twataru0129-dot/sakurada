@@ -24,22 +24,37 @@ export type SoundKey =
   | 'defeat'
   | 'loss_line'
   | 'laugh'
-  | 'level_up';
+  | 'level_up'
+  | 'cutin_voice_02'
+  | 'cutin_voice_03'
+  | 'cutin_voice_04';
 
 /** ボイス（セリフ・笑い声・元動画の勝利・敗北の音）は、効果音とは別の経路で少し大きめにします */
-const VOICE: ReadonlySet<SoundKey> = new Set(['victory', 'defeat', 'loss_line', 'laugh', 'level_up']);
+const VOICE: ReadonlySet<SoundKey> = new Set(['victory', 'defeat', 'loss_line', 'laugh', 'level_up', 'cutin_voice_02', 'cutin_voice_03', 'cutin_voice_04']);
 
 interface Meta {
   file: string;
   volume: number;
   duration: number;
 }
-export const SOUNDS: Record<SoundKey, Meta> = Object.fromEntries(
-  (manifest.audio as { file: string; volume: number; duration_seconds: number }[]).map((a) => [
-    a.file.replace(/^bowie_/, '').replace(/\.mp3$/, ''),
-    { file: a.file, volume: a.volume, duration: a.duration_seconds },
-  ]),
-) as Record<SoundKey, Meta>;
+/**
+ * 納品の manifest にない、あとから追加した音（v1.5.3：2〜4回目のカットインのセリフ）。
+ * 音量は、1回目のセリフ（level_up・0.9）と平均の大きさがそろうように決めています（新しいセリフは約2dB大きく録音されています）。
+ */
+const EXTRA: Record<string, Meta> = {
+  cutin_voice_02: { file: 'bowie_cutin_02_voice.mp3', volume: 0.75, duration: 2.429388 },
+  cutin_voice_03: { file: 'bowie_cutin_03_voice.mp3', volume: 0.75, duration: 3.369796 },
+  cutin_voice_04: { file: 'bowie_cutin_04_voice.mp3', volume: 0.8, duration: 1.776327 },
+};
+export const SOUNDS: Record<SoundKey, Meta> = {
+  ...Object.fromEntries(
+    (manifest.audio as { file: string; volume: number; duration_seconds: number }[]).map((a) => [
+      a.file.replace(/^bowie_/, '').replace(/\.mp3$/, ''),
+      { file: a.file, volume: a.volume, duration: a.duration_seconds },
+    ]),
+  ),
+  ...EXTRA,
+} as Record<SoundKey, Meta>;
 
 export interface Playing {
   /** 音が終わったとき（再生できなかったときも、音の長さのあとに終わります） */
@@ -110,6 +125,12 @@ export class BowieAudio {
     } catch {
       this.ctx = null;
     }
+  }
+
+  /** 音の長さ（ミリ秒）。読み込めていれば実際の長さ、まだなら登録した長さです */
+  durationMs(key: SoundKey): number {
+    const b = this.buffers.get(key);
+    return Math.round((b ? b.duration : SOUNDS[key].duration) * 1000);
   }
 
   setVolume(v: number, muted: boolean): void {
