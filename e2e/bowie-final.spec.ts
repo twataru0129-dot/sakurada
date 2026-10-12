@@ -6,7 +6,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const DEV = 'sakura-type:bowie-dev';
-type Rec = { d: number; s: number };
+type Rec = { d: number; s: number; delay: number; loop: boolean };
 type Sample = [number, string, string, string];
 
 async function record(page: Page) {
@@ -20,7 +20,7 @@ async function record(page: Page) {
       const src = create.call(this);
       const start = src.start.bind(src);
       src.start = (...args: Parameters<typeof src.start>) => {
-        w.__a.push({ d: src.buffer?.duration ?? 0, s: performance.now() - w.__t0 });
+        w.__a.push({ d: src.buffer?.duration ?? 0, s: performance.now() - w.__t0, delay: Math.max(0, (args[0] ?? 0) - this.currentTime) * 1000, loop: src.loop });
         start(...args);
       };
       return src;
@@ -64,7 +64,7 @@ async function toStage4(page: Page, perStage: number) {
 const form = (page: Page) => page.getByTestId('bowie-main').getAttribute('data-form');
 
 test.describe('ボウイの爆弾遊戯：最終形態', () => {
-  test('59問までは通常、60問のあとの段階アップの中で1回だけ変身：背景と姿は同じフレームで切り替わり、魔力の上昇音・衝撃音は各1回。ボイスは1回で途中で切らず、BGM は流し直さない。演出中のキーは持ち越さない', async ({ page }, info) => {
+  test('59問までは通常、60問のあとの段階アップの中で1回だけ変身：背景と姿は同じフレームで切り替わり、魔力の上昇音・衝撃音は各1回。ボイスは1回で途中で切らず、通常BGMから最終BGMへ1回切替。演出中のキーは持ち越さない', async ({ page }, info) => {
     test.skip(info.project.name !== 'pc');
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1368, height: 912 });
@@ -97,12 +97,12 @@ test.describe('ボウイの爆弾遊戯：最終形態', () => {
     for (const [, bg, sprite] of f) expect(`${bg}:${sprite.startsWith('bowie_final') ? 'final' : 'normal'}`).toMatch(/^(normal:normal|final:final)$/);
     const switchAt = f.find(([, bg]) => bg === 'final')![0];
     // 変身は段階アップの始まりから約0.82秒（ピーク）。そのあと通常に戻らない
-    expect(switchAt - t0).toBeGreaterThan(650);
-    expect(switchAt - t0).toBeLessThan(1150);
+    expect(switchAt - t0).toBeGreaterThan(1650);
+    expect(switchAt - t0).toBeLessThan(2150);
     expect(f.filter(([t, bg]) => t > switchAt && bg !== 'final')).toHaveLength(0);
     // 投球は変身の余韻とボイスの両方が終わってから（ボイス 1.54 秒＋0.45＋0.3）
     const throwAt = f.find(([t, , , ph]) => t > t0 && ph === 'throwing')![0];
-    expect(throwAt - t0).toBeGreaterThan(2150);
+    expect(throwAt - t0).toBeGreaterThan(3150);
     const during = a.filter((r) => r.s >= t0 - 50 && r.s <= throwAt);
     expect(during.filter((r) => near(r.d, 1.541, 0.1))).toHaveLength(1); // 「勝負を決めますよ！」
     expect(during.filter((r) => near(r.d, 0.47))).toHaveLength(1); // 魔力の上昇音（ノイズ）
@@ -111,7 +111,15 @@ test.describe('ボウイの爆弾遊戯：最終形態', () => {
     const impact = during.find((r) => near(r.d, 0.7))!;
     expect(Math.abs(impact.s - switchAt)).toBeLessThan(120);
     // 通常の BGM を流し直さない
-    expect(a.filter((r) => r.d > 100).length).toBe(bgmBefore);
+    expect(a.filter((r) => near(r.d, 116.3, 0.5)).length).toBe(bgmBefore);
+    const finalMusic = a.filter((r) => near(r.d, 347.14, 0.5));
+    expect(finalMusic).toHaveLength(1);
+    expect(finalMusic[0]!.s - t0).toBeLessThan(200);
+    expect(finalMusic[0]!.delay).toBeGreaterThan(850);
+    expect(finalMusic[0]!.delay).toBeLessThanOrEqual(1000);
+    expect(finalMusic[0]!.loop).toBe(true);
+    // 再生予約は段階開始時に1回、音が始まるのは AudioContext 時刻で1秒後。
+
   });
 
   test('最終形態の放つ動作：構える → 送り出す → 放つ（合計約350ms）。手を離れた瞬間に手のひらの前から独立した爆弾1個が出て、入力が始まる。足元の位置と大きさはずれない', async ({ page }, info) => {

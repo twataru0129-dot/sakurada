@@ -127,8 +127,9 @@ export const BOWIE_LEVEL_UPS: Record<2 | 3 | 4, { title: string; level: string; 
 export const BOWIE_TRANSFORM = {
   /** 変身する段階（第4段階の始まり） */
   stage: 4 as StageNo,
-  chargeAtMs: 450,
-  peakAtMs: 820,
+  bgmFadeMs: 1000,
+  chargeAtMs: 1450,
+  peakAtMs: 1820,
   flashMs: 260,
   settleMs: 520,
   fadeMs: 240,
@@ -138,7 +139,7 @@ export const BOWIE_TRANSFORM = {
 
 /** 変身のある段階アップの全体の長さ（ボイスの終わりと、変身の余韻の終わりの遅い方 → 余韻） */
 export function transformIntroMs(voiceMs: number): number {
-  return Math.max(levelUpTotalMs(voiceMs), BOWIE_TRANSFORM.peakAtMs + BOWIE_TRANSFORM.settleMs + BOWIE_CONFIG.levelUp.tailMs);
+  return Math.max(BOWIE_TRANSFORM.bgmFadeMs + levelUpTotalMs(voiceMs), BOWIE_TRANSFORM.peakAtMs + BOWIE_TRANSFORM.settleMs + BOWIE_CONFIG.levelUp.tailMs);
 }
 
 /**
