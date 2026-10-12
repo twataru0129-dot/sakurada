@@ -60,6 +60,13 @@ export class BowieGame {
   qIndex = 0;
   solved = 0;
   score = 0;
+  /**
+   * 戦績の集計（v1.7.0）：爆弾が飛んでいて入力できるときに、判定が受け付けたキー（正しい入力）と、ミスになったキー（ミスタイプ）の数。
+   * 無視されたキー・投球前・カットイン・段階アップ・一時停止・勝敗のあとのキーは数えません（判定まで届かないため）。
+   * 同じ時刻の衝突が先になったときのキーも数えません。最後の解除のキーは含めます。
+   */
+  correctKeyCount = 0;
+  mistypeCount = 0;
   matcher: RomajiMatcher | null = null;
   /** いまの状態が始まったゲームの時刻 */
   phaseStart = 0;
@@ -205,10 +212,12 @@ export class BowieGame {
     const r = this.matcher.input(ch.toLowerCase());
     if (r === 'ignored') return out;
     if (r === 'miss') {
+      this.mistypeCount += 1;
       // ミスは減点・時間短縮なし。入力は進みません
       out.push({ type: 'typo' });
       return out;
     }
+    this.correctKeyCount += 1;
     out.push({ type: 'correct' });
     if (!this.matcher.done) return out;
     const g = this.gameTime(real);

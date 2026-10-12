@@ -104,14 +104,17 @@ test.describe('ボウイの爆弾遊戯', () => {
     // まずクリアの曲に合わせて主人公のダンス（約5.9秒）。曲が終わると勝利の表示へ
     await expect(result).toHaveAttribute('data-step', 'dance');
     await expect(result).toHaveAttribute('data-step', 'victory', { timeout: 10_000 });
-    await expect(result).toContainText('全問クリア');
     expect(await page.evaluate(() => (window as unknown as { __cutins: number }).__cutins)).toBe(4);
+    // 飛ばす → ボウイの絶望 → もう一度飛ばす → 勝利の戦績
+    await page.getByTestId('bowie-skip').click();
+    await expect(result).toHaveAttribute('data-step', 'despair');
+    await page.getByTestId('bowie-skip').click();
+    await expect(result).toHaveAttribute('data-step', 'stats');
+    await expect(result).toContainText('全8問クリア');
     const final = await num(page, 'bowie-final-score');
     expect(final).toBeGreaterThan(0);
     expect(final).toBeLessThanOrEqual(6 * 10 + 2 * 20);
     await expect(page.getByTestId('bowie-solved')).toHaveText('8');
-    await page.getByTestId('bowie-skip').click();
-    await expect(result).toHaveAttribute('data-step', 'despair');
     await expect(page.getByTestId('bowie-result-best')).toContainText(String(final));
     // 再挑戦：得点・進行・表示を初期化し、問題を選び直す
     await page.getByTestId('bowie-retry').click();
@@ -127,7 +130,7 @@ test.describe('ボウイの爆弾遊戯', () => {
     await expect(page.getByTestId('bowie-best')).toContainText(String(final));
   });
 
-  test('被弾：入力が終わり、ゲームオーバーの画像と実際の得点・再挑戦・ホームを表示。演出は飛ばせる。ホームへ戻ると何も残らない', async ({ page }, info) => {
+  test('被弾：入力が終わり、DEFEAT → 煽りの画像 → 敗北の戦績（実際の得点・もう一度挑戦・ゲーム選択へ）。演出は飛ばせる。ゲーム選択へ戻ると何も残らない', async ({ page }, info) => {
     test.skip(info.project.name !== 'pc');
     await open(page, { perStage: 2, timeScale: 0.2 });
     await page.getByTestId('bowie-start').click();
@@ -140,10 +143,12 @@ test.describe('ボウイの爆弾遊戯', () => {
     await expect(page.getByTestId('bowie-defeat')).toBeVisible();
     await page.getByTestId('bowie-skip').click();
     await expect(result).toHaveAttribute('data-step', 'taunt');
+    expect(await page.getByTestId('bowie-taunt').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
+    await page.getByTestId('bowie-skip').click();
+    await expect(result).toHaveAttribute('data-step', 'stats');
     await expect(page.getByTestId('bowie-final-score')).toHaveText('0');
-    expect(await result.locator('img').evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
-    await page.getByTestId('bowie-home').click();
-    await expect(page).toHaveURL(/#\/home/);
+    await page.getByTestId('bowie-select').click();
+    await expect(page).toHaveURL(/#\/game$/);
     await page.keyboard.type('abc');
     await expect(page.getByTestId('bowie-result')).toHaveCount(0);
   });

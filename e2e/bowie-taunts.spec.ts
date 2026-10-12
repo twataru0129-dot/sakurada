@@ -45,8 +45,11 @@ test('10種類すべての煽り画像が読み込まれ、毎回笑い声が1�
     await expect.poll(() => page.evaluate(() => (window as unknown as { __sounds: number[] }).__sounds.filter((d) => Math.abs(d - 4.45) < 0.1).length)).toBe(i + 1);
     await page.waitForTimeout(150);
     await expect(taunt).toHaveAttribute('data-taunt-id', id);
+    // 煽りの場面から飛ばすと敗北の戦績へ（実際の得点）
+    await page.getByTestId('bowie-skip').click();
+    await expect(result).toHaveAttribute('data-step', 'stats');
     await expect(page.getByTestId('bowie-final-score')).toHaveText('0');
   }
-  await page.getByTestId('bowie-home').click();
+  await page.getByTestId('bowie-select').click();
   await expect(page.getByTestId('bowie-result')).toHaveCount(0);
 });

@@ -145,6 +145,38 @@ def dance():
     return out
 
 
+def emblems():
+    """
+    勝利のランクのエンブレム（v1.7.0）：assets/bowie-source/images/emblems/rank_01〜10（背景透過・下にランク名の文字入り）。
+    - full：ランク名の文字を含む全体（獲得したエンブレムを大きく出すとき）
+    - mark：ランク名の文字より上だけ（ランク一覧の小さな表示用。名前は画面の文字で別に出し、二重になりません）。
+      名前の文字と飾りの間でいちばん透明に近い行（下から 14〜32％ の範囲）で切ります。
+    元の画像の、絵から離れたほぼ透明な点は消します（背景に枠が出ないように。ダンスの画像と同じ処理）。
+    """
+    from scipy import ndimage
+
+    out = {}
+    (OUT / 'emblems').mkdir(parents=True, exist_ok=True)
+    for f in sorted((SRC / 'images' / 'emblems').glob('rank_*.png')):
+        a = np.array(Image.open(f).convert('RGBA'))
+        body = ndimage.binary_dilation(a[..., 3] > 32, iterations=6)
+        a[..., 3][~body] = 0
+        box = bbox(a[..., 3], 0)
+        h = a.shape[0]
+        cov = (a[..., 3] > 40).mean(axis=1)
+        lo, hi = int(h * 0.68), int(h * 0.86)
+        cut = lo + int(np.argmin(cov[lo:hi]))
+        full = Image.fromarray(a).crop((box[0], box[1], box[2], box[3]))
+        full = full.resize((512, round(full.height * 512 / full.width)), Image.LANCZOS) if full.width > 512 else full
+        mark = Image.fromarray(a[:cut]).crop(bbox(a[:cut, :, 3], 0))
+        mark = mark.resize((260, round(mark.height * 260 / mark.width)), Image.LANCZOS)
+        name = f.stem
+        full.save(OUT / 'emblems' / f'{name}.webp', 'WEBP', quality=Q, method=6)
+        mark.save(OUT / 'emblems' / f'{name}_mark.webp', 'WEBP', quality=Q, method=6)
+        out[name] = {'full': f'{name}.webp', 'mark': f'{name}_mark.webp', 'w': full.width, 'h': full.height, 'markW': mark.width, 'markH': mark.height}
+    return out
+
+
 def main():
     def bowie_scale(box):
         return BOWIE_FIGURE_PX / (box[3] - box[1])
@@ -171,6 +203,9 @@ def main():
     for name in ['bowie_cutin_02_text', 'bowie_cutin_03_text', 'bowie_cutin_04_text', 'bowie_title_background']:
         sprites['scenes'][name] = scene(name, 1672, False)
     sprites['dance'] = dance()
+    sprites['emblems'] = emblems()
+    # 勝利の VICTORY の演出画像（v1.7.0）
+    sprites['scenes']['bowie_victory_screen'] = scene('bowie_victory_screen', 1672, False)
     (OUT / 'audio').mkdir(parents=True, exist_ok=True)
     for f in sorted((SRC / 'audio').glob('*.mp3')):
         shutil.copyfile(f, OUT / 'audio' / f.name)

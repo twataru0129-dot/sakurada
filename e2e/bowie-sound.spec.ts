@@ -62,6 +62,17 @@ async function solve(page: Page) {
   await expect(page.getByTestId('bowie-text')).toBeVisible({ timeout: 20_000 });
   await page.keyboard.type(await guide(page));
 }
+/** 「演出を飛ばす」をくり返して戦績の画面へ（v1.7.0：演出の場面には再挑戦のボタンがありません） */
+async function toStats(page: Page) {
+  const result = page.getByTestId('bowie-result');
+  await expect(result).toBeVisible({ timeout: 20_000 });
+  for (let i = 0; i < 6 && (await result.getAttribute('data-step')) !== 'stats'; i++) {
+    const skip = page.getByTestId('bowie-skip');
+    if (await skip.count()) await skip.click().catch(() => undefined);
+    await page.waitForTimeout(150);
+  }
+  await expect(result).toHaveAttribute('data-step', 'stats');
+}
 async function guest(page: Page, dev?: Record<string, unknown>) {
   await page.goto('./');
   await page.getByRole('button', { name: /ゲストで練習/ }).first().click();
@@ -108,18 +119,17 @@ test.describe('ボウイの爆弾遊戯：BGM とサウンド設定', () => {
     // 被弾で BGM が止まる
     await expect(page.getByTestId('bowie-result')).toBeVisible({ timeout: 15_000 });
     await expect.poll(async () => bgms(await recs(page))[0]!.e, { timeout: 3000 }).not.toBeNull();
-    await page.getByTestId('bowie-skip').click();
+    await toStats(page);
     // 再挑戦：最初から1回だけ
     await page.getByTestId('bowie-retry').click();
     await expect.poll(async () => bgms(await recs(page)).length, { timeout: 5000 }).toBe(2);
     await page.waitForTimeout(800);
     a = await recs(page);
     expect(bgms(a).filter((r) => r.e === null)).toHaveLength(1);
-    // ホーム：すべて止まる
-    await expect(page.getByTestId('bowie-result')).toBeVisible({ timeout: 15_000 });
-    await page.getByTestId('bowie-skip').click();
-    await page.getByTestId('bowie-home').click();
-    await expect(page).toHaveURL(/#\/home/);
+    // ゲーム選択へ：すべて止まる
+    await toStats(page);
+    await page.getByTestId('bowie-select').click();
+    await expect(page).toHaveURL(/#\/game$/);
     await page.waitForTimeout(500);
     expect((await recs(page)).filter((r) => r.e === null)).toHaveLength(0);
   });
@@ -221,8 +231,8 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     const result = page.getByTestId('bowie-result');
     await expect(result).toHaveAttribute('data-step', 'taunt', { timeout: 30_000 });
     await expect(page.getByTestId('bowie-taunt')).toHaveCount(1);
-    await page.waitForTimeout(4800 + 3800);
-    await expect(result).toHaveAttribute('data-step', 'taunt');
+    // 鳴き声が終わると、敗北の戦績へ自動で進む
+    await expect(result).toHaveAttribute('data-step', 'stats', { timeout: 4800 + 3800 + 2000 });
     const a = await recs(page);
     const m = await marks(page);
     const one = (want: number) => {
@@ -246,11 +256,14 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     expect(laugh.s).toBeGreaterThanOrEqual(defeat.e! - 30);
     expect(cry.s).toBeGreaterThanOrEqual(laugh.e! - 30);
     expect(cry.e).not.toBeNull();
+    // 煽りの画像は鳴き声の間もそのまま。鳴き声が終わってから戦績
+    expect(at(m, 'result-stats')).toBeGreaterThanOrEqual(cry.e! - 30);
+    expect(a.filter((r) => near(r.d, D.defeat, 0.12))).toHaveLength(1);
     await expect(page.getByTestId('bowie-final-score')).toBeVisible();
     await expect(page.getByTestId('bowie-retry')).toBeVisible();
   });
 
-  test('敗北の演出を飛ばす：煽りの画像1枚と、笑い声 → 鳴き声を各1回。鳴き声の途中で再挑戦すると、すべての音が止まり、あとから鳴らない', async ({ page }, info) => {
+  test('敗北の演出を飛ばす：煽りの画像1枚と、笑い声 → 鳴き声を各1回。鳴き声の途中で飛ばすと戦績へ（声は止まり、あとから鳴らない）。再挑戦で音が残らない', async ({ page }, info) => {
     test.skip(info.project.name !== 'pc');
     test.setTimeout(60_000);
     await record(page);
@@ -267,14 +280,21 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     const cry = a.filter((r) => near(r.d, D.cry, 0.12));
     expect(cry).toHaveLength(1);
     expect(cry[0]!.e).toBeNull();
-    // 鳴き声の途中で再挑戦
-    await page.getByTestId('bowie-retry').click();
-    await expect(result).toHaveCount(0);
+    // 鳴き声の途中で飛ばす → すぐ戦績（同じ声は流し直さない）。連打しても戦績のまま
+    await page.getByTestId('bowie-skip').click();
+    await expect(result).toHaveAttribute('data-step', 'stats');
     await page.waitForTimeout(400);
     a = await recs(page);
     expect(a.filter((r) => near(r.d, D.cry, 0.12))[0]!.e).not.toBeNull();
+    expect(a.filter((r) => near(r.d, D.cry, 0.12))).toHaveLength(1);
     expect(a.filter((r) => near(r.d, D.laugh, 0.12))).toHaveLength(1);
     expect(a.filter((r) => near(r.d, D.defeat, 0.12))).toHaveLength(1);
+    // 再挑戦：結果の画面が消え、前の音は残らない
+    await page.getByTestId('bowie-retry').click();
+    await expect(result).toHaveCount(0);
+    await page.waitForTimeout(300);
+    a = await recs(page);
+    expect(a.filter((r) => r.e === null && !r.loop)).toHaveLength(0);
   });
 
   test('全問クリア：BGM を止め、クリアの曲を1回だけ流して主人公が踊る（両手を上げた姿・下げた姿を交互に）→ 曲が終わると VICTORY → 絶望のセリフ。ダンスは飛ばせる', async ({ page }, info) => {
@@ -312,7 +332,8 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     await expect(page.getByTestId('bowie-text')).toHaveCount(0);
     await expect(result).toHaveAttribute('data-step', 'victory', { timeout: 10_000 });
     await expect(result).toHaveAttribute('data-step', 'despair', { timeout: 6000 });
-    await page.waitForTimeout(2500);
+    // 敗北のセリフが終わると、勝利の戦績へ自動で進む
+    await expect(result).toHaveAttribute('data-step', 'stats', { timeout: 6000 });
     const a = await recs(page);
     const clear = a.filter((r) => near(r.d, D.clear, 0.12));
     const victory = a.filter((r) => near(r.d, D.victory, 0.1));
@@ -324,6 +345,7 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     expect(bgms(a)[0]!.e!).toBeLessThan(clear[0]!.s + 300);
     expect(victory[0]!.s).toBeGreaterThanOrEqual(clear[0]!.e! - 30);
     expect(loss[0]!.s).toBeGreaterThanOrEqual(victory[0]!.e! - 30);
+    expect(at(await marks(page), 'result-stats')).toBeGreaterThanOrEqual(loss[0]!.e! - 30);
     // 再挑戦して、もう一度クリア → ダンスを飛ばすと、曲が止まってクリアの表示へ（あとから VICTORY は鳴らない）
     await page.getByTestId('bowie-retry').click();
     for (let i = 0; i < 4; i++) await solve(page);
@@ -338,7 +360,9 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     expect(clear2).toHaveLength(2);
     expect(clear2[1]!.e! - clear2[1]!.s).toBeLessThan(2500);
     expect(b.filter((r) => near(r.d, D.victory, 0.1))).toHaveLength(1);
-    await expect(result).toHaveAttribute('data-step', 'despair');
+    // ダンスを飛ばしても、ボウイの絶望と敗北のセリフ（1回）を経て戦績へ
+    expect(b.filter((r) => near(r.d, D.lossLine, 0.1))).toHaveLength(2);
+    await expect(result).toHaveAttribute('data-step', 'stats');
   });
 
   test('音を OFF・音楽の音量0・音声の読み込みに失敗しても、被弾のリアクションとクリアのダンスは音の長さだけ進む', async ({ page }, info) => {
@@ -357,8 +381,8 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     let m = await marks(page);
     expect(at(m, 'result-victory') - at(m, 'result-dance')).toBeGreaterThanOrEqual(5700);
     // 音を OFF：被弾のリアクション（被弾の声の長さ）のあと DEFEAT
-    await page.getByTestId('bowie-skip').click();
-    await page.getByTestId('bowie-home').click();
+    await toStats(page);
+    await page.getByTestId('bowie-select').click();
     await page.evaluate(() => sessionStorage.setItem('sakura-type:bowie-dev', JSON.stringify({ perStage: 1, timeScale: 0.2 })));
     await page.goto('./#/game/bowie');
     await page.getByTestId('bowie-mute').click();

@@ -1384,3 +1384,94 @@ body:has(.bowie-main) .app-header .brand img { width: 26px; height: 26px; }
 @keyframes blu-pop { 0% { transform: scale(1.7); opacity: 0; } 55% { transform: scale(0.94); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes blu-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes blu-flare { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* ボウイの爆弾遊戯：勝利の最後の演出（ボウイの絶望）と、勝敗の戦績（v1.7.0） */
+.bowie-result.step-victory, .bowie-result.step-taunt { background: #000; }
+.bowie-despair-scene { position: relative; flex: 1 1 0; min-height: 0; overflow: hidden; background-size: cover; background-position: center; display: flex; align-items: flex-end; justify-content: center; }
+.bowie-despair-scene::before { content: ''; position: absolute; inset: 0; background: rgba(6, 8, 30, 0.45); }
+.bowie-despair-figure { position: relative; height: 92%; max-width: 90%; object-fit: contain; filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.7)); }
+
+.bowie-result.step-stats { background: #070b28; overflow-y: auto; }
+.brs {
+  flex: 1 0 auto; min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(6px, 1.6vh, 18px);
+  padding: clamp(10px, 2vh, 22px) clamp(10px, 2.4vw, 32px) clamp(12px, 2.4vh, 24px); color: #fff;
+  background-size: cover; background-position: center; position: relative;
+}
+.brs::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, rgba(10, 20, 70, 0.25), rgba(4, 6, 24, 0.72)); pointer-events: none; }
+.brs > * { position: relative; }
+.brs-defeat::before { background: radial-gradient(ellipse at 50% 30%, rgba(30, 36, 70, 0.35), rgba(6, 8, 20, 0.82)); }
+.brs-head { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.brs-title { margin: 0; font-size: clamp(2.6rem, 8vw, 5.6rem); line-height: 1; font-weight: 900; letter-spacing: 0.06em; font-family: Georgia, 'Times New Roman', serif; color: transparent; -webkit-background-clip: text; background-clip: text; }
+.brs-title.is-gold { background-image: linear-gradient(180deg, #fff7d6 0%, #ffd76a 40%, #c9861c 65%, #fff0b8 100%); filter: drop-shadow(0 2px 0 #5a3a08) drop-shadow(0 0 14px rgba(255, 200, 90, 0.55)); }
+.brs-title.is-silver { background-image: linear-gradient(180deg, #ffffff 0%, #d9dee8 40%, #7d8696 66%, #eef1f6 100%); filter: drop-shadow(0 2px 0 #2a2f3a) drop-shadow(0 0 12px rgba(160, 30, 50, 0.55)); }
+.brs-game { margin: 0; padding: 2px 18px; border: 1px solid rgba(201, 162, 74, 0.7); border-radius: 999px; background: rgba(8, 12, 40, 0.7); font-weight: 800; letter-spacing: 0.08em; }
+.brs-defeat .brs-game { border-color: rgba(200, 206, 220, 0.7); }
+.brs-sub { margin: 0; font-size: clamp(1.1rem, 2.2vw, 1.5rem); font-weight: 900; color: #fff; text-shadow: 0 0 8px rgba(255, 210, 120, 0.6), 0 1px 2px #000; }
+.brs-main { width: min(1240px, 100%); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: clamp(10px, 2vw, 26px); }
+.brs-defeat .brs-main { grid-template-columns: auto minmax(0, 1fr); width: min(1080px, 100%); }
+.brs-face { width: clamp(110px, 15vw, 190px); aspect-ratio: 1; border-radius: 50%; overflow: hidden; border: 4px solid #ffd76a; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.4), 0 0 24px rgba(255, 200, 90, 0.55); background: radial-gradient(circle at 50% 35%, #2b4fb8, #0d1748); }
+.brs-face.is-silver { border-color: #cfd5e2; box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.4), 0 0 20px rgba(160, 175, 210, 0.45); background: radial-gradient(circle at 50% 35%, #3a4566, #121729); }
+/* 顔を中心に：全身の画像の上の方（顔）を、丸い枠いっぱいに */
+.brs-face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 12%; transform: scale(1.35); transform-origin: 50% 18%; }
+.brs-panel { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: clamp(8px, 1.6vh, 16px) clamp(10px, 1.6vw, 20px); background: rgba(6, 12, 44, 0.82); border: 2px solid #c9a24a; border-radius: 14px; box-shadow: inset 0 0 0 1px rgba(89, 200, 255, 0.45), 0 6px 24px rgba(0, 0, 0, 0.45); }
+.brs-defeat .brs-panel { border-color: #aeb6c8; box-shadow: inset 0 0 0 1px rgba(120, 140, 190, 0.45), 0 6px 24px rgba(0, 0, 0, 0.45); }
+.brs-new { margin: 0; align-self: flex-start; padding: 2px 12px; border-radius: 999px; font-weight: 900; letter-spacing: 0.12em; font-size: 0.9rem; color: #2a1800; background: linear-gradient(#ffe9a0, #e6a92e); box-shadow: 0 0 12px rgba(255, 200, 90, 0.7); }
+.bowie-stats { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.bst-cell { padding: 2px 10px; text-align: center; border-left: 1px solid rgba(201, 162, 74, 0.45); min-width: 0; }
+.bowie-stats.is-silver .bst-cell { border-left-color: rgba(174, 182, 200, 0.45); }
+.bst-cell:first-child { border-left: 0; }
+.bst-cell dt { font-size: 0.95rem; font-weight: 700; color: #c9d2f5; white-space: nowrap; }
+.bst-cell dd { margin: 0; white-space: nowrap; }
+.bst-cell strong { font-size: clamp(1.7rem, 3.4vw, 2.6rem); font-weight: 900; font-variant-numeric: tabular-nums; color: #fff; }
+.bst-cell.is-big strong { font-size: clamp(2.1rem, 4.4vw, 3.4rem); color: #ffe08a; text-shadow: 0 0 10px rgba(255, 200, 90, 0.45); }
+.bowie-stats.is-silver .bst-cell.is-big strong { color: #f1f4fa; text-shadow: 0 0 10px rgba(170, 190, 230, 0.45); }
+.bst-cell small { font-size: 1rem; font-weight: 700; color: #dfe5ff; margin-left: 2px; }
+.brs-best { margin: 0; text-align: right; color: #c9d2f5; font-weight: 700; font-size: 0.95rem; }
+.brs-emblem { margin: 0; width: clamp(130px, 17vw, 230px); filter: drop-shadow(0 0 18px rgba(89, 200, 255, 0.55)); }
+.brs-emblem img { width: 100%; height: auto; display: block; }
+.brs-progress { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 6px 12px; border: 1px solid rgba(174, 182, 200, 0.55); border-radius: 999px; background: rgba(10, 14, 36, 0.7); }
+.brs-left { font-weight: 800; white-space: nowrap; }
+.brs-bar { height: 14px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.brs-bar span { display: block; height: 100%; background: linear-gradient(90deg, #59c8ff, #a6e6ff); }
+.brs-count { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.brs-ranks { width: min(1240px, 100%); padding: 8px clamp(8px, 1.2vw, 16px) 10px; background: rgba(6, 12, 44, 0.78); border: 2px solid #c9a24a; border-radius: 14px; box-shadow: inset 0 0 0 1px rgba(89, 200, 255, 0.4); }
+.brs-ranks h3 { margin: 0 0 4px; text-align: center; color: #ffd76a; font-size: 1rem; letter-spacing: 0.2em; }
+/* 全10ランク：広い画面は横一列、中くらいは5個ずつ2段、狭い画面は順番どおりに折り返し */
+.brs-rank-list { list-style: none; margin: 0; padding: 22px 0 0; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
+.brs-rank-list li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px 4px; border-radius: 10px; border: 1px solid rgba(201, 162, 74, 0.25); background: rgba(255, 255, 255, 0.03); min-width: 0; }
+.brs-rank-list img { width: min(100%, 92px); aspect-ratio: 1.2; object-fit: contain; }
+.brs-rank-name { font-size: 0.85rem; font-weight: 800; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+.brs-rank-range { font-size: 0.7rem; color: #b8c2ea; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.brs-rank-list li.is-mine { border: 2px solid #ffe08a; background: rgba(89, 200, 255, 0.2); box-shadow: 0 0 0 2px rgba(89, 200, 255, 0.7), 0 0 22px rgba(255, 220, 120, 0.9), inset 0 0 14px rgba(255, 220, 120, 0.35); transform: scale(1.06); z-index: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .brs-rank-list li.is-mine { animation: brs-glow 1.6s ease-in-out infinite alternate; }
+  .brs-yours::after { animation: brs-point 0.9s ease-in-out infinite alternate; }
+}
+@keyframes brs-glow { from { box-shadow: 0 0 0 2px rgba(89, 200, 255, 0.6), 0 0 14px rgba(255, 220, 120, 0.6), inset 0 0 10px rgba(255, 220, 120, 0.25); } to { box-shadow: 0 0 0 2px rgba(89, 200, 255, 0.9), 0 0 28px rgba(255, 220, 120, 1), inset 0 0 16px rgba(255, 220, 120, 0.45); } }
+@keyframes brs-point { from { transform: translate(-50%, 0); } to { transform: translate(-50%, 3px); } }
+.brs-rank-list li.is-mine .brs-rank-name { color: #ffe08a; }
+.brs-yours { position: absolute; top: -24px; left: 50%; transform: translateX(-50%); font-size: 0.72rem; font-weight: 900; color: #ffe08a; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+.brs-yours::after { content: ''; position: absolute; left: 50%; top: 100%; transform: translateX(-50%); border: 8px solid transparent; border-top-color: #ffe08a; filter: drop-shadow(0 0 4px rgba(255, 220, 120, 0.9)); }
+.brs-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+.brs-btn { min-height: 54px; min-width: 210px; font-size: 1.15rem; font-weight: 900; border-radius: 999px; color: #fff; }
+.bowie-result .brs-btn.is-retry { background: linear-gradient(#d23a5c, #9e1638); border: 2px solid #ffd76a; color: #fff; }
+.bowie-result .brs-btn.is-select { background: linear-gradient(#2c5ad8, #183a9e); border: 2px solid #8fd8ff; color: #fff; }
+.bowie-result .brs-btn:hover { filter: brightness(1.1); }
+.brs-note { margin: 0; color: #ffd1d1; font-weight: 700; }
+@media (max-width: 1099px) {
+  .brs-rank-list { grid-template-columns: repeat(5, minmax(0, 1fr)); row-gap: 24px; }
+  .brs-main { grid-template-columns: auto minmax(0, 1fr); }
+  .brs-emblem { grid-column: 1 / -1; justify-self: center; width: clamp(120px, 26vw, 200px); order: -1; }
+}
+@media (max-width: 760px) {
+  .brs-main, .brs-defeat .brs-main { grid-template-columns: 1fr; justify-items: center; }
+  .brs-panel { width: 100%; }
+  .bowie-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 8px; }
+  .bst-cell:nth-child(3) { border-left: 0; }
+}
+@media (max-width: 520px) {
+  .brs-rank-list { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+  .brs-btn { min-width: 0; flex: 1 1 140px; }
+  .brs-progress { grid-template-columns: 1fr auto; }
+  .brs-bar { grid-column: 1 / -1; grid-row: 2; }
+}

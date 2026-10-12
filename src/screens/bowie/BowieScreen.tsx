@@ -20,7 +20,9 @@ import { BowieAudio, type Playing } from '../../ui/bowie/audio';
 import { SoundSettings } from '../../ui/bowie/SoundSettings';
 import { useTitleCall } from '../../ui/bowie/TitleCall';
 import { BOWIE_SPRITES, bombCenter, HERO_SPRITES, stageGeometry, type Box, type StageGeometry } from '../../ui/bowie/geometry';
-import { BOWIE_TAUNTS, drawBowieTaunt, type BowieTaunt } from '../../ui/bowie/taunts';
+import { BOWIE_TAUNTS, drawBowieTaunt } from '../../ui/bowie/taunts';
+import { emblemUrl, ResultView, type Result } from '../../ui/bowie/BowieResults';
+import { accuracyOf, BOWIE_RANKS, resultRank } from '../../core/bowie/results';
 
 const img = import.meta.glob('../../assets/bowie/{characters,scenes}/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 const url = (file: string) => Object.entries(img).find(([p]) => p.endsWith(`/${file}`))?.[1] ?? '';
@@ -36,8 +38,18 @@ const SCENE = {
   danceUp: url('hero_dance_up.webp'),
   danceDown: url('hero_dance_down.webp'),
 };
-/** ダンスの拍（クリアの曲は約150 BPM。1拍ごとに跳ね、両手は半拍ずつ上げ下げします） */
-const DANCE_BEAT_MS = 400;
+/** 勝敗の演出と戦績の画面の画像 */
+const RESULT_IMAGES = {
+  defeat: SCENE.defeat,
+  victory: url('bowie_victory_screen.webp'),
+  background: SCENE.background,
+  resultsBackground: url('bowie_title_background.webp'),
+  danceUp: SCENE.danceUp,
+  danceDown: SCENE.danceDown,
+  heroVictory: url(HERO_SPRITES.hero_victory!.file),
+  heroHit: url(HERO_SPRITES.hero_hit!.file),
+  bowieDespair: url(BOWIE_SPRITES.bowie_despair!.file),
+};
 /** カットインのセリフの間の音楽の大きさ（設定の音量に対する割合） */
 const BGM_DUCK = 0.35;
 
@@ -71,18 +83,6 @@ function withFirst(play: BowieQuestion[][], ids: string[], perStage: number): Bo
 
 type HeroFace = 'hero_idle' | 'hero_disarm' | 'hero_danger' | 'hero_hit' | 'hero_victory';
 type BowieMood = 'bowie_idle' | 'bowie_laugh' | 'bowie_frustrated' | 'bowie_despair';
-type ResultStep = 'explode' | 'defeat' | 'taunt' | 'dance' | 'victory' | 'despair';
-interface Result {
-  kind: 'lose' | 'win';
-  step: ResultStep;
-  score: number;
-  solved: number;
-  total: number;
-  record: BowieRecord;
-  newBest: boolean;
-  saved: boolean;
-  taunt?: BowieTaunt;
-}
 
 const isControl = (el: EventTarget | null) => !!(el as HTMLElement | null)?.closest?.('button, input, select, textarea, a, label');
 
@@ -115,7 +115,12 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     audio.preload();
     audio.unlock();
     // 結果・カットインの画像も先に読み込みます（出す瞬間に空の画面にならないように）
-    for (const src of [...BOWIE_TAUNTS.map((t) => t.src), ...BOWIE_CUTINS.map((c) => url(c.image)), SCENE.defeat, SCENE.danceUp, SCENE.danceDown]) {
+    for (const src of [
+      ...BOWIE_TAUNTS.map((t) => t.src),
+      ...BOWIE_CUTINS.map((c) => url(c.image)),
+      ...Object.values(RESULT_IMAGES),
+      ...BOWIE_RANKS.flatMap((r) => [emblemUrl(r.id, 'full'), emblemUrl(r.id, 'mark')]),
+    ]) {
       const image = new Image();
       image.src = src;
     }
@@ -274,19 +279,47 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     [audio, rerender],
   );
 
+  /** 勝敗が決まったときに1回だけ：成績を固定し、記録（ハイスコア・プレイ数・クリア数）を保存します */
   const finish = (kind: 'lose' | 'win', g: BowieGame) => {
     if (finished.current) return null;
     finished.current = true;
     const saved = saveBowieResult(profile, { score: g.score, solved: g.solved, cleared: kind === 'win' });
     setRecord(saved.record);
-    return { kind, score: g.score, solved: g.solved, total: g.total, record: saved.record, newBest: saved.newBest, saved: saved.saved };
+    const stats = {
+      score: g.score,
+      solved: g.solved,
+      total: g.total,
+      correctKeyCount: g.correctKeyCount,
+      mistypeCount: g.mistypeCount,
+      accuracy: accuracyOf(g.correctKeyCount, g.mistypeCount),
+    };
+    return { kind, stats, rank: resultRank(g.score, kind === 'win', g.total), record: saved.record, newBest: saved.newBest, saved: saved.saved };
+  };
+  /** いまの結果の場面（「演出を飛ばす」の連打でも、最新の場面から次へ進めるように） */
+  const resultRef = useRef<Result | null>(null);
+  const show = (r: Result | null) => {
+    resultRef.current = r;
+    setResult(r);
   };
 
-  /** 煽りの画面の声：笑い声が終わったら、主人公の鳴き声（どの画像でも同じ順番。再挑戦・ホームで止めると、あとから鳴りません） */
-  async function tauntVoices(my: number) {
+  /**
+   * 敗北の後半：煽りの画像（選んだ1枚）と笑い声 → 笑い声が終わったら主人公の鳴き声 → 鳴き声が終わったら敗北の戦績。
+   * 各 await のあとに世代を確かめ、再挑戦・画面の移動・飛ばしたあとに前の音や場面が戻らないようにします
+   */
+  async function loseTail(base: Omit<Result, 'step'>, my: number) {
+    show({ ...base, step: 'taunt' });
     await audio.play('laugh').ended;
     if (gen.current !== my) return;
-    audio.play('hero_cry');
+    await audio.play('hero_cry').ended;
+    if (gen.current !== my) return;
+    show({ ...base, step: 'stats' });
+  }
+  /** 勝利の後半：ボウイの絶望と敗北のセリフ → セリフが終わったら勝利の戦績 */
+  async function winTail(base: Omit<Result, 'step'>, my: number) {
+    show({ ...base, step: 'despair' });
+    await audio.play('loss_line').ended;
+    if (gen.current !== my) return;
+    show({ ...base, step: 'stats' });
   }
 
   /**
@@ -306,11 +339,10 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     setShake((n) => n + 1);
     await Promise.all([audio.play('explosion').ended, audio.play('hero_hit_voice').ended]);
     if (gen.current !== my) return;
-    setResult({ ...base, step: 'defeat' });
+    show({ ...base, step: 'defeat' });
     await audio.play('defeat').ended;
     if (gen.current !== my) return;
-    setResult({ ...base, step: 'taunt' });
-    void tauntVoices(my);
+    await loseTail(base, my);
   }
 
   /**
@@ -325,14 +357,14 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     audio.stopBgm();
     setHeroFace('hero_victory');
     setBowieMood('bowie_despair');
-    setResult({ ...base, step: 'dance' });
+    show({ ...base, step: 'dance' });
     await audio.play('hero_clear_bgm').ended;
     if (gen.current !== my) return;
-    setResult({ ...base, step: 'victory' });
+    // VICTORY の画像を画面全体に、同時に VICTORY の音声
+    show({ ...base, step: 'victory' });
     await audio.play('victory').ended;
     if (gen.current !== my) return;
-    setResult({ ...base, step: 'despair' });
-    audio.play('loss_line');
+    await winTail(base, my);
   }
 
   /**
@@ -340,11 +372,22 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
    * 敗北：煽りの画像（選んだ1枚）と、笑い声 → 主人公の鳴き声を各1回。勝利（ダンス・VICTORY）：クリアの表示へ
    */
   const skip = () => {
-    if (!result) return;
+    const r = resultRef.current;
+    if (!r || r.step === 'stats') return;
     gen.current++;
+    const my = gen.current;
     audio.stopAll();
-    setResult({ ...result, step: result.kind === 'lose' ? 'taunt' : 'despair' });
-    if (result.kind === 'lose') void tauntVoices(gen.current);
+    const { step: _step, ...base } = r;
+    void _step;
+    if (r.kind === 'lose') {
+      // DEFEAT の場面 → 煽りの画像と笑い声 → 鳴き声 → 戦績。煽りの場面（笑い声・鳴き声のあいだ）→ すぐ戦績（同じ声を流し直しません）
+      if (r.step === 'taunt') show({ ...base, step: 'stats' });
+      else void loseTail(base, my);
+    } else {
+      // ダンス・VICTORY → ボウイの絶望と敗北のセリフ → 戦績。絶望の場面 → すぐ戦績
+      if (r.step === 'despair') show({ ...base, step: 'stats' });
+      else void winTail(base, my);
+    }
   };
 
   // ---------------------------------------------------------------- 開始・再挑戦・終了
@@ -361,7 +404,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     setImeHint(false);
     setSoundOpen(false);
     setHowtoOpen(false);
-    setResult(null);
+    show(null);
     finished.current = false;
     cutinSounds.current = { rumble: null, line: false, no: 0 };
     setLevelUp(null);
@@ -763,15 +806,11 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
       {result && (
         <ResultView
           result={result}
+          images={RESULT_IMAGES}
           onRetry={startGame}
-          onHome={() => leave('/home')}
+          // 「ゲーム選択へ」：ゲームモードのゲームの選択（#/game）へ戻ります
+          onSelect={() => leave('/game')}
           onSkip={skip}
-          defeatImage={SCENE.defeat}
-          background={SCENE.background}
-          danceUp={SCENE.danceUp}
-          danceDown={SCENE.danceDown}
-          heroVictory={url(HERO_SPRITES.hero_victory!.file)}
-          bowieDespair={url(BOWIE_SPRITES.bowie_despair!.file)}
         />
       )}
     </main>
@@ -868,116 +907,6 @@ function Cutin({ no, paused, totalMs, entryMs, exitMs }: { no: number; paused: b
       <div className="bowie-cutin-strip">
         <img className="bowie-cutin-back" src={src} alt="" />
         <img className="bowie-cutin-img" src={src} alt="" data-testid="bowie-cutin-img" />
-      </div>
-    </div>
-  );
-}
-
-function ResultView({
-  result,
-  onRetry,
-  onHome,
-  onSkip,
-  defeatImage,
-  background,
-  danceUp,
-  danceDown,
-  heroVictory,
-  bowieDespair,
-}: {
-  result: Result;
-  onRetry: () => void;
-  onHome: () => void;
-  onSkip: () => void;
-  defeatImage: string;
-  background: string;
-  danceUp: string;
-  danceDown: string;
-  heroVictory: string;
-  bowieDespair: string;
-}) {
-  const lose = result.kind === 'lose';
-  const playing = result.step === 'explode' || result.step === 'defeat' || result.step === 'dance' || result.step === 'victory';
-  const busy = useRef(false);
-  const once = (fn: () => void) => () => {
-    if (busy.current) return;
-    busy.current = true;
-    fn();
-  };
-  // 敗北の音声の間：DEFEAT の画像だけを画面全体に（セリフ・点数・操作の案内は重ねません）。音声が終わると自動で煽りの画面へ。
-  // 「演出を飛ばす」だけは、画像に重ならないよう画像の外（下の帯）に置きます
-  if (lose && result.step === 'defeat') {
-    return (
-      <div className="bowie-result is-lose step-defeat" data-testid="bowie-result" data-kind="lose" data-step="defeat">
-        <div className="bowie-defeat">
-          <img className="bowie-defeat-back" src={defeatImage} alt="" />
-          <img className="bowie-defeat-img" src={defeatImage} alt="DEFEAT" data-testid="bowie-defeat" />
-        </div>
-        <div className="bowie-defeat-bar">
-          <button type="button" className="btn bowie-skip-quiet" onClick={onSkip} data-testid="bowie-skip">
-            演出を飛ばす
-          </button>
-        </div>
-      </div>
-    );
-  }
-  // 全問クリアの直後：クリアの曲が流れている間、ステージの背景で主人公が踊ります（曲が終わると勝利の表示へ）。
-  // 両手を上げた姿・下げた姿を半拍ずつ切り替え、1拍ごとに小さく跳ね、2拍で左右に揺れます（2枚は同じ範囲・大きさで切り出してあり、体はずれません）
-  if (!lose && result.step === 'dance') {
-    return (
-      <div className="bowie-result is-win step-dance" data-testid="bowie-result" data-kind="win" data-step="dance">
-        <div className="bowie-dance" style={{ backgroundImage: `url(${background})`, ['--beat' as string]: `${DANCE_BEAT_MS}ms` } as CSSProperties} data-testid="bowie-dance">
-          <div className="bowie-dance-sway">
-            <div className="bowie-dance-jump">
-              <img className="bowie-dance-frame is-up" src={danceUp} alt="両手を上げて喜ぶ主人公" data-testid="bowie-dance-up" draggable={false} />
-              <img className="bowie-dance-frame is-down" src={danceDown} alt="" data-testid="bowie-dance-down" draggable={false} />
-            </div>
-          </div>
-        </div>
-        <div className="bowie-defeat-bar">
-          <button type="button" className="btn bowie-skip-quiet" onClick={onSkip} data-testid="bowie-skip">
-            演出を飛ばす
-          </button>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className={`bowie-result is-${result.kind} step-${result.step}`} data-testid="bowie-result" data-kind={result.kind} data-step={result.step}>
-      <div className="bowie-result-art">
-        {lose ? (
-          result.step === 'taunt' && result.taunt ? <img src={result.taunt.src} alt={`ボウイ「${result.taunt.line}」`} data-testid="bowie-taunt" data-taunt-id={result.taunt.id} /> : null
-        ) : result.step === 'victory' ? (
-          <img className="bowie-result-figure" src={heroVictory} alt="勝利した主人公" />
-        ) : (
-          <img className="bowie-result-figure" src={bowieDespair} alt="絶望するボウイ" />
-        )}
-      </div>
-      <div className="bowie-result-panel">
-        <h2>{lose ? 'ゲームオーバー' : '全問クリア！'}</h2>
-        <p className="bowie-result-score">
-          最終得点 <strong data-testid="bowie-final-score">{result.score}</strong> 点
-        </p>
-        <p>
-          解除 <strong data-testid="bowie-solved">{result.solved}</strong> / {result.total}
-        </p>
-        <p data-testid="bowie-result-best">
-          ハイスコア <strong>{result.record.best}</strong> 点{result.newBest && <span className="bowie-new">新記録！</span>}
-        </p>
-        {!result.saved && <p className="hint">記録をこの端末に保存できませんでした（ゲームは続けられます）。</p>}
-        <div className="bowie-actions">
-          {playing && (
-            <button type="button" className="btn" onClick={onSkip} data-testid="bowie-skip">
-              演出を飛ばす
-            </button>
-          )}
-          <button type="button" className="btn btn-primary" onClick={once(onRetry)} data-testid="bowie-retry">
-            再挑戦
-          </button>
-          <button type="button" className="btn" onClick={once(onHome)} data-testid="bowie-home">
-            ホームへ
-          </button>
-        </div>
       </div>
     </div>
   );

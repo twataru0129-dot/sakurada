@@ -227,6 +227,11 @@
    "file": "bowie_title_background.webp",
    "w": 1672,
    "h": 941
+  },
+  "bowie_victory_screen": {
+   "file": "bowie_victory_screen.webp",
+   "w": 1672,
+   "h": 941
   }
  },
  "bomb": {
@@ -248,6 +253,88 @@
    "file": "hero_dance_down.webp",
    "w": 1012,
    "h": 820
+  }
+ },
+ "emblems": {
+  "rank_01_warrior": {
+   "full": "rank_01_warrior.webp",
+   "mark": "rank_01_warrior_mark.webp",
+   "w": 512,
+   "h": 525,
+   "markW": 260,
+   "markH": 228
+  },
+  "rank_02_elite": {
+   "full": "rank_02_elite.webp",
+   "mark": "rank_02_elite_mark.webp",
+   "w": 512,
+   "h": 530,
+   "markW": 260,
+   "markH": 230
+  },
+  "rank_03_master": {
+   "full": "rank_03_master.webp",
+   "mark": "rank_03_master_mark.webp",
+   "w": 512,
+   "h": 517,
+   "markW": 260,
+   "markH": 225
+  },
+  "rank_04_grandmaster": {
+   "full": "rank_04_grandmaster.webp",
+   "mark": "rank_04_grandmaster_mark.webp",
+   "w": 512,
+   "h": 536,
+   "markW": 260,
+   "markH": 233
+  },
+  "rank_05_epic": {
+   "full": "rank_05_epic.webp",
+   "mark": "rank_05_epic_mark.webp",
+   "w": 512,
+   "h": 522,
+   "markW": 260,
+   "markH": 228
+  },
+  "rank_06_legend": {
+   "full": "rank_06_legend.webp",
+   "mark": "rank_06_legend_mark.webp",
+   "w": 512,
+   "h": 530,
+   "markW": 260,
+   "markH": 222
+  },
+  "rank_07_mythic": {
+   "full": "rank_07_mythic.webp",
+   "mark": "rank_07_mythic_mark.webp",
+   "w": 512,
+   "h": 554,
+   "markW": 260,
+   "markH": 230
+  },
+  "rank_08_g_mythic": {
+   "full": "rank_08_g_mythic.webp",
+   "mark": "rank_08_g_mythic_mark.webp",
+   "w": 512,
+   "h": 538,
+   "markW": 260,
+   "markH": 224
+  },
+  "rank_09_h_mythic": {
+   "full": "rank_09_h_mythic.webp",
+   "mark": "rank_09_h_mythic_mark.webp",
+   "w": 512,
+   "h": 525,
+   "markW": 260,
+   "markH": 221
+  },
+  "rank_10_i_mythic": {
+   "full": "rank_10_i_mythic.webp",
+   "mark": "rank_10_i_mythic_mark.webp",
+   "w": 512,
+   "h": 541,
+   "markW": 260,
+   "markH": 232
   }
  }
 }
