@@ -147,9 +147,16 @@ test.describe('ボウイの爆弾遊戯：段階アップ', () => {
     }
     // 金属音（重ねた4つの音）が段階アップごとに1回。第4段階の始まりには、最終形態への変身の上昇音と衝撃音（各1つ）が加わります（v1.8.0）
     expect(await page.evaluate(() => (window as unknown as { __osc: number }).__osc)).toBe(12 + 2);
-    // BGM は1つのまま（流し直さない）。ボイスの間に下げ、終わると戻す（段階アップ3回ぶん）
+    // 通常の BGM は1つのまま（流し直さない）。第4段階の始まり（60問のあと）で、最終決戦の BGM（約347秒）に1回だけ切り替わり、
+    // 通常の BGM はそのフェードアウトで終わります（v1.8.1）。ボイスの間に下げ、終わると戻す（段階アップ3回ぶん）
     const bgm = a.filter((r) => r.loop);
-    expect(bgm).toHaveLength(1);
+    expect(bgm).toHaveLength(2);
+    expect(near(bgm[0]!.d, 116.3, 0.5)).toBe(true);
+    expect(near(bgm[1]!.d, 347.1, 0.5)).toBe(true);
+    const s4 = m.find(([, k]) => k === 'levelup-4')![0];
+    expect(bgm[1]!.s).toBeGreaterThanOrEqual(s4 - 50);
+    expect(bgm[0]!.e).not.toBeNull();
+    expect(bgm[0]!.e!).toBeGreaterThan(s4);
     const ramps = await page.evaluate(() => (window as unknown as { __ramps: number[] }).__ramps);
     expect(ramps.filter((v) => v === 0.35).length).toBeGreaterThanOrEqual(3);
     expect(ramps.at(-1)).toBe(1);
