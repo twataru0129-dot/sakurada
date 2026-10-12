@@ -315,6 +315,102 @@ export class BowieAudio {
     }
   }
 
+  /**
+   * 最終形態への変身（v1.8.0）の効果音（効果音の音量）。素材の音声はないため、Web Audio で作ります。
+   * - charge：魔力が集まる上昇音（ノイズを通す帯域と、のこぎり波の高さを durMs かけて上げます）
+   * - impact：閃光のピークの重い衝撃音（低い音が下がりながら消える音と、こもったノイズ）
+   * gain は BOWIE_TRANSFORM の音量（段階のボイスが聞き取れるように小さめ）。止めるときは stopAll で止まります。
+   */
+  transformSound(kind: 'charge' | 'impact', durMs: number, gain: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.buses) return;
+    try {
+      const t = ctx.currentTime;
+      const d = Math.max(0.05, durMs / 1000);
+      const out = ctx.createGain();
+      out.gain.value = gain;
+      out.connect(this.buses.sfx);
+      const sources: AudioScheduledSourceNode[] = [];
+      const noise = (len: number) => {
+        const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * len), ctx.sampleRate);
+        const ch = buf.getChannelData(0);
+        for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        return src;
+      };
+      if (kind === 'charge') {
+        const n = noise(d + 0.1);
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.Q.value = 6;
+        bp.frequency.setValueAtTime(300, t);
+        bp.frequency.exponentialRampToValueAtTime(2600, t + d);
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.0001, t);
+        ng.gain.exponentialRampToValueAtTime(0.9, t + d);
+        ng.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.08);
+        n.connect(bp).connect(ng).connect(out);
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(90, t);
+        o.frequency.exponentialRampToValueAtTime(420, t + d);
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 1400;
+        const og = ctx.createGain();
+        og.gain.setValueAtTime(0.0001, t);
+        og.gain.exponentialRampToValueAtTime(0.25, t + d);
+        og.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.08);
+        o.connect(lp).connect(og).connect(out);
+        sources.push(n, o);
+        n.start(t);
+        o.start(t);
+        n.stop(t + d + 0.1);
+        o.stop(t + d + 0.1);
+      } else {
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(110, t);
+        o.frequency.exponentialRampToValueAtTime(32, t + d);
+        const og = ctx.createGain();
+        og.gain.setValueAtTime(0, t);
+        og.gain.linearRampToValueAtTime(1, t + 0.008);
+        og.gain.exponentialRampToValueAtTime(0.0008, t + d);
+        o.connect(og).connect(out);
+        const n = noise(d);
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(1800, t);
+        lp.frequency.exponentialRampToValueAtTime(120, t + d * 0.6);
+        const ng = ctx.createGain();
+        ng.gain.setValueAtTime(0.7, t);
+        ng.gain.exponentialRampToValueAtTime(0.0008, t + d * 0.6);
+        n.connect(lp).connect(ng).connect(out);
+        sources.push(o, n);
+        o.start(t);
+        n.start(t);
+        o.stop(t + d + 0.05);
+        n.stop(t + d + 0.05);
+      }
+      const handle = {
+        stop: () => {
+          for (const s of sources) {
+            try {
+              s.stop();
+            } catch {
+              /* もう止まっています */
+            }
+          }
+        },
+      };
+      this.active.add(handle);
+      sources[0]!.onended = () => this.active.delete(handle);
+    } catch {
+      /* 鳴らせなくても演出は進みます */
+    }
+  }
+
   /** ミスの音：続けてミスしても、短い間隔をあけて鳴らします */
   typo(minGapMs: number): void {
     const now = performance.now();

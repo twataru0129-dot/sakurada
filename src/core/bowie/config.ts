@@ -95,7 +95,8 @@ export const BOWIE_CUTINS = [
   // v1.6.1：2〜4回目は文字入りの画像（セリフは画像の中にあり、画面には重ねません。line は読み上げ用の説明だけに使います）
   { image: 'bowie_cutin_02_text.webp', voice: 'cutin_voice_02', voiceMs: 2429, line: '次の戦いの準備をしよう' },
   { image: 'bowie_cutin_03_text.webp', voice: 'cutin_voice_03', voiceMs: 3370, line: 'さて、私が流れを変えてみせよう' },
-  { image: 'bowie_cutin_04_text.webp', voice: 'cutin_voice_04', voiceMs: 1776, line: '払いのける！' },
+  // v1.8.0：4回目（通算70問のあと。いつも変身のあとの第4段階）は最終形態の文字入り画像（ボイスは同じ）
+  { image: 'bowie_final_cutin_04.webp', voice: 'cutin_voice_04', voiceMs: 1776, line: '払いのける！' },
 ] as const;
 
 /**
@@ -110,6 +111,48 @@ export const BOWIE_LEVEL_UPS: Record<2 | 3 | 4, { title: string; level: string; 
   3: { title: '力の解放', level: 'LEVEL 03', voice: 'levelup_voice_3', voiceMs: 3762, line: 'それで？反撃すらできないのですか？' },
   4: { title: '終焉の遊戯', level: 'FINAL LEVEL', voice: 'levelup_voice_4', voiceMs: 1541, line: '勝負を決めますよ！' },
 };
+
+/**
+ * 最終形態への変身（v1.8.0）：第4段階（文章）へ進む段階アップ（通算60問の解除のあと）の中で、1プレイに1回だけ。
+ * 時間は段階アップの始まりからのゲームの時間（一時停止の時間を除き、開発用の倍率を掛けます）。試遊で調整するときは、ここだけを変えます。
+ * - chargeAtMs：赤い魔力がボウイの周りに集まり始める（段階のボイスの始まり＝levelUp.voiceDelayMs 付近）
+ * - peakAtMs：閃光のピーク。この瞬間に背景（通常 → 赤い最終決戦）と姿（通常 → 最終形態の待機）を同時に切り替え、
+ *   重い衝撃音と小さな画面の揺れを1回。chargeAtMs からここまでが魔力の強まる時間（約0.35秒）です
+ * - flashMs：赤白の閃光と円形の衝撃波の長さ（ピークの前後）、settleMs：魔力の粒子と光が収まる時間
+ * - shake：画面の揺れ（px・ms）。「視差効果を減らす」設定では揺れと強い閃光を使わず、fadeMs の短いフェードにします
+ * - sound：効果音の音量（効果音の設定に従います。ボイスが聞き取れるように小さめ）と長さ
+ * 段階アップの長さは「ボイスの終わり＋余韻」と「変身の余韻の終わり（peakAtMs＋settleMs）＋余韻」の長い方で、
+ * ボイスも変身も終わってから第61問を投球します（セリフを途中で切りません）。
+ */
+export const BOWIE_TRANSFORM = {
+  /** 変身する段階（第4段階の始まり） */
+  stage: 4 as StageNo,
+  chargeAtMs: 450,
+  peakAtMs: 820,
+  flashMs: 260,
+  settleMs: 520,
+  fadeMs: 240,
+  shake: { px: 6, ms: 320 },
+  sound: { chargeGain: 0.5, impactGain: 0.85, impactMs: 700 },
+} as const;
+
+/** 変身のある段階アップの全体の長さ（ボイスの終わりと、変身の余韻の終わりの遅い方 → 余韻） */
+export function transformIntroMs(voiceMs: number): number {
+  return Math.max(levelUpTotalMs(voiceMs), BOWIE_TRANSFORM.peakAtMs + BOWIE_TRANSFORM.settleMs + BOWIE_CONFIG.levelUp.tailMs);
+}
+
+/**
+ * 最終形態の「放つ」動作（v1.8.0）：顔に手を添えた待機 → 構える → 送り出す → 放つ（このあと手を離れます）。
+ * 投球の長さ（throwMs＝350ms）と、手を離れた瞬間に入力と飛行の計時を始める決まりは通常と同じです。
+ * 各画像の長さの比（約110ms・120ms・120ms）。手を離れたあとは「放つ」の姿のまま余韻（followThroughMs）を見せます。
+ */
+export const FINAL_THROW_FRAMES = [0.314, 0.343, 0.343] as const;
+/**
+ * 最終形態で解除されたときの怒りの姿（bowie_final_angry）を出す時間（解除の時刻から。ゲームの時間）。
+ * 次の投球はこれまでどおり解除と同時に始まり（テンポは変えません）、その構える〜放つ（350ms）の絵が先に出て、
+ * そのあと（手を離れたあとの余韻の代わりに）この時間まで怒りの姿を見せてから、待機（危険なら高笑い）に戻ります。
+ */
+export const FINAL_ANGRY_MS = 950;
 
 /** 段階アップの全体の長さ（文字が出る → ボイス → 余韻） */
 export function levelUpTotalMs(voiceMs: number): number {

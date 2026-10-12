@@ -177,6 +177,61 @@ def emblems():
     return out
 
 
+FINAL = ['bowie_final_idle', 'bowie_final_release_prepare', 'bowie_final_release_mid', 'bowie_final_release', 'bowie_final_angry', 'bowie_final_laugh']
+# 最終形態の「放つ」（bowie_final_release）の手のひらの前：独立した爆弾を出す位置（元の画像の px。手の赤い光の中心、指先のすぐ前）
+FINAL_EMIT = (112, 250)
+
+
+def final_characters():
+    """
+    ボウイの最終形態（v1.8.0）：待機・構える・送り出す・放つ・怒り・高笑い。
+    - 通常の画像は体の高さ（切り抜いた高さ）をそろえますが、最終形態は姿勢で体の高さが変わる（放つ・怒りは踏み込んで低い）ため、
+      高さでそろえると放つ瞬間に体が大きくなります。そこで、同じ大きさで描かれた 1122×1402 の5枚は同じ倍率で縮小し、
+      高笑い（1024×1536 で約1.1倍に描かれています）だけは、待機と頭頂〜靴底の高さが同じになる倍率にします。
+    - 足元は、いちばん下 10％ の行（靴だけの範囲）の左右の中央。画面では、この点を通常のボウイと同じ足元の位置に合わせます。
+    - bodyH には「待機の体の高さ」を各画像の高さの比で入れます（geometry.ts は bodyH で表示の高さを決めるため、
+      これで全6枚が同じ倍率で表示されます）。
+    - 体から離れたほぼ透明な点は消します（ダンスの画像と同じ処理。放つ姿の赤い光の粒は不透明なので残ります）。
+    """
+    from scipy import ndimage
+
+    arrays = {}
+    for n in FINAL:
+        a = np.array(Image.open(SRC / 'images' / 'characters' / f'{n}.png').convert('RGBA'))
+        body = ndimage.binary_dilation(a[..., 3] > 32, iterations=6)
+        a[..., 3][~body] = 0
+        arrays[n] = a
+    boxes = {n: bbox(a[..., 3], 40) for n, a in arrays.items()}
+    idle_h = boxes['bowie_final_idle'][3] - boxes['bowie_final_idle'][1]
+    base = BOWIE_FIGURE_PX / idle_h
+    laugh_h = boxes['bowie_final_laugh'][3] - boxes['bowie_final_laugh'][1]
+    out = {}
+    for n, a in arrays.items():
+        img = Image.fromarray(a)
+        box = boxes[n]
+        s = base * (idle_h / laugh_h if n == 'bowie_final_laugh' else 1)
+        pad = 6
+        x0, y0 = max(0, box[0] - pad), max(0, box[1] - pad)
+        x1, y1 = min(img.width, box[2] + pad), min(img.height, box[3] + pad)
+        fx = foot_x(a[..., 3], box)
+        crop = img.crop((x0, y0, x1, y1))
+        res = crop.resize((round(crop.width * s), round(crop.height * s)), Image.LANCZOS)
+        res.save(OUT / 'characters' / f'{n}.webp', 'WEBP', quality=Q, method=6)
+        info = {
+            'file': f'{n}.webp',
+            'w': res.width,
+            'h': res.height,
+            'footX': round((fx - x0) / crop.width, 4),
+            'footY': round((box[3] - y0) / crop.height, 4),
+            # 待機の体の高さ（画像の高さに対する比）：6枚が同じ倍率で表示されます
+            'bodyH': round(BOWIE_FIGURE_PX / res.height, 4),
+        }
+        if n == 'bowie_final_release':
+            info['emit'] = {'x': round((FINAL_EMIT[0] - x0) / crop.width, 4), 'y': round((FINAL_EMIT[1] - y0) / crop.height, 4)}
+        out[n] = info
+    return out
+
+
 def main():
     def bowie_scale(box):
         return BOWIE_FIGURE_PX / (box[3] - box[1])
@@ -206,6 +261,10 @@ def main():
     sprites['emblems'] = emblems()
     # 勝利の VICTORY の演出画像（v1.7.0）
     sprites['scenes']['bowie_victory_screen'] = scene('bowie_victory_screen', 1672, False)
+    # 最終形態（v1.8.0）：キャラクター6枚、赤い最終決戦の背景、4回目の文字入りカットイン、最終形態の煽り10枚
+    sprites['bowie'].update(final_characters())
+    for name in ['stage_background_final', 'bowie_final_cutin_04'] + [f'game_over_final_{i:02d}' for i in range(1, 11)]:
+        sprites['scenes'][name] = scene(name, 1672, False)
     (OUT / 'audio').mkdir(parents=True, exist_ok=True)
     for f in sorted((SRC / 'audio').glob('*.mp3')):
         shutil.copyfile(f, OUT / 'audio' / f.name)

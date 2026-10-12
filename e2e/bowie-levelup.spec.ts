@@ -145,8 +145,8 @@ test.describe('ボウイの爆弾遊戯：段階アップ', () => {
       const nextThrow = a.find((r) => near(r.d, THROW, 0.08) && r.s > s0)!;
       expect(nextThrow.s).toBeGreaterThanOrEqual(voices[0]!.e! - 30);
     }
-    // 金属音（重ねた4つの音）が段階アップごとに1回
-    expect(await page.evaluate(() => (window as unknown as { __osc: number }).__osc)).toBe(12);
+    // 金属音（重ねた4つの音）が段階アップごとに1回。第4段階の始まりには、最終形態への変身の上昇音と衝撃音（各1つ）が加わります（v1.8.0）
+    expect(await page.evaluate(() => (window as unknown as { __osc: number }).__osc)).toBe(12 + 2);
     // BGM は1つのまま（流し直さない）。ボイスの間に下げ、終わると戻す（段階アップ3回ぶん）
     const bgm = a.filter((r) => r.loop);
     expect(bgm).toHaveLength(1);
