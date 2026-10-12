@@ -26,6 +26,8 @@ export interface Result {
   newBest: boolean;
   saved: boolean;
   taunt?: BowieTaunt;
+  /** 勝敗が決まったときに最終形態だったか（v1.8.0。ダンス・絶望の場面の背景と、絶望へ切り替わるときの魔力が消える表現） */
+  final?: boolean;
 }
 
 const emblemUrls = import.meta.glob('../../assets/bowie/emblems/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
@@ -35,6 +37,8 @@ export interface ResultImages {
   defeat: string;
   victory: string;
   background: string;
+  /** 最終形態の赤い最終決戦の背景（v1.8.0） */
+  backgroundFinal: string;
   resultsBackground: string;
   danceUp: string;
   danceDown: string;
@@ -73,6 +77,8 @@ export function ResultView({ result, images, onRetry, onSelect, onSkip }: { resu
     fn();
   };
   const { step } = result;
+  // 変身のあとは、ダンス・絶望の場面も最終決戦の背景のまま（VICTORY・DEFEAT・戦績は専用の画面です）
+  const stageBackground = result.final ? images.backgroundFinal : images.background;
   if (step === 'stats') return lose ? <DefeatStats result={result} images={images} onRetry={once(onRetry)} onSelect={once(onSelect)} /> : <VictoryStats result={result} images={images} onRetry={once(onRetry)} onSelect={once(onSelect)} />;
   if (lose && (step === 'defeat' || step === 'explode')) return <FullScene step="defeat" kind="lose" src={images.defeat} alt="DEFEAT" testId="bowie-defeat" onSkip={onSkip} />;
   if (lose && step === 'taunt' && result.taunt) return <FullScene step="taunt" kind="lose" src={result.taunt.src} alt={`ボウイ「${result.taunt.line}」`} testId="bowie-taunt" tauntId={result.taunt.id} onSkip={onSkip} />;
@@ -80,7 +86,7 @@ export function ResultView({ result, images, onRetry, onSelect, onSkip }: { resu
   if (!lose && step === 'dance') {
     return (
       <div className="bowie-result is-win step-dance" data-testid="bowie-result" data-kind="win" data-step="dance">
-        <div className="bowie-dance" style={{ backgroundImage: `url(${images.background})`, ['--beat' as string]: `${DANCE_BEAT_MS}ms` } as CSSProperties} data-testid="bowie-dance">
+        <div className="bowie-dance" style={{ backgroundImage: `url(${stageBackground})`, ['--beat' as string]: `${DANCE_BEAT_MS}ms` } as CSSProperties} data-testid="bowie-dance">
           <div className="bowie-dance-sway">
             <div className="bowie-dance-jump">
               <img className="bowie-dance-frame is-up" src={images.danceUp} alt="両手を上げて喜ぶ主人公" data-testid="bowie-dance-up" draggable={false} />
@@ -95,8 +101,10 @@ export function ResultView({ result, images, onRetry, onSelect, onSkip }: { resu
   // 勝利の最後の演出：ボウイの絶望（敗北のセリフ）
   return (
     <div className="bowie-result is-win step-despair" data-testid="bowie-result" data-kind="win" data-step="despair">
-      <div className="bowie-despair-scene" style={{ backgroundImage: `url(${images.background})` }}>
+      <div className="bowie-despair-scene" style={{ backgroundImage: `url(${stageBackground})` }} data-background={result.final ? 'final' : 'normal'}>
         <img className="bowie-despair-figure" src={images.bowieDespair} alt="絶望するボウイ" data-testid="bowie-despair" />
+        {/* 最終形態が解けた：切り替わる瞬間に、赤い魔力が短く散って消えます（セリフや戦績への進みは延ばしません） */}
+        {result.final && <span className="bowie-despair-dispel" aria-hidden="true" data-testid="bowie-dispel" />}
       </div>
       <SkipBar onSkip={onSkip} />
     </div>

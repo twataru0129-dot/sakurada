@@ -68,6 +68,58 @@
    "footX": 0.5,
    "footY": 0.996,
    "bodyH": 0.9919
+  },
+  "bowie_final_idle": {
+   "file": "bowie_final_idle.webp",
+   "w": 711,
+   "h": 908,
+   "footX": 0.578,
+   "footY": 0.9957,
+   "bodyH": 0.9912
+  },
+  "bowie_final_release_prepare": {
+   "file": "bowie_final_release_prepare.webp",
+   "w": 718,
+   "h": 908,
+   "footX": 0.5745,
+   "footY": 0.9957,
+   "bodyH": 0.9912
+  },
+  "bowie_final_release_mid": {
+   "file": "bowie_final_release_mid.webp",
+   "w": 726,
+   "h": 908,
+   "footX": 0.5742,
+   "footY": 0.9957,
+   "bodyH": 0.9912
+  },
+  "bowie_final_release": {
+   "file": "bowie_final_release.webp",
+   "w": 718,
+   "h": 880,
+   "footX": 0.635,
+   "footY": 0.9955,
+   "bodyH": 1.0227,
+   "emit": {
+    "x": 0.0818,
+    "y": 0.1639
+   }
+  },
+  "bowie_final_angry": {
+   "file": "bowie_final_angry.webp",
+   "w": 704,
+   "h": 870,
+   "footX": 0.4958,
+   "footY": 0.9955,
+   "bodyH": 1.0345
+  },
+  "bowie_final_laugh": {
+   "file": "bowie_final_laugh.webp",
+   "w": 608,
+   "h": 907,
+   "footX": 0.5981,
+   "footY": 0.9961,
+   "bodyH": 0.9923
   }
  },
  "hero": {
@@ -230,6 +282,66 @@
   },
   "bowie_victory_screen": {
    "file": "bowie_victory_screen.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "stage_background_final": {
+   "file": "stage_background_final.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "bowie_final_cutin_04": {
+   "file": "bowie_final_cutin_04.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_01": {
+   "file": "game_over_final_01.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_02": {
+   "file": "game_over_final_02.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_03": {
+   "file": "game_over_final_03.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_04": {
+   "file": "game_over_final_04.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_05": {
+   "file": "game_over_final_05.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_06": {
+   "file": "game_over_final_06.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_07": {
+   "file": "game_over_final_07.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_08": {
+   "file": "game_over_final_08.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_09": {
+   "file": "game_over_final_09.webp",
+   "w": 1672,
+   "h": 941
+  },
+  "game_over_final_10": {
+   "file": "game_over_final_10.webp",
    "w": 1672,
    "h": 941
   }

@@ -8,7 +8,7 @@
  * 爆弾の位置は毎フレーム、ゲームの時間から計算して直接描きます（再描画はイベントのときだけ）。
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_LEVEL_UPS, BOWIE_TITLE, STAGES, type StageNo } from '../../core/bowie/config';
+import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_LEVEL_UPS, BOWIE_TITLE, BOWIE_TRANSFORM, FINAL_ANGRY_MS, FINAL_THROW_FRAMES, STAGES, type StageNo } from '../../core/bowie/config';
 import { BowieGame, type BowieEvent } from '../../core/bowie/engine';
 import { BOWIE_POOLS, drawPlay, type BowieQuestion } from '../../core/bowie/questions';
 import { displaySegments, shown } from '../../core/bowie/display';
@@ -19,8 +19,8 @@ import { loadBowieSound, saveBowieSound, type BowieSoundLevels } from '../../dat
 import { BowieAudio, type Playing } from '../../ui/bowie/audio';
 import { SoundSettings } from '../../ui/bowie/SoundSettings';
 import { useTitleCall } from '../../ui/bowie/TitleCall';
-import { BOWIE_SPRITES, bombCenter, HERO_SPRITES, stageGeometry, type Box, type StageGeometry } from '../../ui/bowie/geometry';
-import { BOWIE_TAUNTS, drawBowieTaunt } from '../../ui/bowie/taunts';
+import { BOWIE_SPRITES, bombCenter, finalBackground, HERO_SPRITES, stageGeometry, type Box, type StageGeometry } from '../../ui/bowie/geometry';
+import { BOWIE_FINAL_TAUNTS, BOWIE_TAUNTS, drawBowieTaunt } from '../../ui/bowie/taunts';
 import { emblemUrl, ResultView, type Result } from '../../ui/bowie/BowieResults';
 import { accuracyOf, BOWIE_RANKS, resultRank } from '../../core/bowie/results';
 
@@ -28,6 +28,8 @@ const img = import.meta.glob('../../assets/bowie/{characters,scenes}/*.webp', { 
 const url = (file: string) => Object.entries(img).find(([p]) => p.endsWith(`/${file}`))?.[1] ?? '';
 const SCENE = {
   background: url('stage_background.webp'),
+  /** 最終形態（v1.8.0）の赤い最終決戦の背景：変身の閃光のピークから勝敗が決まるまで */
+  backgroundFinal: url('stage_background_final.webp'),
   /** 敗北の音声の間に出す画像（v1.5.3） */
   defeat: url('bowie_defeat.webp'),
   logo: url('title_logo.webp'),
@@ -43,6 +45,7 @@ const RESULT_IMAGES = {
   defeat: SCENE.defeat,
   victory: url('bowie_victory_screen.webp'),
   background: SCENE.background,
+  backgroundFinal: SCENE.backgroundFinal,
   resultsBackground: url('bowie_title_background.webp'),
   danceUp: SCENE.danceUp,
   danceDown: SCENE.danceDown,
@@ -83,6 +86,22 @@ function withFirst(play: BowieQuestion[][], ids: string[], perStage: number): Bo
 
 type HeroFace = 'hero_idle' | 'hero_disarm' | 'hero_danger' | 'hero_hit' | 'hero_victory';
 type BowieMood = 'bowie_idle' | 'bowie_laugh' | 'bowie_frustrated' | 'bowie_despair';
+/**
+ * 投球の絵：0＝気分の姿、1〜3＝構える・腕を出す・放つ（手を離れる前）、4＝手を離れたあとの余韻、
+ * 5＝最終形態で解除されたあとの怒り（投球の 1〜3 のあと、余韻の代わりに FINAL_ANGRY_MS まで）
+ */
+type ThrowFrame = 0 | 1 | 2 | 3 | 4 | 5;
+const NORMAL_SPRITES = ['bowie_idle', 'bowie_release_1', 'bowie_release_2', 'bowie_release_3', 'bowie_release_4', 'bowie_frustrated', 'bowie_laugh', 'bowie_despair'] as const;
+const FINAL_SPRITES = ['bowie_final_idle', 'bowie_final_release_prepare', 'bowie_final_release_mid', 'bowie_final_release', 'bowie_final_angry', 'bowie_final_laugh'] as const;
+type BowieSprite = (typeof NORMAL_SPRITES)[number] | (typeof FINAL_SPRITES)[number];
+/** 最終形態の気分の姿（悔しがり → 怒り、笑い → 高笑い）。絶望は勝利のあとの通常の姿（最終形態が解けた扱い）です */
+const FINAL_MOOD: Record<BowieMood, BowieSprite> = { bowie_idle: 'bowie_final_idle', bowie_frustrated: 'bowie_final_angry', bowie_laugh: 'bowie_final_laugh', bowie_despair: 'bowie_despair' };
+/** 最終形態の放つ動作：構える → 送り出す → 放つ（手を離れる）→ 放つの姿のまま余韻 */
+const FINAL_THROW: Record<1 | 2 | 3 | 4 | 5, BowieSprite> = { 1: 'bowie_final_release_prepare', 2: 'bowie_final_release_mid', 3: 'bowie_final_release', 4: 'bowie_final_release', 5: 'bowie_final_angry' };
+function bowieSprite(final: boolean, frame: ThrowFrame, mood: BowieMood): BowieSprite {
+  if (!final) return frame === 0 || frame === 5 ? mood : (`bowie_release_${frame}` as const);
+  return frame === 0 ? FINAL_MOOD[mood] : FINAL_THROW[frame];
+}
 
 const isControl = (el: EventTarget | null) => !!(el as HTMLElement | null)?.closest?.('button, input, select, textarea, a, label');
 
@@ -117,6 +136,8 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     // 結果・カットインの画像も先に読み込みます（出す瞬間に空の画面にならないように）
     for (const src of [
       ...BOWIE_TAUNTS.map((t) => t.src),
+      ...BOWIE_FINAL_TAUNTS.map((t) => t.src),
+      ...FINAL_SPRITES.map((k) => url(BOWIE_SPRITES[k]!.file)),
       ...BOWIE_CUTINS.map((c) => url(c.image)),
       ...Object.values(RESULT_IMAGES),
       ...BOWIE_RANKS.flatMap((r) => [emblemUrl(r.id, 'full'), emblemUrl(r.id, 'mark')]),
@@ -146,7 +167,20 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   const rerender = useCallback(() => setTick((n) => n + 1), []);
   const [heroFace, setHeroFace] = useState<HeroFace>('hero_idle');
   const [bowieMood, setBowieMood] = useState<BowieMood>('bowie_idle');
-  const [throwFrame, setThrowFrame] = useState<0 | 1 | 2 | 3 | 4>(0);
+  const [throwFrame, setThrowFrame] = useState<ThrowFrame>(0);
+  /**
+   * 最終形態（v1.8.0）：変身の閃光のピーク（engine の transform）で true にし、背景と姿を同じ描画で切り替えます。
+   * 勝敗が決まるまで続き、再挑戦・画面の移動で通常に戻します
+   */
+  const [final, setFinal] = useState(false);
+  /** 変身の演出（魔力・閃光・衝撃波）の表示中（key：表示し直すため） */
+  const [transformFx, setTransformFx] = useState<{ key: number } | null>(null);
+  /** 変身の魔力の上昇音を流したか（段階アップの中で1回だけ） */
+  const transformCharge = useRef(false);
+  /** 変身のピークの小さな画面の揺れ（1回） */
+  const [tShake, setTShake] = useState(0);
+  /** 最終形態で解除されたあとの怒りの姿を出す終わり（ゲームの時間。一時停止で止まり、次の投球の絵より後ろに回ります） */
+  const angryUntil = useRef(-1);
   const [banner, setBanner] = useState<{ key: number; text: string; sub: string } | null>(null);
   /** 段階アップ（第2〜4段階の始まり）の表示中（key：表示し直すため） */
   const [levelUp, setLevelUp] = useState<{ key: number; stage: 2 | 3 | 4 } | null>(null);
@@ -202,6 +236,11 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
               setLevelUp({ key: Date.now(), stage });
               levelUpVoice.current = { stage, played: false };
               audio.metal();
+              if (e.transform) {
+                // 最終形態への変身：魔力・閃光・衝撃波の演出（時間は BOWIE_TRANSFORM。上昇音は毎フレームの更新の中で1回）
+                setTransformFx({ key: Date.now() });
+                transformCharge.current = false;
+              }
             } else {
               // 第1段階の始まり：これまでどおりの表示（段階アップの表示・ボイスは使いません）
               const st = STAGES.find((s) => s.no === e.stage)!;
@@ -209,7 +248,15 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
             }
             break;
           }
+          case 'transform':
+            // 閃光のピーク：背景と姿を同時に最終形態へ（同じ描画で切り替わります）。重い衝撃音と小さな揺れを1回
+            setFinal(true);
+            setBowieMood('bowie_idle');
+            setTShake((n) => n + 1);
+            audio.transformSound('impact', BOWIE_TRANSFORM.sound.impactMs, BOWIE_TRANSFORM.sound.impactGain);
+            break;
           case 'throw':
+            setTransformFx(null);
             if (levelUpVoice.current) {
               // 段階アップの終わり（ボイスは最後まで終わっています）：BGM の大きさを戻します
               levelUpVoice.current = null;
@@ -234,8 +281,10 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
             disarmUntil.current = performance.now() + BOWIE_CONFIG.disarmFxMs;
             setHeroFace('hero_disarm');
             setDanger(false);
+            // 最終形態：解除されて怒る姿（次の投球はすぐ始まり、その構える〜放つの絵が先。怒りはそのあと FINAL_ANGRY_MS まで）
+            if (g.finalForm) angryUntil.current = e.at + g.scaled(FINAL_ANGRY_MS);
             const gg = geoRef.current;
-            const c = gg ? bombCenter(gg, e.progress) : { x: 0, y: 0 };
+            const c = gg ? bombCenter(gg, e.progress, g.finalForm) : { x: 0, y: 0 };
             const key = Date.now() + Math.random();
             setPops((list) => [...list.slice(-3), { key, text: `+${e.points}`, x: c.x, y: c.y }]);
             window.setTimeout(() => setPops((list) => list.filter((p) => p.key !== key)), 900);
@@ -331,7 +380,8 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     const my = gen.current;
     const finishedResult = finish('lose', g);
     if (!finishedResult) return;
-    const base = { ...finishedResult, taunt: drawBowieTaunt() };
+    // 煽りの画像は、勝敗が決まったときの形態の10枚から1枚だけ（変身のあとは最終形態版）
+    const base = { ...finishedResult, final: g.finalForm, taunt: drawBowieTaunt(Math.random, g.finalForm ? 'final' : 'normal') };
     audio.stopBgm();
     setHeroFace('hero_hit');
     setBowieMood('bowie_laugh');
@@ -352,8 +402,9 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   async function runWin() {
     const g = gameRef.current!;
     const my = gen.current;
-    const base = finish('win', g);
-    if (!base) return;
+    const finishedResult = finish('win', g);
+    if (!finishedResult) return;
+    const base = { ...finishedResult, final: g.finalForm };
     audio.stopBgm();
     setHeroFace('hero_victory');
     setBowieMood('bowie_despair');
@@ -409,6 +460,11 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     cutinSounds.current = { rumble: null, line: false, no: 0 };
     setLevelUp(null);
     levelUpVoice.current = null;
+    // 最終形態を解き、通常の背景・姿から始めます
+    setFinal(false);
+    setTransformFx(null);
+    transformCharge.current = false;
+    angryUntil.current = -1;
   };
 
   const startGame = useCallback(() => {
@@ -517,12 +573,14 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
       const gt = g.gameTime(now);
       const ph = g.activePhase;
       // 投球の動作：構える → 腕を出す → 放つ → （手を離れたら）空の手の余韻
-      let frame: 0 | 1 | 2 | 3 | 4 = 0;
+      // 最終形態：構える → 送り出す → 放つ（FINAL_THROW_FRAMES）。解除のあとの怒りは、投球の絵のあと・余韻より先
+      let frame: ThrowFrame = 0;
       if (ph === 'throwing') {
         const f = (gt - g.phaseStart) / g.throwMs;
-        const [a, b] = BOWIE_CONFIG.throwFrames;
+        const [a, b] = g.finalForm ? FINAL_THROW_FRAMES : BOWIE_CONFIG.throwFrames;
         frame = f < a ? 1 : f < a + b ? 2 : 3;
-      } else if (ph === 'flying' && gt - g.releaseAt < g.scaled(BOWIE_CONFIG.followThroughMs)) frame = 4;
+      } else if (g.finalForm && (ph === 'flying' || ph === 'cutin') && gt < angryUntil.current) frame = 5;
+      else if (ph === 'flying' && gt - g.releaseAt < g.scaled(BOWIE_CONFIG.followThroughMs)) frame = 4;
       setThrowFrame((cur) => (cur === frame ? cur : frame));
       // カットイン：入りきったところで、その回のセリフを1回だけ。セリフの間は地鳴りを小さく（セリフが聞き取れるように）
       if (ph === 'cutin' && !cutinSounds.current.line && gt - g.phaseStart >= g.scaled(BOWIE_CONFIG.cutin.entryMs)) {
@@ -539,6 +597,11 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
         audio.setDuck(BGM_DUCK);
         audio.play(BOWIE_LEVEL_UPS[lu.stage].voice);
       }
+      // 変身：魔力が集まり始めるところで、上昇音を1回（ピークまで）
+      if (ph === 'intro' && g.transformPending && !transformCharge.current && gt - g.phaseStart >= g.scaled(BOWIE_TRANSFORM.chargeAtMs)) {
+        transformCharge.current = true;
+        audio.transformSound('charge', g.scaled(BOWIE_TRANSFORM.peakAtMs - BOWIE_TRANSFORM.chargeAtMs), BOWIE_TRANSFORM.sound.chargeGain);
+      }
       // 解除の笑顔の時間が過ぎたら、危険なら焦り顔、そうでなければ待機
       const p = g.progress(now);
       const el = bombRef.current;
@@ -547,7 +610,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
         const show = ph === 'flying' || ph === 'hit';
         el.style.display = show ? 'block' : 'none';
         if (show) {
-          const c = bombCenter(gg, p);
+          const c = bombCenter(gg, p, g.finalForm);
           el.style.transform = `translate(${c.x - gg.bombW / 2}px, ${c.y - gg.bombH / 2}px)`;
           el.dataset.progress = p.toFixed(3);
         }
@@ -677,11 +740,11 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   const stage = STAGES[game.stageIndex]!;
   const M = game.maxPoints;
   const g = geo;
-  const bowieKey = throwFrame === 0 ? bowieMood : (`bowie_release_${throwFrame}` as const);
+  const bowieKey = bowieSprite(final, throwFrame, bowieMood);
   const progressNo = Math.min(game.total, game.solved + (ph === 'flying' ? 1 : 0));
 
   return (
-    <main className={`bowie-main ${danger ? 'is-danger' : ''}`} data-testid="bowie-main" data-phase={paused ? 'paused' : ph}>
+    <main className={`bowie-main ${danger ? 'is-danger' : ''} ${final ? 'is-final' : ''}`} data-testid="bowie-main" data-phase={paused ? 'paused' : ph} data-form={final ? 'final' : 'normal'}>
       <div className="bowie-bar">
         <img className="bowie-bar-logo" src={SCENE.logo} alt={BOWIE_TITLE} width={160} height={80} />
         <span className="bowie-stat">
@@ -702,12 +765,26 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
         </button>
       </div>
 
-      <div ref={stageRef} className={`bowie-stage ${shake > 0 ? `shake-${shake % 2}` : ''}`} style={{ backgroundImage: `url(${SCENE.background})` }} data-testid="bowie-stage-area">
+      <div
+        ref={stageRef}
+        className={`bowie-stage ${shake > 0 ? `shake-${shake % 2}` : tShake > 0 ? `tshake-${tShake % 2}` : ''} ${final ? 'is-final' : ''}`}
+        style={{ backgroundImage: `url(${final ? SCENE.backgroundFinal : SCENE.background})`, ...(final && g ? finalBgStyle(g) : {}), ['--tshake' as string]: `${BOWIE_TRANSFORM.shake.px}px`, ['--tshake-ms' as string]: `${BOWIE_TRANSFORM.shake.ms}ms` } as CSSProperties}
+        data-testid="bowie-stage-area"
+        data-background={final ? 'final' : 'normal'}
+      >
         {g && (
           <>
-            <ScoreGuide g={g} max={M} />
-            {(['bowie_idle', 'bowie_release_1', 'bowie_release_2', 'bowie_release_3', 'bowie_release_4', 'bowie_frustrated', 'bowie_laugh', 'bowie_despair'] as const).map((k) => (
-              <Figure key={k} src={url(BOWIE_SPRITES[k]!.file)} box={g.bowie[k]!} on={bowieKey === k} className={`bowie-figure is-${bowieMood === 'bowie_laugh' && throwFrame === 0 ? 'laugh' : 'idle'}`} testId={bowieKey === k ? 'bowie-villain' : undefined} />
+            <ScoreGuide g={g} max={M} final={final} />
+            {[...NORMAL_SPRITES, ...FINAL_SPRITES].map((k) => (
+              <Figure
+                key={k}
+                src={url(BOWIE_SPRITES[k]!.file)}
+                box={g.bowie[k]!}
+                on={bowieKey === k}
+                className={`bowie-figure is-${bowieMood === 'bowie_laugh' && throwFrame === 0 ? 'laugh' : 'idle'}`}
+                testId={bowieKey === k ? 'bowie-villain' : undefined}
+                sprite={k}
+              />
             ))}
             {(['hero_idle', 'hero_disarm', 'hero_danger', 'hero_hit', 'hero_victory'] as const).map((k) => (
               <Figure key={k} src={url(HERO_SPRITES[k]!.file)} box={g.hero[k]!} on={heroFace === k} className={`hero-figure is-${heroFace.replace('hero_', '')}`} testId={heroFace === k ? 'bowie-hero' : undefined} />
@@ -723,9 +800,10 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
           <span className="bowie-bomb-trail" />
           <img src={SCENE.bomb} alt="" />
         </div>
-        {levelUp && <LevelUp key={levelUp.key} stage={levelUp.stage} paused={paused} />}
+        {transformFx && g && <Transform key={`transform-${transformFx.key}`} box={g.bowie.bowie_idle!} paused={paused} scale={(v) => game.scaled(v)} />}
+        {levelUp && <LevelUp key={`levelup-${levelUp.key}`} stage={levelUp.stage} paused={paused} />}
         {banner && (
-          <div key={banner.key} className="bowie-banner" data-testid="bowie-banner">
+          <div key={`banner-${banner.key}`} className="bowie-banner" data-testid="bowie-banner">
             <strong>{banner.text}</strong>
             <span>{banner.sub}</span>
           </div>
@@ -817,17 +895,23 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   );
 }
 
-function Figure({ src, box, on, className, testId }: { src: string; box: Box; on: boolean; className: string; testId?: string }) {
+function finalBgStyle(g: StageGeometry): CSSProperties {
+  const b = finalBackground(g);
+  return { backgroundSize: b.size, backgroundPosition: b.position };
+}
+
+function Figure({ src, box, on, className, testId, sprite }: { src: string; box: Box; on: boolean; className: string; testId?: string; sprite?: string }) {
   return (
-    <div className={`bowie-fig ${className} ${on ? 'is-on' : ''}`} style={{ left: box.left, top: box.top, width: box.width, height: box.height }} data-testid={testId}>
+    <div className={`bowie-fig ${className} ${on ? 'is-on' : ''}`} style={{ left: box.left, top: box.top, width: box.width, height: box.height }} data-testid={testId} data-sprite={testId ? sprite : undefined}>
       <img src={src} alt="" draggable={false} />
     </div>
   );
 }
 
 /** 得点のめやす（淡く表示）。単語は10段階、文章は20段階。数字は混み合わないように間引きます */
-function ScoreGuide({ g, max }: { g: StageGeometry; max: number }) {
-  const x0 = g.release.x;
+function ScoreGuide({ g, max, final }: { g: StageGeometry; max: number; final: boolean }) {
+  // 最終形態では、爆弾が手を離れる位置（手のひらの前）から目盛りを引きます
+  const x0 = final ? g.releaseFinal.x : g.release.x;
   const x1 = g.collision.x;
   const y = g.groundY - g.h * 0.03;
   const labelEvery = max > 10 ? 5 : 1;
@@ -889,6 +973,41 @@ function LevelUp({ stage, paused }: { stage: 2 | 3 | 4; paused: boolean }) {
         <span className="blu-level" data-testid="bowie-levelup-level">
           {spec.level}
         </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 最終形態への変身の演出（v1.8.0）：段階アップの始まりから、ボウイの周りに赤い魔力が集まり（chargeAtMs から peakAtMs まで強まる）、
+ * ピークで赤白の閃光（ステージ全体）と円形の衝撃波。そのあと魔力の粒子と光が settleMs で収まります。
+ * 時間はすべて BOWIE_TRANSFORM（開発用の倍率を掛けます）。一時停止の間は動きも止まります。専用の画像は使わず CSS だけで描きます。
+ * 「視差効果を減らす」設定では、揺れ・衝撃波・強い閃光を使わず、短いフェード（fadeMs）だけにします（styles.css）。
+ */
+function Transform({ box, paused, scale }: { box: Box; paused: boolean; scale: (v: number) => number }) {
+  const T = BOWIE_TRANSFORM;
+  const style = {
+    ['--tf-x' as string]: `${box.left + box.width / 2}px`,
+    ['--tf-y' as string]: `${box.top + box.height * 0.5}px`,
+    ['--tf-size' as string]: `${box.height * 1.05}px`,
+    ['--tf-charge' as string]: `${scale(T.chargeAtMs)}ms`,
+    ['--tf-build' as string]: `${scale(T.peakAtMs - T.chargeAtMs)}ms`,
+    ['--tf-peak' as string]: `${scale(T.peakAtMs)}ms`,
+    ['--tf-flash-at' as string]: `${scale(T.peakAtMs - T.flashMs / 2)}ms`,
+    ['--tf-flash' as string]: `${scale(T.flashMs)}ms`,
+    ['--tf-fade-at' as string]: `${scale(T.peakAtMs - T.fadeMs / 2)}ms`,
+    ['--tf-fade' as string]: `${scale(T.fadeMs)}ms`,
+    ['--tf-settle' as string]: `${scale(T.settleMs)}ms`,
+  } as CSSProperties;
+  return (
+    <div className={`bowie-transform ${paused ? 'is-paused' : ''}`} style={style} data-testid="bowie-transform" aria-hidden="true">
+      <div className="btf-flash" />
+      <div className="btf-center">
+        <div className="btf-aura" />
+        <div className="btf-ring" />
+        {Array.from({ length: 14 }, (_, i) => (
+          <span key={i} className="btf-p" style={{ ['--a' as string]: `${(i * 360) / 14 + (i % 2) * 9}deg`, ['--d' as string]: `${0.5 + (i % 3) * 0.1}`, ['--s' as string]: `${(i % 4) * 22}ms` } as CSSProperties} />
+        ))}
       </div>
     </div>
   );

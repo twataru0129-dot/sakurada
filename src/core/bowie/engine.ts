@@ -10,15 +10,18 @@
  * - 入力のときは、まずその時刻までの出来事（衝突など）を処理してから判定します。同じ時刻の解除と衝突は衝突を優先します。
  * - 投球中・カットイン中・段階の表示中のキーは捨てます（次の問題へためません）。
  * - 解除・被弾・加点・次の問題への切り替えは、1つの爆弾につき1回だけです。
+ * - 最終形態（v1.8.0）：第4段階へ進む段階アップの中（閃光のピーク）で1回だけ変身し、勝敗が決まるまで続きます（finalForm）。
  */
 import { RomajiMatcher, type RomajiStyle } from '../romaji';
-import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_LEVEL_UPS, BOWIE_ROMAJI_RULES, cutinTotalMs, levelUpTotalMs, landingMsFor, pointsFor, STAGES, type StageNo } from './config';
+import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_LEVEL_UPS, BOWIE_ROMAJI_RULES, BOWIE_TRANSFORM, cutinTotalMs, levelUpTotalMs, landingMsFor, pointsFor, STAGES, transformIntroMs, type StageNo } from './config';
 import type { BowieQuestion } from './questions';
 
 export type Phase = 'ready' | 'intro' | 'throwing' | 'flying' | 'cutin' | 'paused' | 'hit' | 'won';
 
 export type BowieEvent =
-  | { type: 'stage'; stage: StageNo; at: number; /** 段階アップ（第2〜4段階の始まり）か */ levelUp: boolean }
+  | { type: 'stage'; stage: StageNo; at: number; /** 段階アップ（第2〜4段階の始まり）か */ levelUp: boolean; /** この段階アップの中で最終形態へ変身するか */ transform: boolean }
+  /** 変身の閃光のピーク：この瞬間に背景と姿を同時に最終形態へ切り替えます（1プレイに1回） */
+  | { type: 'transform'; at: number }
   | { type: 'throw'; at: number }
   | { type: 'release'; at: number; landingMs: number; question: BowieQuestion }
   | { type: 'correct' }
@@ -73,6 +76,10 @@ export class BowieGame {
   releaseAt = 0;
   landingMs = 0;
   private dangerFired = false;
+  /** 最終形態か（変身のピークから勝敗が決まるまで。再挑戦は新しいゲームなので通常から） */
+  finalForm = false;
+  /** いまの段階アップの中で変身するか（ピークの前だけ true） */
+  transformPending = false;
   private cutinsShown = 0;
   /** 実時間 → ゲームの時間 */
   private clockStart: number | null = null;
@@ -146,7 +153,7 @@ export class BowieGame {
     this.phase = 'intro';
     this.phaseStart = 0;
     this.currentIntroMs = BOWIE_CONFIG.stageIntroMs;
-    return [{ type: 'stage', stage: this.stage, at: 0, levelUp: false }];
+    return [{ type: 'stage', stage: this.stage, at: 0, levelUp: false, transform: false }];
   }
 
   /** その時刻までの、時間で起きる出来事を順に処理します */
@@ -156,6 +163,13 @@ export class BowieGame {
     const g = this.gameTime(real);
     for (let guard = 0; guard < 10; guard++) {
       if (this.phase === 'intro') {
+        if (this.transformPending) {
+          const peak = this.phaseStart + this.ms(BOWIE_TRANSFORM.peakAtMs);
+          if (g < peak) break;
+          this.transformPending = false;
+          this.finalForm = true;
+          out.push({ type: 'transform', at: peak });
+        }
         const end = this.phaseStart + this.introMs;
         if (g < end) break;
         this.beginThrow(end, out);
@@ -247,8 +261,12 @@ export class BowieGame {
       const st = this.stage as 2 | 3 | 4;
       const spec = BOWIE_LEVEL_UPS[st];
       const actual = this.levelUpVoiceMs(st);
-      this.currentIntroMs = levelUpTotalMs(Math.max(spec.voiceMs, Number.isFinite(actual) ? actual : 0));
-      out.push({ type: 'stage', stage: this.stage, at: g, levelUp: true });
+      const voiceMs = Math.max(spec.voiceMs, Number.isFinite(actual) ? actual : 0);
+      // 最終形態への変身（第4段階の始まりで1回だけ）：ボイスの終わりと変身の余韻の終わりの遅い方まで投球を待ちます
+      const transform = this.stage === BOWIE_TRANSFORM.stage && !this.finalForm;
+      this.transformPending = transform;
+      this.currentIntroMs = transform ? transformIntroMs(voiceMs) : levelUpTotalMs(voiceMs);
+      out.push({ type: 'stage', stage: this.stage, at: g, levelUp: true, transform });
       return out;
     }
     if (this.qIndex === half && half > 0) {

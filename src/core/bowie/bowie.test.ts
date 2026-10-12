@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import data from '../../data/bowie/questions.json';
 import { findUnsupportedChar, RomajiMatcher, tokenize } from '../romaji';
-import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_LEVEL_UPS, BOWIE_ROMAJI_RULES, CUTIN_TOTAL_MS, cutinTotalMs, levelUpTotalMs, landingMsFor, pointsFor, type StageNo } from './config';
+import { BOWIE_CONFIG, BOWIE_CUTINS, BOWIE_LEVEL_UPS, BOWIE_ROMAJI_RULES, BOWIE_TRANSFORM, CUTIN_TOTAL_MS, cutinTotalMs, FINAL_THROW_FRAMES, levelUpTotalMs, landingMsFor, pointsFor, transformIntroMs, type StageNo } from './config';
 import { BOWIE_POOLS, drawPlay, drawQuestions, type BowieQuestion } from './questions';
 import { BowieGame, type BowieEvent } from './engine';
 import { displaySegments } from './display';
@@ -225,8 +225,8 @@ describe('進行', () => {
   it('カットインは通算10・30・50・70問目のあとの4回。回ごとに決まったセリフの長さに合わせて保持し、そのあいだ爆弾・着弾・投球は止まる', () => {
     // 1回目は従来どおり約 2.2 秒（0.25＋1.541＋0.16＋0.25）。2〜4回目はセリフ（2.43・3.37・1.78 秒）が最後まで終わってから抜けます
     expect(CUTIN_TOTAL_MS).toBe(2201);
-    // 2〜4回目は文字入りの画像（v1.6.1）。ボイスはこれまでどおり
-    expect(BOWIE_CUTINS.map((c) => c.image)).toEqual(['speed_cutin.webp', 'bowie_cutin_02_text.webp', 'bowie_cutin_03_text.webp', 'bowie_cutin_04_text.webp']);
+    // 2〜4回目は文字入りの画像（v1.6.1）。4回目（通算70問のあと）は最終形態の「払いのける！」（v1.8.0）。ボイスはこれまでどおり
+    expect(BOWIE_CUTINS.map((c) => c.image)).toEqual(['speed_cutin.webp', 'bowie_cutin_02_text.webp', 'bowie_cutin_03_text.webp', 'bowie_final_cutin_04.webp']);
     expect(BOWIE_CUTINS.map((c) => c.voice)).toEqual(['level_up', 'cutin_voice_02', 'cutin_voice_03', 'cutin_voice_04']);
     expect(BOWIE_CUTINS.map((c) => c.line)).toEqual(['少しテンポを落とそうか', '次の戦いの準備をしよう', 'さて、私が流れを変えてみせよう', '払いのける！']);
     const r = runner();
@@ -328,6 +328,110 @@ describe('進行', () => {
     r.g.resume(r.now());
     r.at(r.now() + 20);
     expect(r.g.phase).toBe('throwing');
+  });
+});
+
+describe('最終形態への変身（v1.8.0）', () => {
+  it('59問の解除までは通常。60問の解除のあとの段階アップ（第4段階の始まり）の中で、閃光のピークに1回だけ変身し、勝敗が決まるまで続く', () => {
+    const r = runner();
+    let transforms = 0;
+    for (let i = 0; i < 80; i++) {
+      r.solve(1);
+      transforms = r.events.filter((e) => e.type === 'transform').length;
+      if (r.g.solved <= 59) {
+        expect(r.g.finalForm, `solved ${r.g.solved}`).toBe(false);
+        expect(transforms).toBe(0);
+      }
+      if (r.g.solved === 60) {
+        // 段階アップが始まった時点ではまだ通常。ピークの直前まで通常で、ピークで最終形態
+        expect(r.g.phase).toBe('intro');
+        expect(r.g.stage).toBe(4);
+        const stageEv = r.events.filter((e) => e.type === 'stage').at(-1) as Extract<BowieEvent, { type: 'stage' }>;
+        expect(stageEv).toMatchObject({ stage: 4, levelUp: true, transform: true });
+        expect(r.g.finalForm).toBe(false);
+        const start = r.now();
+        r.at(start + BOWIE_TRANSFORM.peakAtMs - 1);
+        expect(r.g.finalForm).toBe(false);
+        r.at(start + BOWIE_TRANSFORM.peakAtMs);
+        expect(r.g.finalForm).toBe(true);
+        const tf = r.events.filter((e) => e.type === 'transform');
+        expect(tf).toHaveLength(1);
+        expect((tf[0] as { at: number }).at).toBe(stageEv.at + BOWIE_TRANSFORM.peakAtMs);
+      }
+      if (r.g.solved >= 60) expect(r.g.finalForm).toBe(true);
+    }
+    expect(r.g.phase).toBe('won');
+    expect(r.g.finalForm).toBe(true);
+    expect(r.events.filter((e) => e.type === 'transform')).toHaveLength(1);
+    // 第2・第3段階の段階アップでは変身しない
+    expect(r.events.filter((e) => e.type === 'stage').map((e) => (e as { transform: boolean }).transform)).toEqual([false, false, false, true]);
+  });
+  it('段階アップの長さは、ボイスの終わりと変身の余韻の終わりの遅い方（ボイスを途中で切らない）。そのあいだの入力は判定・ミス数・次の問題へ持ち越さない', () => {
+    // 登録の長さ（1.541秒）：ボイスの終わり（0.45＋1.541＋0.3）が変身の余韻の終わり（0.82＋0.52＋0.3）より遅い
+    expect(transformIntroMs(1541)).toBe(levelUpTotalMs(1541));
+    expect(transformIntroMs(100)).toBe(BOWIE_TRANSFORM.peakAtMs + BOWIE_TRANSFORM.settleMs + BOWIE_CONFIG.levelUp.tailMs);
+    // ボイスが短く読み込まれた場合でも、変身の余韻が終わるまで投球しない
+    const r = runner(1, seeded(9), undefined, () => 50);
+    for (let i = 0; i < 3; i++) {
+      r.solve(1);
+      if (r.g.phase === 'intro' && r.g.stage !== 4) r.at(r.now() + r.g.introMs + 1);
+    }
+    expect(r.g.stage).toBe(4);
+    expect(r.g.introMs).toBe(transformIntroMs(BOWIE_LEVEL_UPS[4].voiceMs));
+    const start = r.now();
+    const before = { c: r.g.correctKeyCount, m: r.g.mistypeCount };
+    for (const ms of [100, BOWIE_TRANSFORM.peakAtMs, BOWIE_TRANSFORM.peakAtMs + 200]) {
+      r.at(start + ms);
+      for (const c of 'zzqxa') r.key(c);
+    }
+    expect({ c: r.g.correctKeyCount, m: r.g.mistypeCount }).toEqual(before);
+    expect(r.g.matcher).toBeNull();
+    r.at(start + r.g.introMs - 1);
+    expect(r.g.phase).toBe('intro');
+    r.at(start + r.g.introMs + 1);
+    expect(r.g.phase).toBe('throwing');
+    r.toRelease();
+    expect(r.g.matcher!.typedText).toBe('');
+  });
+  it('一時停止すると変身のピークも止まる（再開後に1回だけ）。再挑戦（新しいゲーム）は通常から', () => {
+    const r = runner(1);
+    for (let i = 0; i < 3; i++) {
+      r.solve(1);
+      if (r.g.phase === 'intro' && r.g.stage !== 4) r.at(r.now() + r.g.introMs + 1);
+    }
+    const start = r.now();
+    r.at(start + 300);
+    expect(r.g.pause(r.now())).toBe(true);
+    r.at(r.now() + 10_000);
+    expect(r.g.finalForm).toBe(false);
+    r.g.resume(r.now());
+    r.at(r.now() + BOWIE_TRANSFORM.peakAtMs - 300 - 1);
+    expect(r.g.finalForm).toBe(false);
+    r.at(r.now() + 2);
+    expect(r.g.finalForm).toBe(true);
+    r.at(r.now() + 5000);
+    expect(r.events.filter((e) => e.type === 'transform')).toHaveLength(1);
+    const again = runner(1);
+    expect(again.g.finalForm).toBe(false);
+    expect(again.g.transformPending).toBe(false);
+  });
+  it('最終形態の投球も 350ms（構える約110ms・送り出す約120ms・放つ約120ms）。手を離れた瞬間に入力と飛行の計時が始まる', () => {
+    expect(BOWIE_CONFIG.throwMs).toBe(350);
+    expect(FINAL_THROW_FRAMES.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 6);
+    expect(FINAL_THROW_FRAMES.map((f) => Math.round(f * BOWIE_CONFIG.throwMs))).toEqual([110, 120, 120]);
+    const r = runner(1);
+    for (let i = 0; i < 3; i++) {
+      r.solve(1);
+      if (r.g.phase === 'intro') r.at(r.now() + r.g.introMs + 1);
+    }
+    expect(r.g.finalForm).toBe(true);
+    expect(r.g.phase).toBe('throwing');
+    const throwAt = r.g.phaseStart;
+    r.toRelease();
+    const rel = r.events.filter((e) => e.type === 'release').at(-1) as Extract<BowieEvent, { type: 'release' }>;
+    expect(rel.at - throwAt).toBe(BOWIE_CONFIG.throwMs);
+    expect(r.g.releaseAt).toBe(rel.at);
+    expect(r.g.matcher).not.toBeNull();
   });
 });
 
