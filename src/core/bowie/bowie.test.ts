@@ -271,7 +271,7 @@ describe('進行', () => {
       r.solve(1);
       if (r.g.phase === 'intro') {
         const stage = r.g.stage as 2 | 3 | 4;
-        const len = levelUpTotalMs(BOWIE_LEVEL_UPS[stage].voiceMs);
+        const len = stage === 4 ? transformIntroMs(BOWIE_LEVEL_UPS[stage].voiceMs) : levelUpTotalMs(BOWIE_LEVEL_UPS[stage].voiceMs);
         ups.push({ solved: r.g.solved, stage, ms: r.g.introMs });
         expect(r.g.introMs).toBe(len);
         // 演出の終わりの直前まで：投球しない・爆弾は出ない・キーは捨てる（次の問題へ持ち越さない）
@@ -304,7 +304,7 @@ describe('進行', () => {
       }
       if (r.g.phase === 'cutin') r.at(r.now() + r.g.cutinMs + 1);
     }
-    expect(lens).toEqual([levelUpTotalMs(3500), levelUpTotalMs(5000), levelUpTotalMs(1541)]);
+    expect(lens).toEqual([levelUpTotalMs(3500), levelUpTotalMs(5000), transformIntroMs(1541)]);
   });
   it('セリフの実際の長さが登録より長いときは、そちらに合わせる（短いときは登録の長さのまま）', () => {
     const r = runner(2, seeded(3), (no) => (no === 3 ? 4000 : 100));
@@ -368,7 +368,7 @@ describe('最終形態への変身（v1.8.0）', () => {
   });
   it('段階アップの長さは、ボイスの終わりと変身の余韻の終わりの遅い方（ボイスを途中で切らない）。そのあいだの入力は判定・ミス数・次の問題へ持ち越さない', () => {
     // 登録の長さ（1.541秒）：ボイスの終わり（0.45＋1.541＋0.3）が変身の余韻の終わり（0.82＋0.52＋0.3）より遅い
-    expect(transformIntroMs(1541)).toBe(levelUpTotalMs(1541));
+    expect(transformIntroMs(1541)).toBe(BOWIE_TRANSFORM.bgmFadeMs + levelUpTotalMs(1541));
     expect(transformIntroMs(100)).toBe(BOWIE_TRANSFORM.peakAtMs + BOWIE_TRANSFORM.settleMs + BOWIE_CONFIG.levelUp.tailMs);
     // ボイスが短く読み込まれた場合でも、変身の余韻が終わるまで投球しない
     const r = runner(1, seeded(9), undefined, () => 50);

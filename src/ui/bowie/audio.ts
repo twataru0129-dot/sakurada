@@ -36,6 +36,7 @@ export type SoundKey =
   | 'hero_hit_voice'
   | 'hero_cry'
   | 'bgm'
+  | 'final_bgm'
   | 'hero_clear_bgm'
   | 'levelup_voice_2'
   | 'levelup_voice_3'
@@ -44,7 +45,7 @@ export type SoundKey =
 export type SoundKind = 'music' | 'sfx' | 'voice';
 
 /** 音楽：通常の BGM・クリアのダンスの曲 */
-const MUSIC: ReadonlySet<SoundKey> = new Set(['bgm', 'hero_clear_bgm']);
+const MUSIC: ReadonlySet<SoundKey> = new Set(['bgm', 'final_bgm', 'hero_clear_bgm']);
 /** ボイス：ボウイのセリフ・笑い声、主人公の声、VICTORY／DEFEAT の音声（タイトルコールは TitleCall.tsx で同じボイスの音量を使います） */
 const VOICE: ReadonlySet<SoundKey> = new Set(['victory', 'defeat', 'loss_line', 'laugh', 'level_up', 'cutin_voice_02', 'cutin_voice_03', 'cutin_voice_04', 'hero_hit_voice', 'hero_cry', 'levelup_voice_2', 'levelup_voice_3', 'levelup_voice_4']);
 export const kindOf = (key: SoundKey): SoundKind => (MUSIC.has(key) ? 'music' : VOICE.has(key) ? 'voice' : 'sfx');
@@ -65,6 +66,7 @@ const EXTRA: Record<string, Meta> = {
   cutin_voice_02: { file: 'bowie_cutin_02_voice.mp3', volume: 0.7, duration: 2.429388 },
   cutin_voice_03: { file: 'bowie_cutin_03_voice.mp3', volume: 0.7, duration: 3.369796 },
   cutin_voice_04: { file: 'bowie_cutin_04_voice.mp3', volume: 0.75, duration: 1.776327 },
+  final_bgm: { file: 'bowie_final_bgm.mp3', volume: 1, duration: 347.138322 },
   bgm: { file: 'bowie_bgm.mp3', volume: 1, duration: 116.323265 },
   disarm_v2: { file: 'bowie_disarm_v2.mp3', volume: 0.75, duration: 1.201633 },
   hero_hit_voice: { file: 'bowie_hero_hit_voice.mp3', volume: 0.95, duration: 3.369796 },
@@ -114,6 +116,9 @@ export class BowieAudio {
   private lastTypo = 0;
   /** 通常の BGM：流したい状態か・いま流している音 */
   private bgmWanted = false;
+  private bgmKey: 'bgm' | 'final_bgm' = 'bgm';
+  private bgmGeneration = 0;
+  private fadingBgm = new Set<AudioBufferSourceNode>();
   private bgm: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
   /** BGM を流し始めた回数（確認用：重複していないことを調べます） */
   bgmStarts = 0;
@@ -422,13 +427,18 @@ export class BowieAudio {
   // ---------------------------------------------------------------- 通常の BGM
 
   /** 通常の BGM を最初から流します（すでに流れていれば何もしません。何度呼んでも1つだけです） */
-  startBgm(): void {
+  startBgm(key: 'bgm' | 'final_bgm' = 'bgm', fadeMs = 0): void {
+    if (this.bgmWanted && this.bgmKey === key) return;
+    const ctx = this.ctx;
+    const startAt = (ctx?.currentTime ?? 0) + fadeMs / 1000;
+    this.stopBgm(fadeMs);
+    this.bgmKey = key;
     this.bgmWanted = true;
-    if (this.bgm) return;
+    const generation = ++this.bgmGeneration;
     if (!this.ctx) this.unlock();
-    void this.decode('bgm').then((buffer) => {
+    void this.decode(key).then((buffer) => {
       const ctx = this.ctx;
-      if (!buffer || !ctx || !this.buses || !this.bgmWanted || this.bgm) return;
+      if (!buffer || !ctx || !this.buses || !this.bgmWanted || generation !== this.bgmGeneration) return;
       prepareLoop(buffer);
       const src = ctx.createBufferSource();
       src.buffer = buffer;
@@ -436,9 +446,10 @@ export class BowieAudio {
       src.loopStart = headOf(buffer);
       src.loopEnd = buffer.duration;
       const gain = ctx.createGain();
-      gain.gain.value = SOUNDS.bgm.volume;
+      gain.gain.value = SOUNDS[key].volume;
       src.connect(gain).connect(this.buses.music);
-      src.start();
+      // AudioContext の時刻で予約するので、一時停止中は切替の待ち時間も止まります。
+      src.start(Math.max(ctx.currentTime, startAt));
       this.bgm = { src, gain };
       this.bgmStarts++;
     });
@@ -447,6 +458,10 @@ export class BowieAudio {
   /** 通常の BGM を止めます（短く消してから止めます） */
   stopBgm(fadeMs = 80): void {
     this.bgmWanted = false;
+    ++this.bgmGeneration;
+    // 前のフェード中・予約された音も、離脱や再挑戦で残さない。
+    for (const src of this.fadingBgm) { try { src.stop(); } catch { /* 終了済み */ } }
+    this.fadingBgm.clear();
     const b = this.bgm;
     this.bgm = null;
     this.setDuck(1, 0);
@@ -456,7 +471,9 @@ export class BowieAudio {
       b.gain.gain.cancelScheduledValues(t);
       b.gain.gain.setValueAtTime(b.gain.gain.value, t);
       b.gain.gain.linearRampToValueAtTime(0, t + fadeMs / 1000);
-      b.src.stop(t + fadeMs / 1000 + 0.01);
+      this.fadingBgm.add(b.src);
+      b.src.onended = () => this.fadingBgm.delete(b.src);
+      b.src.stop(t + fadeMs / 1000);
     } catch {
       /* もう止まっています */
     }

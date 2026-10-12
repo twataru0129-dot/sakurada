@@ -185,7 +185,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   /** 段階アップ（第2〜4段階の始まり）の表示中（key：表示し直すため） */
   const [levelUp, setLevelUp] = useState<{ key: number; stage: 2 | 3 | 4 } | null>(null);
   /** 段階アップのボイス：まだ流していないか（1回だけ流します） */
-  const levelUpVoice = useRef<{ stage: 2 | 3 | 4; played: boolean } | null>(null);
+  const levelUpVoice = useRef<{ stage: 2 | 3 | 4; played: boolean; preludeMs: number } | null>(null);
   /** 表示中のカットイン（key：表示し直すため、no：何回目か） */
   const [cutin, setCutin] = useState<{ key: number; no: number } | null>(null);
   const [danger, setDanger] = useState(false);
@@ -234,9 +234,10 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
               const stage = e.stage as 2 | 3 | 4;
               setBanner(null);
               setLevelUp({ key: Date.now(), stage });
-              levelUpVoice.current = { stage, played: false };
+              levelUpVoice.current = { stage, played: false, preludeMs: e.transform ? BOWIE_TRANSFORM.bgmFadeMs : 0 };
               audio.metal();
               if (e.transform) {
+                audio.startBgm('final_bgm', g.scaled(BOWIE_TRANSFORM.bgmFadeMs));
                 // 最終形態への変身：魔力・閃光・衝撃波の演出（時間は BOWIE_TRANSFORM。上昇音は毎フレームの更新の中で1回）
                 setTransformFx({ key: Date.now() });
                 transformCharge.current = false;
@@ -498,7 +499,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
       // 一時停止の「やめる」で開始前の画面へ：前のゲームの音は止め、BGM は大きさを戻して開始待ちのまま流します
       audio.resume(); // 一時停止で止めた音を戻します
       audio.setDuck(1, 0);
-      if (!audio.bgmPlaying) audio.startBgm();
+      audio.startBgm();
     } else audio.stopBgm();
     gameRef.current = null;
     resetView();
@@ -592,7 +593,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
       }
       // 段階アップ：文字が出たあとに、その段階のボウイのボイスを1回だけ。ボイスの間は BGM を小さく
       const lu = levelUpVoice.current;
-      if (ph === 'intro' && lu && !lu.played && gt - g.phaseStart >= g.scaled(BOWIE_CONFIG.levelUp.voiceDelayMs)) {
+      if (ph === 'intro' && lu && !lu.played && gt - g.phaseStart >= g.scaled(lu.preludeMs + BOWIE_CONFIG.levelUp.voiceDelayMs)) {
         lu.played = true;
         audio.setDuck(BGM_DUCK);
         audio.play(BOWIE_LEVEL_UPS[lu.stage].voice);
