@@ -66,7 +66,8 @@ const EXTRA: Record<string, Meta> = {
   cutin_voice_02: { file: 'bowie_cutin_02_voice.mp3', volume: 0.7, duration: 2.429388 },
   cutin_voice_03: { file: 'bowie_cutin_03_voice.mp3', volume: 0.7, duration: 3.369796 },
   cutin_voice_04: { file: 'bowie_cutin_04_voice.mp3', volume: 0.75, duration: 1.776327 },
-  final_bgm: { file: 'bowie_final_bgm.mp3', volume: 1, duration: 347.138322 },
+  // v1.8.2：最終決戦の BGM は通常の BGM の2倍（音楽 20％のとき 40％相当）。ボイスの間は BGM_VOICE_DUCK で半分に下げます
+  final_bgm: { file: 'bowie_final_bgm.mp3', volume: 2, duration: 347.138322 },
   bgm: { file: 'bowie_bgm.mp3', volume: 1, duration: 116.323265 },
   disarm_v2: { file: 'bowie_disarm_v2.mp3', volume: 0.75, duration: 1.201633 },
   hero_hit_voice: { file: 'bowie_hero_hit_voice.mp3', volume: 0.95, duration: 3.369796 },
@@ -79,6 +80,11 @@ const EXTRA: Record<string, Meta> = {
   levelup_voice_4: { file: 'bowie_voice_212220.mp3', volume: 0.55, duration: 1.541224 },
 };
 const RETUNE: Partial<Record<SoundKey, number>> = { victory: 0.45, defeat: 0.6, throw: 0.5 };
+/**
+ * ボイスの間の BGM の大きさ（いまの大きさに対する割合）。音楽 20％の初期値のとき：
+ * 通常の BGM 20％ → 7％（×0.35、これまでどおり）、最終決戦の BGM 40％（固有の音量 2.0）→ 20％（×0.5）
+ */
+export const BGM_VOICE_DUCK: Record<'bgm' | 'final_bgm', number> = { bgm: 0.35, final_bgm: 0.5 };
 export const SOUNDS: Record<SoundKey, Meta> = (() => {
   const base = Object.fromEntries(
     (manifest.audio as { file: string; volume: number; duration_seconds: number }[]).map((a) => [
@@ -481,6 +487,19 @@ export class BowieAudio {
 
   get bgmPlaying(): boolean {
     return this.bgm !== null || this.bgmWanted;
+  }
+
+  /** いま選んでいる BGM（通常・最終決戦）。曲の予約のときに決まり、変身の見た目には左右されません */
+  get currentBgm(): 'bgm' | 'final_bgm' {
+    return this.bgmKey;
+  }
+
+  /**
+   * ボイス（段階アップ・カットインのセリフ）の間だけ BGM を下げます。割合は、いま選んでいる曲で決まります（BGM_VOICE_DUCK）。
+   * 戻すときは setDuck(1, 300) です。
+   */
+  duckForVoice(rampMs = 200): void {
+    this.setDuck(BGM_VOICE_DUCK[this.bgmKey], rampMs);
   }
 
   /** 音楽を一時的に下げる（1 で元に戻す）。音楽の音量の設定はそのままです */

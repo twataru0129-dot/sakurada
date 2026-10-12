@@ -19,7 +19,7 @@ import { loadBowieSound, saveBowieSound, type BowieSoundLevels } from '../../dat
 import { BowieAudio, type Playing } from '../../ui/bowie/audio';
 import { SoundSettings } from '../../ui/bowie/SoundSettings';
 import { useTitleCall } from '../../ui/bowie/TitleCall';
-import { BOWIE_SPRITES, bombCenter, finalBackground, HERO_SPRITES, stageGeometry, type Box, type StageGeometry } from '../../ui/bowie/geometry';
+import { BOWIE_SPRITES, bombCenter, finalBackground, HERO_SPRITES, normalBackground, stageGeometry, type Box, type StageGeometry } from '../../ui/bowie/geometry';
 import { BOWIE_FINAL_TAUNTS, BOWIE_TAUNTS, drawBowieTaunt } from '../../ui/bowie/taunts';
 import { emblemUrl, ResultView, type Result } from '../../ui/bowie/BowieResults';
 import { accuracyOf, BOWIE_RANKS, resultRank } from '../../core/bowie/results';
@@ -53,8 +53,6 @@ const RESULT_IMAGES = {
   heroHit: url(HERO_SPRITES.hero_hit!.file),
   bowieDespair: url(BOWIE_SPRITES.bowie_despair!.file),
 };
-/** カットインのセリフの間の音楽の大きさ（設定の音量に対する割合） */
-const BGM_DUCK = 0.35;
 
 /** 開発用の確認（通常の画面には何も出しません）。sessionStorage に設定があるときだけ、出題数と時間の倍率を変えます */
 const DEV_KEY = 'sakura-type:bowie-dev';
@@ -587,7 +585,8 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
       if (ph === 'cutin' && !cutinSounds.current.line && gt - g.phaseStart >= g.scaled(BOWIE_CONFIG.cutin.entryMs)) {
         cutinSounds.current.line = true;
         cutinSounds.current.rumble?.setGain(0.18 / 0.4);
-        audio.setDuck(BGM_DUCK);
+        // セリフの間は BGM を下げます（下げる割合は、いま選んでいる曲で決まります：通常 35％・最終決戦 50％）
+        audio.duckForVoice();
         const spec = BOWIE_CUTINS[Math.min(BOWIE_CUTINS.length, Math.max(1, cutinSounds.current.no)) - 1]!;
         audio.play(spec.voice);
       }
@@ -595,7 +594,8 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
       const lu = levelUpVoice.current;
       if (ph === 'intro' && lu && !lu.played && gt - g.phaseStart >= g.scaled(lu.preludeMs + BOWIE_CONFIG.levelUp.voiceDelayMs)) {
         lu.played = true;
-        audio.setDuck(BGM_DUCK);
+        // 第4段階は段階の始まり（変身のイベント）で最終決戦の BGM を選んであるため、変身の前の姿のときも最終決戦の割合です
+        audio.duckForVoice();
         audio.play(BOWIE_LEVEL_UPS[lu.stage].voice);
       }
       // 変身：魔力が集まり始めるところで、上昇音を1回（ピークまで）
@@ -769,7 +769,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
       <div
         ref={stageRef}
         className={`bowie-stage ${shake > 0 ? `shake-${shake % 2}` : tShake > 0 ? `tshake-${tShake % 2}` : ''} ${final ? 'is-final' : ''}`}
-        style={{ backgroundImage: `url(${final ? SCENE.backgroundFinal : SCENE.background})`, ...(final && g ? finalBgStyle(g) : {}), ['--tshake' as string]: `${BOWIE_TRANSFORM.shake.px}px`, ['--tshake-ms' as string]: `${BOWIE_TRANSFORM.shake.ms}ms` } as CSSProperties}
+        style={{ backgroundImage: `url(${final ? SCENE.backgroundFinal : SCENE.background})`, ...(g ? bgStyle(g, final) : {}), ['--tshake' as string]: `${BOWIE_TRANSFORM.shake.px}px`, ['--tshake-ms' as string]: `${BOWIE_TRANSFORM.shake.ms}ms` } as CSSProperties}
         data-testid="bowie-stage-area"
         data-background={final ? 'final' : 'normal'}
       >
@@ -896,8 +896,9 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   );
 }
 
-function finalBgStyle(g: StageGeometry): CSSProperties {
-  const b = finalBackground(g);
+/** 通常・最終形態の背景を、床面が足元の線にくるように置きます（geometry.ts の stageBackground） */
+function bgStyle(g: StageGeometry, final: boolean): CSSProperties {
+  const b = final ? finalBackground(g) : normalBackground(g);
   return { backgroundSize: b.size, backgroundPosition: b.position };
 }
 

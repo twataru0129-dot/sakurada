@@ -81,19 +81,25 @@ export function stageGeometry(w: number, h: number): StageGeometry {
 }
 
 /**
- * 最終形態の赤い最終決戦の背景（v1.8.0）の大きさと位置（CSS の background-size・background-position）。
- * この背景は円形の舞台が画像の中ほどにあり、下の約4分の1は暗い霧です。通常の背景と同じ「全体を覆う」配置では足元が霧に浮くため、
- * 舞台の手前の床（画像の上から FINAL_FLOOR_Y）が足元の線（groundY）にくるように、ステージを覆う最小の大きさで拡大して合わせます。
+ * ステージの背景の大きさと位置（CSS の background-size・background-position）。キャラクターは動かさず、背景のほうを合わせます。
+ * 背景の画像の床（舞台の手前の床面。画像の上からの割合 floorY）が足元の線（groundY）にくるように、
+ * 縦横比を保ったまま、ステージを覆う最小の大きさに拡大して上下の位置を決めます（上端・下端に空白は出ません）。
+ * 画面の縦横比と表示の倍率から計算するため、端末ごとの固定の px のずれにはなりません。
+ * - 通常の背景（v1.8.2）：石の舞台の床面は画像の y≈580〜655px（941px 中）。足を置く手前側を NORMAL_FLOOR_Y とします
+ * - 最終形態の背景（v1.8.0）：円形の舞台の手前の床を FINAL_FLOOR_Y とします（下の約4分の1は暗い霧です）
  */
+export const NORMAL_FLOOR_Y = 0.675;
 export const FINAL_FLOOR_Y = 0.58;
-export function finalBackground(g: StageGeometry): { size: string; position: string } {
-  const sw = SCENES.stage_background_final!.w;
-  const sh = SCENES.stage_background_final!.h;
-  const height = Math.max(g.groundY / FINAL_FLOOR_Y, g.h, (g.w * sh) / sw);
+export function stageBackground(g: StageGeometry, scene: 'stage_background' | 'stage_background_final', floorY: number): { size: string; position: string } {
+  const sw = SCENES[scene]!.w;
+  const sh = SCENES[scene]!.h;
+  const height = Math.max(g.groundY / floorY, g.h, (g.w * sh) / sw);
   const width = (height * sw) / sh;
-  const top = Math.min(0, Math.max(g.h - height, g.groundY - FINAL_FLOOR_Y * height));
+  const top = Math.min(0, Math.max(g.h - height, g.groundY - floorY * height));
   return { size: `${Math.ceil(width)}px ${Math.ceil(height)}px`, position: `${Math.round((g.w - width) / 2)}px ${Math.round(top)}px` };
 }
+export const normalBackground = (g: StageGeometry) => stageBackground(g, 'stage_background', NORMAL_FLOOR_Y);
+export const finalBackground = (g: StageGeometry) => stageBackground(g, 'stage_background_final', FINAL_FLOOR_Y);
 
 /** 進み具合 p（0〜1）での爆弾の中心。わずかな弧をつけますが、始点・終点と p の関係は変えません */
 export function bombCenter(g: StageGeometry, p: number, final = false): { x: number; y: number } {
