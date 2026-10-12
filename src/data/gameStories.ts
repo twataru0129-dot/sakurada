@@ -1,5 +1,5 @@
 /**
- * ゲーム「サクラダファミリアを完成させよ」の物語。
+ * ゲーム「サグラダファミリアを完成させよ」の物語。
  *
  * - 標準コース：game_stories.json の stories の3本（物語の版 sakurada-stories-v1。v1.2.0 から変更なし）
  * - 短縮コース：game_stories_v2_short.json の3本（物語の版 sakurada-stories-v2。v1.3.0 から。標準の約半分）

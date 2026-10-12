@@ -270,7 +270,7 @@ function Play() {
     <main className="game-main game-fit" data-testid="game-main">
       <div className="game-top">
         <div className="game-bar">
-          <span className="game-title-small">サクラダファミリアを完成させよ・{COURSE_LABEL[story.courseId]}</span>
+          <span className="game-title-small">サグラダファミリアを完成させよ・{COURSE_LABEL[story.courseId]}</span>
           <span className="game-time" data-testid="game-time">
             入力時間 <strong>{formatGameTime(elapsed)}</strong>
           </span>

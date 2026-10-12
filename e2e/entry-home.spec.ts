@@ -82,7 +82,7 @@ test.describe('入口とホームの配置（PC・Surface）', () => {
     await page.getByRole('button', { name: /ゲストで練習/ }).first().click();
     await expect(page.getByRole('button', { name: /タイピングモード/ })).toContainText('25・50問');
     await expect(page.getByTestId('home-game')).toContainText('桜を育てて庭を作ったり');
-    await expect(page.getByTestId('home-game')).toContainText('サクラダファミリアを完成させよ');
+    await expect(page.getByTestId('home-game')).toContainText('サグラダファミリアを完成させよ');
     await expect(page.getByTestId('home-game')).toContainText('桜ガーデン');
     await expect(page.getByTestId('home-game')).toContainText('ボウイの爆弾遊戯');
     await expect(page.getByTestId('home-exam')).toContainText('A4の用紙');

@@ -19,7 +19,7 @@ export interface GameEntry {
 export const GAMES: readonly GameEntry[] = [
   {
     id: 'sakurada-familia',
-    title: 'サクラダファミリアを完成させよ',
+    title: 'サグラダファミリアを完成させよ',
     description: '物語をローマ字で入力すると、何もない敷地から少しずつ建築が進みます。最後まで打つと必ず完成します。',
     path: '/game/sakurada',
     image: completeImage,

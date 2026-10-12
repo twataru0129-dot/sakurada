@@ -28,7 +28,7 @@ export function SakuradaIntro() {
   return (
     <main>
       <BackLink to="/game">ゲームの選択にもどる</BackLink>
-      <h1 style={{ marginTop: 12 }}>サクラダファミリアを完成させよ</h1>
+      <h1 style={{ marginTop: 12 }}>サグラダファミリアを完成させよ</h1>
       <div className="game-intro">
         <figure className="game-intro-fig">
           <img src={STAGE_IMAGES[5]} alt={STAGE_ALTS[5]} width={1536} height={1024} />

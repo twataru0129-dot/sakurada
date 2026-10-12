@@ -1,5 +1,5 @@
 /**
- * ゲームモード「サクラダファミリアを完成させよ」（v1.2.0）の E2E テスト（ゲスト）。
+ * ゲームモード「サグラダファミリアを完成させよ」（v1.2.0）の E2E テスト（ゲスト）。
  * ログイン利用者のクラウド保存は cloud.spec.ts（Supabase の通信をモックで再現）で確かめます。
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -13,7 +13,7 @@ async function guest(page: Page) {
 async function openIntro(page: Page) {
   await page.getByTestId('home-game').click();
   await page.getByTestId('game-card-sakurada-familia').click();
-  await expect(page.getByRole('heading', { name: 'サクラダファミリアを完成させよ' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'サグラダファミリアを完成させよ' })).toBeVisible();
 }
 
 async function startCourse(page: Page, course: '標準コース' | '短縮コース', opts: { touch?: boolean; kunrei?: boolean } = {}) {
@@ -53,7 +53,7 @@ test.describe('ゲームモード', () => {
     await expect(page.getByRole('button', { name: /検定モード/ })).toBeEnabled();
     await expect(page.getByRole('button', { name: /タイピングモード/ })).toBeEnabled();
     await page.getByTestId('home-game').click();
-    // 遊べるゲーム：サクラダファミリアを完成させよ（v1.2.0）・桜ガーデン（v1.4.0）・ボウイの爆弾遊戯（v1.5.0）
+    // 遊べるゲーム：サグラダファミリアを完成させよ（v1.2.0）・桜ガーデン（v1.4.0）・ボウイの爆弾遊戯（v1.5.0）
     await expect(page.locator('[data-testid^="game-card-"]')).toHaveCount(3);
     await expect(page.getByTestId('game-card-sakura-garden')).toContainText('桜ガーデン');
     await page.getByTestId('game-card-sakurada-familia').click();
@@ -124,7 +124,7 @@ test.describe('ゲームモード', () => {
     }
     expect([...stages]).toEqual(expect.arrayContaining([1, 2, 3, 4]));
     await expect(page).toHaveURL(/#\/game\/sakurada\/result/);
-    await expect(page.getByTestId('game-complete-title')).toContainText('あなたのサクラダファミリアが完成！');
+    await expect(page.getByTestId('game-complete-title')).toContainText('あなたのサグラダファミリアが完成！');
     await expect(page.getByTestId('building')).toHaveAttribute('data-stage', '5');
     await expect(page.getByTestId('miss-count')).toContainText('1');
     await expect(page.getByTestId('penalty-time')).toContainText('5');
@@ -154,7 +154,7 @@ test.describe('ゲームモード', () => {
     await expect(page.getByTestId('record-time')).toHaveText('3分30秒');
     await expect(page.getByTestId('elapsed-time')).toHaveText('3分00秒');
     await expect(page.getByTestId('penalty-time')).toContainText('30');
-    await expect(page.getByTestId('game-complete-title')).toHaveText('西暦1987年、あなたのサクラダファミリアが完成！');
+    await expect(page.getByTestId('game-complete-title')).toHaveText('西暦1987年、あなたのサグラダファミリアが完成！');
     await expect(page.getByText('ゲーム内の完成年です', { exact: false })).toBeVisible();
   });
 
@@ -174,7 +174,7 @@ test.describe('ゲームモード', () => {
     await expect(page).toHaveURL(/#\/game\/sakurada\/play/);
     await expect(page.getByTestId('game-penalty')).toContainText('ミス 0回');
     await typeAll(page);
-    await expect(page.getByTestId('game-complete-title')).toHaveText(/西暦24[89]\d年、あなたのサクラダファミリアが完成！/);
+    await expect(page.getByTestId('game-complete-title')).toHaveText(/西暦24[89]\d年、あなたのサグラダファミリアが完成！/);
   });
 
   test('一時停止の間は時間が進まず入力も受け付けない。一時停止の回数を記録する', async ({ page }, info) => {
