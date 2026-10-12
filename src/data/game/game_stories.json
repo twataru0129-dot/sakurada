@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "storySetVersion": "sakurada-stories-v1",
   "gameId": "sakurada-familia",
-  "displayName": "サクラダファミリアを完成させよ",
-  "note": "ゲーム名はサクラダ、本文中の実在の建物名はサグラダ・ファミリア。本文は独自作成。歴史・自然は事実をもとにした読み物、旅行は架空の主人公による創作。",
+  "displayName": "サグラダファミリアを完成させよ",
+  "note": "ゲーム名はサグラダファミリア（v1.8.3 で表記を「サクラダ」から変更）、本文中の実在の建物名はサグラダ・ファミリア。本文は独自作成。歴史・自然は事実をもとにした読み物、旅行は架空の主人公による創作。",
   "stories": [
     {
       "id": "inherited-dream",

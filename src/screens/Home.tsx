@@ -25,7 +25,6 @@ export function Home() {
           <span className="title">① タイピングモード</span>
           <span className="home-mode-desc">ローマ字入力と、漢字に変換する文章入力。3・5・10分、または25・50問で練習できます。</span>
           <span className="home-mode-foot">
-            <span className="badge badge-ok">練習できます</span>
             <span className="home-mode-arrow" aria-hidden="true">→</span>
           </span>
         </button>
@@ -33,12 +32,11 @@ export function Home() {
           <span className="title">② ゲームモード</span>
           <span className="home-mode-desc">文章を打って建物を完成させたり、桜を育てて庭を作ったり、爆弾を解除したりできます。</span>
           <span className="home-mode-sub">
-            <span>・サクラダファミリアを完成させよ</span>
+            <span>・サグラダファミリアを完成させよ</span>
             <span>・桜ガーデン</span>
             <span>・ボウイの爆弾遊戯</span>
           </span>
           <span className="home-mode-foot">
-            <span className="badge badge-ok">遊べます</span>
             <span className="home-mode-arrow" aria-hidden="true">→</span>
           </span>
         </button>
@@ -46,7 +44,6 @@ export function Home() {
           <span className="title">③ 検定モード</span>
           <span className="home-mode-desc">お手本を見ながら、A4の用紙に日本語の文章を入力する練習です。4級相当〜1級相当。</span>
           <span className="home-mode-foot">
-            <span className="badge badge-ok">練習できます</span>
             <span className="home-mode-arrow" aria-hidden="true">→</span>
           </span>
         </button>

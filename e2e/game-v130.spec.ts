@@ -298,7 +298,7 @@ test.describe('v1.3.0 完成記念画像', () => {
     const img = page.getByTestId('memorial-img');
     await expect(img).toBeVisible();
     const content = JSON.parse((await img.getAttribute('data-content'))!);
-    expect(content).toMatchObject({ title: 'サクラダファミリアを完成させよ', yearLabel: 'ゲーム内の完成年', year: `西暦${shown.year}年`, time: shown.time, accuracy: shown.accuracy, course: '短縮コース', nickname: null });
+    expect(content).toMatchObject({ title: 'サグラダファミリアを完成させよ', yearLabel: 'ゲーム内の完成年', year: `西暦${shown.year}年`, time: shown.time, accuracy: shown.accuracy, course: '短縮コース', nickname: null });
     expect(content.story).toMatch(/（短縮版）$/);
     const save = async () => {
       const dl = page.waitForEvent('download');

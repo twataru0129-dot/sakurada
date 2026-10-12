@@ -79,7 +79,7 @@ export function SakuradaResult() {
       <BuildingView stage={5} loadState={loadState} large />
       <p className="hint game-image-note">{IMAGE_NOTE}</p>
       <h1 className="game-complete-title" data-testid="game-complete-title">
-        西暦{r.completionYear}年、あなたのサクラダファミリアが完成！
+        西暦{r.completionYear}年、あなたのサグラダファミリアが完成！
       </h1>
       <p className="hint" style={{ textAlign: 'center' }}>
         ※ ゲーム内の完成年です（1882年 ＋ 記録タイム2秒ごとに1年）。実際のサグラダ・ファミリアの完成予定年とは関係ありません。

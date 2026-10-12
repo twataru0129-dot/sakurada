@@ -6,7 +6,7 @@ import type { GameResult } from '../../core/game/result';
 import { formatGameTime } from '../../core/game/sakurada';
 import { formatNumber1 } from '../../core/rank';
 
-export const GAME_TITLE = 'サクラダファミリアを完成させよ';
+export const GAME_TITLE = 'サグラダファミリアを完成させよ';
 export const NICKNAME_MAX = 20;
 
 export interface MemorialContent {

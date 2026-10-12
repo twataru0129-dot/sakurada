@@ -25,7 +25,6 @@ export function GameSelect() {
             <img src={g.image} alt={g.imageAlt} width={1536} height={1024} className="game-card-img" />
             <span className="title">{g.title}</span>
             <span>{g.description}</span>
-            <span className="badge badge-ok">遊べます</span>
           </button>
         ))}
       </div>

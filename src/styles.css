@@ -1078,8 +1078,8 @@ body:has(.entry-main) {
 .home-mode .title { font-size: clamp(24px, 2.1vw, 30px); line-height: 1.3; }
 .home-mode-desc { font-size: clamp(18px, 1.45vw, 22px); line-height: 1.6; }
 .home-mode-sub { display: flex; flex-direction: column; font-size: clamp(16px, 1.2vw, 18px); line-height: 1.5; color: var(--muted); font-weight: 600; }
-.home-mode-foot { margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; }
-.home-mode-foot .badge { font-size: 1rem; }
+/* カードの下の行：移動の矢印だけを右下に（v1.8.3 で利用可能のバッジを削除） */
+.home-mode-foot { margin-top: auto; width: 100%; display: flex; align-items: center; justify-content: flex-end; padding-top: 4px; }
 .home-mode-arrow { font-size: clamp(26px, 2.2vw, 32px); font-weight: 800; color: var(--accent); line-height: 1; }
 .home-mode:hover .home-mode-arrow { color: var(--accent-dark); }
 .home-panels { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(16px, 1.6vw, 24px); align-items: start; }
