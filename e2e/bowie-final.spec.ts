@@ -379,3 +379,103 @@ test.describe('ボウイの爆弾遊戯：最終形態', () => {
     expect(c.b).toBeLessThanOrEqual(c.vh + 2);
   });
 });
+
+test.describe('ボウイの爆弾遊戯：最終決戦の BGM の音量（v1.8.2）', () => {
+  test('音楽20％（初期値）：通常の BGM 20％・ボイス中7％のまま、最終決戦の BGM は40％、変身のボイス・70問のカットインの間は20％、終わると40％に戻る。再挑戦は通常の BGM（20％）から', async ({ page }, info) => {
+    test.skip(info.project.name !== 'pc');
+    test.setTimeout(150_000);
+    await page.addInitScript(() => {
+      // AudioParam の操作を記録します：value の代入（各 BGM の固有の音量）・linearRamp（ダッキング）・setTarget（音楽の音量の設定）
+      const w = window as unknown as { __g: [number, string, number, number][] };
+      w.__g = [];
+      // AudioParam ごとの番号（ダッキングは1つの GainNode を何度も上げ下げするため、いちばん多く ramp された番号がダッキングです）
+      const ids = new WeakMap<AudioParam, number>();
+      let next = 0;
+      const id = (p: AudioParam) => {
+        if (!ids.has(p)) ids.set(p, next++);
+        return ids.get(p)!;
+      };
+      const t0 = performance.now();
+      const desc = Object.getOwnPropertyDescriptor(AudioParam.prototype, 'value')!;
+      Object.defineProperty(AudioParam.prototype, 'value', {
+        get(this: AudioParam) {
+          return desc.get!.call(this);
+        },
+        set(this: AudioParam, v: number) {
+          w.__g.push([performance.now() - t0, 'set', v, id(this)]);
+          desc.set!.call(this, v);
+        },
+      });
+      const ramp = AudioParam.prototype.linearRampToValueAtTime;
+      AudioParam.prototype.linearRampToValueAtTime = function (this: AudioParam, v: number, t: number) {
+        w.__g.push([performance.now() - t0, 'ramp', v, id(this)]);
+        return ramp.call(this, v, t);
+      };
+      const target = AudioParam.prototype.setTargetAtTime;
+      AudioParam.prototype.setTargetAtTime = function (this: AudioParam, v: number, t: number, c: number) {
+        w.__g.push([performance.now() - t0, 'target', v, id(this)]);
+        return target.call(this, v, t, c);
+      };
+    });
+    await setup(page, { perStage: 2 });
+    const log = () => page.evaluate(() => (window as unknown as { __g: [number, string, number, number][] }).__g);
+    await page.getByTestId('bowie-start').click();
+    // 第1〜3段階（通常の BGM）：カットイン3回と段階アップ2回
+    for (let i = 0; i < 5; i++) await solve(page);
+    await expect(page.getByTestId('bowie-text')).toBeVisible({ timeout: 30_000 });
+    const t4 = (await log()).length;
+    await solve(page);
+    await expect(page.getByTestId('bowie-levelup')).toHaveAttribute('data-stage', '4');
+    await expect(page.getByTestId('bowie-text')).toBeVisible({ timeout: 15_000 });
+    // 第4段階の1問目 → 4回目（70問のあと）のカットイン
+    await solve(page);
+    await expect(page.getByTestId('bowie-cutin')).toHaveAttribute('data-cutin', '4');
+    await expect(page.getByTestId('bowie-cutin')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByTestId('bowie-text')).toBeVisible({ timeout: 10_000 });
+    const g = await log();
+    const before = g.slice(0, t4);
+    const after = g.slice(t4);
+    // ダッキングの AudioParam（ramp の回数がいちばん多いもの）だけを見ます（金属音の倍音 0.35 などと区別するため）
+    const count = new Map<number, number>();
+    for (const [, k, , i] of g) if (k === 'ramp') count.set(i, (count.get(i) ?? 0) + 1);
+    const duckId = [...count.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+    const ramps = (list: typeof g) => list.filter(([, k, , i]) => k === 'ramp' && i === duckId).map(([, , v]) => v);
+    // 音楽の音量の設定は初期値の 20％のまま（強制的に変えない）
+    const music = g.filter(([, k]) => k === 'target').map(([, , v]) => v);
+    expect(music).toContain(0.2);
+    expect(music).not.toContain(0.4);
+    // 各 BGM の固有の音量：通常 1.0、最終決戦 2.0（1回だけ）
+    const vols = g.filter(([, k, v]) => k === 'set' && (v === 1 || v === 2));
+    expect(before.filter(([, k, v]) => k === 'set' && v === 2)).toHaveLength(0);
+    expect(after.filter(([, k, v]) => k === 'set' && v === 2)).toHaveLength(1);
+    expect(vols.length).toBeGreaterThan(0);
+    // ボイスの間の下げ方：通常の BGM は 35％（3回のカットイン＋2回の段階アップ）、最終決戦の BGM は 50％（変身のボイス＋4回目のカットイン）
+    const rb = ramps(before);
+    const ra = ramps(after);
+    expect(rb.filter((v) => v === 0.35).length).toBeGreaterThanOrEqual(5);
+    expect(rb).not.toContain(0.5);
+    expect(ra.filter((v) => v === 0.5).length).toBeGreaterThanOrEqual(2);
+    expect(ra).not.toContain(0.35);
+    // ボイス・演出のあとは元の大きさ（1）へ戻す
+    expect(ra.at(-1)).toBe(1);
+    // 実効の大きさ（音楽の設定 × 曲の固有の音量 × ボイス中の割合）
+    expect(0.2 * 1 * 0.35).toBeCloseTo(0.07, 6);
+    expect(0.2 * 2).toBeCloseTo(0.4, 6);
+    expect(0.2 * 2 * 0.5).toBeCloseTo(0.2, 6);
+    // 負けて再挑戦：最終決戦の BGM は止まり、通常の BGM（固有の音量 1.0）から。ボイスの間は 35％に戻る
+    await expect(page.getByTestId('bowie-main')).toHaveAttribute('data-phase', 'hit', { timeout: 30_000 });
+    await expect(page.getByTestId('bowie-result')).toHaveAttribute('data-kind', 'lose', { timeout: 15_000 });
+    for (let i = 0; i < 3; i++) await page.getByTestId('bowie-skip').click({ timeout: 2000 }).catch(() => undefined);
+    await expect(page.getByTestId('bowie-result')).toHaveAttribute('data-step', 'stats', { timeout: 15_000 });
+    const n = (await log()).length;
+    await page.getByTestId('bowie-retry').click();
+    await solve(page);
+    await expect(page.getByTestId('bowie-cutin')).toHaveAttribute('data-cutin', '1');
+    await expect(page.getByTestId('bowie-cutin')).toHaveCount(0, { timeout: 10_000 });
+    const re = (await log()).slice(n);
+    expect(re.filter(([, k, v]) => k === 'set' && v === 2)).toHaveLength(0);
+    expect(re.filter(([, k, v]) => k === 'set' && v === 1).length).toBeGreaterThan(0);
+    expect(ramps(re)).toContain(0.35);
+    expect(ramps(re)).not.toContain(0.5);
+  });
+});

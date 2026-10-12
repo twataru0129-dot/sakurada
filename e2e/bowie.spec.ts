@@ -41,6 +41,9 @@ test.describe('ボウイの爆弾遊戯', () => {
     await page.getByTestId('bowie-howto-open').click();
     for (const t of ['表示された文字を入力して解除', '早く解除するほど高得点', '減点はありません', 'その場で終了', '全80問を解除すれば勝利']) await expect(page.getByTestId('bowie-howto')).toContainText(t);
     await page.getByTestId('bowie-howto-close').click();
+    // 閉じるとフォーカスは「遊び方」のボタンへ戻ります（ボタンの上のスペースはボタンの操作なので、外してから押します）
+    await expect(page.getByTestId('bowie-howto-open')).toBeFocused();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await page.keyboard.press(' ');
     await expect(page).toHaveURL(/#\/game\/bowie\/play/);
     await expect(page.getByTestId('bowie-banner')).toContainText('第1段階');
