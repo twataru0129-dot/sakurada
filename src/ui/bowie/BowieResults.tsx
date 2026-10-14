@@ -1,7 +1,7 @@
 /**
  * ボウイの爆弾遊戯の勝敗の演出と戦績の画面（v1.7.0）。
  *
- * 勝利：dance（クリアの曲とダンス）→ victory（VICTORY の画像と音声）→ despair（ボウイの絶望と敗北のセリフ）→ stats（勝利の戦績）
+ * 勝利：movie（クリアのスペシャルムービー。v1.9.0）→ dance（クリアの曲とダンス）→ victory（VICTORY の画像と音声）→ despair（ボウイの絶望と敗北のセリフ）→ stats（勝利の戦績）
  * 敗北：defeat（DEFEAT の画像と音声）→ taunt（煽りの画像1枚・笑い声 → 主人公の鳴き声）→ stats（敗北の戦績）
  * 演出の場面には点数や再挑戦のボタンを重ねず、「演出を飛ばす」だけを画像の外（下の帯）に置きます。
  * 戦績は、利用者が「もう一度挑戦」「ゲーム選択へ」を押すまで表示します。成績はすべて実際のデータです（見本の数値は使いません）。
@@ -14,7 +14,8 @@ import type { BowieTaunt } from './taunts';
 /** ダンスの拍（クリアの曲は約150 BPM。1拍ごとに跳ね、両手は半拍ずつ上げ下げします） */
 export const DANCE_BEAT_MS = 400;
 
-export type ResultStep = 'explode' | 'defeat' | 'taunt' | 'dance' | 'victory' | 'despair' | 'stats';
+/** movie：クリアのスペシャルムービー（v1.9.0。ClearMovie.tsx で表示します） */
+export type ResultStep = 'explode' | 'defeat' | 'taunt' | 'movie' | 'dance' | 'victory' | 'despair' | 'stats';
 export interface Result {
   kind: 'lose' | 'win';
   step: ResultStep;
