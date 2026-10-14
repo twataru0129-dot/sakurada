@@ -232,6 +232,26 @@ def final_characters():
     return out
 
 
+def video():
+    """
+    クリアのスペシャルムービー（v1.9.0）：assets/bowie-source/video/bowie_clear_special.mp4（納品の MP4。H.264＋AAC・910×512・約15.1秒）。
+    - 配信用は同じ MP4 をそのまま複製します（映像・音声は加工しません）。
+    - H.264 を再生できないブラウザー（オープンソース版の Chromium など）のために、同じ映像・音声を WebM（VP9＋Opus）に
+      変換した予備も作ります（ffmpeg があるときだけ。画面では MP4 を先に、WebM を2番目の候補にします）。
+    """
+    import subprocess
+
+    src = SRC / 'video' / 'bowie_clear_special.mp4'
+    out = OUT / 'video'
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(src, out / src.name)
+    webm = out / 'bowie_clear_special.webm'
+    if shutil.which('ffmpeg'):
+        subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', str(src),
+                        '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '33', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2',
+                        '-c:a', 'libopus', '-b:a', '128k', str(webm)], check=True)
+
+
 def main():
     def bowie_scale(box):
         return BOWIE_FIGURE_PX / (box[3] - box[1])
@@ -265,6 +285,7 @@ def main():
     sprites['bowie'].update(final_characters())
     for name in ['stage_background_final', 'bowie_final_cutin_04'] + [f'game_over_final_{i:02d}' for i in range(1, 11)]:
         sprites['scenes'][name] = scene(name, 1672, False)
+    video()
     (OUT / 'audio').mkdir(parents=True, exist_ok=True)
     for f in sorted((SRC / 'audio').glob('*.mp3')):
         shutil.copyfile(f, OUT / 'audio' / f.name)

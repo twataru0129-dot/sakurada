@@ -4,6 +4,13 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 
+/** クリアのスペシャルムービー（v1.9.0）を「ムービーをスキップ」で飛ばします（そのあとはダンスから。ムービー自体は bowie-movie.spec.ts で確かめます） */
+async function skipMovie(page: Page) {
+  await expect(page.getByTestId('bowie-result')).toHaveAttribute('data-step', 'movie', { timeout: 20_000 });
+  await page.getByTestId('bowie-movie-skip').click();
+}
+
+
 const DEV = 'sakura-type:bowie-dev';
 type Rec = { d: number; s: number; e: number | null; loop: boolean };
 type Mark = [number, string];
@@ -66,9 +73,11 @@ async function solve(page: Page) {
 async function toStats(page: Page) {
   const result = page.getByTestId('bowie-result');
   await expect(result).toBeVisible({ timeout: 20_000 });
-  for (let i = 0; i < 6 && (await result.getAttribute('data-step')) !== 'stats'; i++) {
+  for (let i = 0; i < 8 && (await result.getAttribute('data-step')) !== 'stats'; i++) {
     const skip = page.getByTestId('bowie-skip');
-    if (await skip.count()) await skip.click().catch(() => undefined);
+    const movie = page.getByTestId('bowie-movie-skip');
+    if (await movie.count()) await movie.click().catch(() => undefined);
+    else if (await skip.count()) await skip.click().catch(() => undefined);
     await page.waitForTimeout(150);
   }
   await expect(result).toHaveAttribute('data-step', 'stats');
@@ -306,6 +315,7 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     await page.getByTestId('bowie-start').click();
     for (let i = 0; i < 4; i++) await solve(page);
     const result = page.getByTestId('bowie-result');
+    await skipMovie(page);
     await expect(result).toHaveAttribute('data-step', 'dance');
     const dance = page.getByTestId('bowie-dance');
     await expect(dance).toBeVisible();
@@ -349,6 +359,7 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     // 再挑戦して、もう一度クリア → ダンスを飛ばすと、曲が止まってクリアの表示へ（あとから VICTORY は鳴らない）
     await page.getByTestId('bowie-retry').click();
     for (let i = 0; i < 4; i++) await solve(page);
+    await skipMovie(page);
     await expect(result).toHaveAttribute('data-step', 'dance');
     await page.waitForTimeout(1000);
     await page.getByTestId('bowie-skip').click();
@@ -376,6 +387,7 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     await page.getByTestId('bowie-start').click();
     for (let i = 0; i < 4; i++) await solve(page);
     const result = page.getByTestId('bowie-result');
+    await skipMovie(page);
     await expect(result).toHaveAttribute('data-step', 'dance');
     await expect(result).toHaveAttribute('data-step', 'victory', { timeout: 10_000 });
     let m = await marks(page);
@@ -405,6 +417,7 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     await page.getByTestId('bowie-start').click();
     for (let i = 0; i < 4; i++) await solve(page);
     const result = page.getByTestId('bowie-result');
+    await skipMovie(page);
     await expect(result).toHaveAttribute('data-step', 'dance');
     await expect(result).toHaveAttribute('data-step', 'victory', { timeout: 10_000 });
     const m = await marks(page);
@@ -431,6 +444,7 @@ test.describe('ボウイの爆弾遊戯：敗北の声・クリアのダンス',
     await page.getByTestId('bss-close').click();
     await page.getByTestId('bowie-start').click();
     for (let i = 0; i < 4; i++) await solve(page);
+    await skipMovie(page);
     await expect(page.getByTestId('bowie-result')).toHaveAttribute('data-step', 'dance');
     await page.waitForTimeout(500);
     await inView('[data-testid="bowie-dance"]');

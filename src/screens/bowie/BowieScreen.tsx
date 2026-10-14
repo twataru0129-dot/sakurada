@@ -22,6 +22,7 @@ import { useTitleCall } from '../../ui/bowie/TitleCall';
 import { BOWIE_SPRITES, bombCenter, finalBackground, HERO_SPRITES, normalBackground, stageGeometry, type Box, type StageGeometry } from '../../ui/bowie/geometry';
 import { BOWIE_FINAL_TAUNTS, BOWIE_TAUNTS, drawBowieTaunt } from '../../ui/bowie/taunts';
 import { emblemUrl, ResultView, type Result } from '../../ui/bowie/BowieResults';
+import { ClearMovie, clearMovieUrl, type MovieEnd } from '../../ui/bowie/ClearMovie';
 import { accuracyOf, BOWIE_RANKS, resultRank } from '../../core/bowie/results';
 
 const img = import.meta.glob('../../assets/bowie/{characters,scenes}/*.webp', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
@@ -99,6 +100,23 @@ const FINAL_THROW: Record<1 | 2 | 3 | 4 | 5, BowieSprite> = { 1: 'bowie_final_re
 function bowieSprite(final: boolean, frame: ThrowFrame, mood: BowieMood): BowieSprite {
   if (!final) return frame === 0 || frame === 5 ? mood : (`bowie_release_${frame}` as const);
   return frame === 0 ? FINAL_MOOD[mood] : FINAL_THROW[frame];
+}
+
+/** クリアのスペシャルムービーを、最終段階に入ったところで先読みします（1回だけ。勝ったときにすぐ流せるように） */
+let moviePrefetched = false;
+function prefetchClearMovie() {
+  if (moviePrefetched) return;
+  const href = clearMovieUrl();
+  if (!href) return;
+  moviePrefetched = true;
+  try {
+    const l = document.createElement('link');
+    l.rel = 'prefetch';
+    l.href = href;
+    document.head.appendChild(l);
+  } catch {
+    /* 先読みできなくても再生のときに読み込みます */
+  }
 }
 
 const isControl = (el: EventTarget | null) => !!(el as HTMLElement | null)?.closest?.('button, input, select, textarea, a, label');
@@ -250,6 +268,7 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
           case 'transform':
             // 閃光のピーク：背景と姿を同時に最終形態へ（同じ描画で切り替わります）。重い衝撃音と小さな揺れを1回
             setFinal(true);
+            prefetchClearMovie();
             setBowieMood('bowie_idle');
             setTShake((n) => n + 1);
             audio.transformSound('impact', BOWIE_TRANSFORM.sound.impactMs, BOWIE_TRANSFORM.sound.impactGain);
@@ -343,6 +362,8 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     };
     return { kind, stats, rank: resultRank(g.score, kind === 'win', g.total), record: saved.record, newBest: saved.newBest, saved: saved.saved };
   };
+  /** クリアのスペシャルムービーの終わりを待つ（終わり・スキップ・エラー。再挑戦・画面の移動でも解いて、古い待ちを残しません） */
+  const movieDone = useRef<((why: MovieEnd) => void) | null>(null);
   /** いまの結果の場面（「演出を飛ばす」の連打でも、最新の場面から次へ進めるように） */
   const resultRef = useRef<Result | null>(null);
   const show = (r: Result | null) => {
@@ -404,9 +425,19 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     const finishedResult = finish('win', g);
     if (!finishedResult) return;
     const base = { ...finishedResult, final: g.finalForm };
+    // ムービーの音と重ならないように、BGM（最終決戦）・効果音・ボイスをすべて止めます
     audio.stopBgm();
+    audio.stopAll();
     setHeroFace('hero_victory');
     setBowieMood('bowie_despair');
+    // クリアのスペシャルムービー（v1.9.0）：先頭から1回。終わり・スキップ・エラーのどれでも1回だけ次へ進みます
+    show({ ...base, step: 'movie' });
+    await new Promise<MovieEnd>((resolve) => {
+      movieDone.current = resolve;
+    });
+    movieDone.current = null;
+    if (gen.current !== my) return;
+    // ムービーのあとは、これまでどおりクリアの曲（最初から）とダンス
     show({ ...base, step: 'dance' });
     await audio.play('hero_clear_bgm').ended;
     if (gen.current !== my) return;
@@ -424,6 +455,11 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
   const skip = () => {
     const r = resultRef.current;
     if (!r || r.step === 'stats') return;
+    // ムービーの場面は「ムービーをスキップ」と同じ：ダンスから続けます（絶望・戦績へは飛ばしません）
+    if (r.step === 'movie') {
+      movieDone.current?.('skip');
+      return;
+    }
     gen.current++;
     const my = gen.current;
     audio.stopAll();
@@ -459,6 +495,10 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
     cutinSounds.current = { rumble: null, line: false, no: 0 };
     setLevelUp(null);
     levelUpVoice.current = null;
+    // 待っているムービーを解きます（世代が変わっているため、前の勝利の演出は先へ進みません）
+    const md = movieDone.current;
+    movieDone.current = null;
+    md?.('skip');
     // 最終形態を解き、通常の背景・姿から始めます
     setFinal(false);
     setTransformFx(null);
@@ -882,7 +922,10 @@ export function BowieScreen({ mode }: { mode: 'title' | 'play' }) {
         </div>
       )}
 
-      {result && (
+      {result?.step === 'movie' && (
+        <ClearMovie key={`movie-${gen.current}`} muted={muted} volume={levels.music} onDone={(why) => movieDone.current?.(why)} />
+      )}
+      {result && result.step !== 'movie' && (
         <ResultView
           result={result}
           images={RESULT_IMAGES}

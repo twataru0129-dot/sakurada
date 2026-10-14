@@ -4,6 +4,13 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 
+/** クリアのスペシャルムービー（v1.9.0）を「ムービーをスキップ」で飛ばします（そのあとはダンスから。ムービー自体は bowie-movie.spec.ts で確かめます） */
+async function skipMovie(page: Page) {
+  await expect(page.getByTestId('bowie-result')).toHaveAttribute('data-step', 'movie', { timeout: 20_000 });
+  await page.getByTestId('bowie-movie-skip').click();
+}
+
+
 const DEV = 'sakura-type:bowie-dev';
 /** ゲームの選択からの幕（タイトルコール）が消えて、ゲーム画面が操作できるようになるまで待ちます */
 const curtainGone = (page: Page) => expect(page.getByTestId('bowie-curtain')).toHaveCount(0, { timeout: 15_000 });
@@ -105,6 +112,7 @@ test.describe('ボウイの爆弾遊戯', () => {
     const result = page.getByTestId('bowie-result');
     await expect(result).toHaveAttribute('data-kind', 'win');
     // まずクリアの曲に合わせて主人公のダンス（約5.9秒）。曲が終わると勝利の表示へ
+    await skipMovie(page);
     await expect(result).toHaveAttribute('data-step', 'dance');
     await expect(result).toHaveAttribute('data-step', 'victory', { timeout: 10_000 });
     expect(await page.evaluate(() => (window as unknown as { __cutins: number }).__cutins)).toBe(4);
