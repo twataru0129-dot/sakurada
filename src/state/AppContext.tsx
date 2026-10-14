@@ -1,14 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { IDLE_LOGOUT_MS, IDLE_WARNING_MS } from '../config';
-import { CloudTableMissingError, getClient, loadSettings, logoutCloud, saveExamResult, saveGameResult, saveOwnSettings, saveResult, type Profile } from '../data/cloud';
+import { CloudTableMissingError, getClient, loadSettings, logoutCloud, saveDocumentResult, saveGameResult, saveOwnSettings, saveResult, type Profile } from '../data/cloud';
 import type { PracticeConfig, PracticeResult } from '../core/result';
 import { APP_DEFAULT_SETTINGS, effectiveSettings, type LearningSettings } from '../core/settings';
 import { navigate } from './router';
 import { GUEST_HISTORY_KEY, saveGuestRecord } from '../data/guestHistory';
 import { recordFromResult } from '../core/history';
 import type { ExamProblem } from '../core/exam';
-import type { ExamOutcome } from '../core/examResult';
-import { GUEST_EXAM_HISTORY_KEY, saveGuestExamRecord } from '../data/guestExamHistory';
+import type { DocOutcome } from '../core/documentResult';
+import { GUEST_EXAM_HISTORY_KEY } from '../data/guestExamHistory';
+import { GUEST_DOC_HISTORY_KEY, saveGuestDocRecord } from '../data/guestDocHistory';
 import { GUEST_GAME_BESTS_KEY, GUEST_GAME_HISTORY_KEY, saveGuestGameResult } from '../data/guestGameHistory';
 import { GUEST_GARDEN_KEY } from '../data/guestGarden';
 import { BOWIE_RECORD_KEY, BOWIE_VOLUME_KEY } from '../data/bowieRecords';
@@ -26,10 +27,9 @@ export interface GameSession {
 /** 保存できなかった理由（画面の表示を分けるため） */
 export type SaveFailure = 'missing_table' | 'network' | 'device';
 
-/** 検定モードで始める練習（問題・時間・プレビューか） */
-export interface ExamSession {
+/** 文書作成モードで始める練習（問題・プレビューか）。v2.0.0 */
+export interface DocSession {
   problem: ExamProblem;
-  timeLimitSeconds: number | null;
   /** 先生の「生徒用プレビュー」。記録は保存しません */
   preview: boolean;
 }
@@ -57,13 +57,13 @@ interface AppValue {
   setCurrentResult: (r: PracticeResult | null) => void;
   historyFocus: string | null;
   setHistoryFocus: (key: string | null) => void;
-  examSession: ExamSession | null;
-  setExamSession: (s: ExamSession | null) => void;
-  /** このログイン中（またはゲストの間）の検定モードの結果 */
-  examOutcomes: ExamOutcome[];
-  currentExam: ExamOutcome | null;
-  recordExam: (o: ExamOutcome) => void;
-  retryExamSave: (id: string) => void;
+  docSession: DocSession | null;
+  setDocSession: (s: DocSession | null) => void;
+  /** このログイン中（またはゲストの間）の文書作成モードの結果（本文はこの画面の中だけで扱い、クラウドには送りません） */
+  docOutcomes: DocOutcome[];
+  currentDoc: DocOutcome | null;
+  recordDocument: (o: DocOutcome) => void;
+  retryDocSave: (id: string) => void;
   gameSession: GameSession | null;
   setGameSession: (s: GameSession | null) => void;
   /** このログイン中（またはゲストの間）のゲームの結果。保存できなかった記録もここに残し、再送できます */
@@ -99,7 +99,7 @@ function clearLocalTraces() {
     if (!store) continue;
     try {
       for (const k of Object.keys(store)) {
-        if (k === GUEST_HISTORY_KEY || k === GUEST_EXAM_HISTORY_KEY || k === GUEST_GAME_HISTORY_KEY || k === GUEST_GAME_BESTS_KEY || k === GUEST_GARDEN_KEY || k === BOWIE_RECORD_KEY || k === BOWIE_VOLUME_KEY || k === BOWIE_SOUND_KEY) continue;
+        if (k === GUEST_HISTORY_KEY || k === GUEST_EXAM_HISTORY_KEY || k === GUEST_DOC_HISTORY_KEY || k === GUEST_GAME_HISTORY_KEY || k === GUEST_GAME_BESTS_KEY || k === GUEST_GARDEN_KEY || k === BOWIE_RECORD_KEY || k === BOWIE_VOLUME_KEY || k === BOWIE_SOUND_KEY) continue;
         if (k.startsWith('sakura') || k.startsWith('sb-')) store.removeItem(k);
       }
     } catch {
@@ -126,9 +126,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /** 「練習の記録」を開いたときに最初に選ぶ条件（結果画面から開いたときは今回の条件） */
   const [historyFocus, setHistoryFocus] = useState<string | null>(null);
   const [currentResult, setCurrentResult] = useState<PracticeResult | null>(null);
-  const [examSession, setExamSession] = useState<ExamSession | null>(null);
-  const [examOutcomes, setExamOutcomes] = useState<ExamOutcome[]>([]);
-  const [currentExam, setCurrentExam] = useState<ExamOutcome | null>(null);
+  const [docSession, setDocSession] = useState<DocSession | null>(null);
+  const [docOutcomes, setDocOutcomes] = useState<DocOutcome[]>([]);
+  const [currentDoc, setCurrentDoc] = useState<DocOutcome | null>(null);
   const [gameSession, setGameSession] = useState<GameSession | null>(null);
   const [gameResults, setGameResults] = useState<GameResult[]>([]);
   const [currentGame, setCurrentGame] = useState<GameResult | null>(null);
@@ -140,7 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   accountRef.current = account;
   const settingsTimer = useRef<number | undefined>(undefined);
   const lastActivity = useRef(Date.now());
-  const examIds = useRef(new Set<string>());
+  const docIds = useRef(new Set<string>());
 
   const resetAll = useCallback(() => {
     accountRef.current = null;
@@ -152,10 +152,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLastConfig(null);
     setCurrentResult(null);
     setHistoryFocus(null);
-    setExamSession(null);
-    setExamOutcomes([]);
-    setCurrentExam(null);
-    examIds.current = new Set();
+    setDocSession(null);
+    setDocOutcomes([]);
+    setCurrentDoc(null);
+    docIds.current = new Set();
     setGameSession(null);
     setGameResults([]);
     setCurrentGame(null);
@@ -247,42 +247,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [sessionResults, doSave],
   );
 
-  // 検定モードの記録：ゲストはこの端末、ログイン利用者はアカウント（クラウド）。タイピングの記録とは別に保存します
-  const doSaveExam = useCallback(async (o: ExamOutcome) => {
+  // 文書作成モードの記録：ゲストはこの端末、ログイン利用者はアカウント（クラウド）。本文は送りません。
+  // 失敗してもゲストの保存場所には切り替えません（記録が混ざらないように）
+  const doSaveDoc = useCallback(async (o: DocOutcome) => {
     const id = o.record.id;
     if (o.preview) return;
+    const fail = (why: SaveFailure) => {
+      setSaves((s) => ({ ...s, [id]: 'failed' }));
+      setSaveFailures((f) => ({ ...f, [id]: why }));
+    };
     if (accountRef.current?.kind === 'guest') {
-      const outcome = saveGuestExamRecord(o.record);
-      setSaves((s) => ({ ...s, [id]: outcome === 'failed' ? 'failed' : 'saved' }));
+      const outcome = saveGuestDocRecord(o.record);
+      if (outcome === 'failed') fail('device');
+      else setSaves((s) => ({ ...s, [id]: 'saved' }));
       return;
     }
+    const owner = accountRef.current?.kind === 'user' ? accountRef.current.profile.id : null;
     setSaves((s) => ({ ...s, [id]: 'saving' }));
     try {
-      await saveExamResult(o.record);
-      if (accountRef.current?.kind === 'user') setSaves((s) => ({ ...s, [id]: 'saved' }));
-    } catch {
-      if (accountRef.current?.kind === 'user') setSaves((s) => ({ ...s, [id]: 'failed' }));
+      await saveDocumentResult(o.record);
+      if (accountRef.current?.kind === 'user' && accountRef.current.profile.id === owner) setSaves((s) => ({ ...s, [id]: 'saved' }));
+    } catch (e) {
+      if (accountRef.current?.kind === 'user' && accountRef.current.profile.id === owner) fail(e instanceof CloudTableMissingError ? 'missing_table' : 'network');
     }
   }, []);
 
-  const recordExam = useCallback(
-    (o: ExamOutcome) => {
-      // 同じ記録 ID の結果は一度だけ扱います（終了ボタンの連打などで二重に保存しません）
-      if (examIds.current.has(o.record.id)) return;
-      examIds.current.add(o.record.id);
-      setCurrentExam(o);
-      setExamOutcomes((list) => [o, ...list]);
-      if (accountRef.current) void doSaveExam(o);
+  const recordDocument = useCallback(
+    (o: DocOutcome) => {
+      // 同じ記録 ID の結果は一度だけ扱います（「完成！」の連打などで二重に保存しません）
+      if (docIds.current.has(o.record.id)) return;
+      docIds.current.add(o.record.id);
+      setCurrentDoc(o);
+      setDocOutcomes((list) => [o, ...list]);
+      if (accountRef.current) void doSaveDoc(o);
     },
-    [doSaveExam],
+    [doSaveDoc],
   );
 
-  const retryExamSave = useCallback(
+  const retryDocSave = useCallback(
     (id: string) => {
-      const o = examOutcomes.find((x) => x.record.id === id);
-      if (o && accountRef.current) void doSaveExam(o);
+      const o = docOutcomes.find((x) => x.record.id === id);
+      if (o && accountRef.current) void doSaveDoc(o);
     },
-    [examOutcomes, doSaveExam],
+    [docOutcomes, doSaveDoc],
   );
 
   // ゲームの記録：ゲストはこの端末、ログイン利用者はアカウント（クラウド）。失敗してもゲストの保存場所には切り替えません
@@ -384,10 +391,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       account, settings, settingsSave, updateSettings, startGuest, startUser, logout,
       sessionResults, saves, recordResult, retrySave, unsavedCount,
       lastConfig, setLastConfig, currentResult, setCurrentResult, historyFocus, setHistoryFocus, notice, setNotice, idleWarning, keepAlive,
-      examSession, setExamSession, examOutcomes, currentExam, recordExam, retryExamSave,
+      docSession, setDocSession, docOutcomes, currentDoc, recordDocument, retryDocSave,
       gameSession, setGameSession, gameResults, currentGame, recordGame, retryGameSave, saveFailures, reportGardenUnsaved,
     }),
-    [gameSession, gameResults, currentGame, recordGame, retryGameSave, saveFailures, reportGardenUnsaved, examSession, examOutcomes, currentExam, recordExam, retryExamSave, historyFocus, account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
+    [gameSession, gameResults, currentGame, recordGame, retryGameSave, saveFailures, reportGardenUnsaved, docSession, docOutcomes, currentDoc, recordDocument, retryDocSave, historyFocus, account, settings, settingsSave, updateSettings, startGuest, startUser, logout, sessionResults, saves, recordResult, retrySave, unsavedCount, lastConfig, currentResult, notice, idleWarning, keepAlive],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

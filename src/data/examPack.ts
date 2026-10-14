@@ -1,7 +1,7 @@
 /**
  * 教材パック（先生の追加問題の書き出し・読み込み）。
  *
- * 1つのファイルに、問題の設定・採点用の正解文・お手本の画像／PDF 本体をまとめます。
+ * 1つのファイルに、問題の設定・見本の文章（正解文）・旧検定の原本の画像／PDF 本体（ある場合）をまとめます。
  * 生徒の成績・入力本文・ログイン情報・認証情報は含めません。
  *
  * 形式（拡張子 .sakuraexam）：
@@ -16,7 +16,13 @@ import type { ExamProblemStore, StoredFile } from './examStore';
 
 export const PACK_MAGIC = 'SAKURA-EXAM-PACK\n';
 export const PACK_FORMAT = 'sakura-type-exam-pack';
-export const PACK_VERSION = 1;
+/**
+ * 形式の版。
+ * - 1：v1.x（検定モード）。画像・PDF のお手本と正解文
+ * - 2：v2.0.0（文書作成モード）。見本の文章だけの問題（material.kind = 'text'・ファイルなし）と、問題の並び順（sortOrder）を追加
+ * 版 1 の教材パックもそのまま読み込めます（並び順は「未設定」として扱います）。
+ */
+export const PACK_VERSION = 2;
 export const PACK_EXTENSION = '.sakuraexam';
 
 interface PackFileEntry {
@@ -41,7 +47,7 @@ interface PackManifest {
 type PackProblem = Pick<
   ExamProblem,
   'id' | 'revision' | 'title' | 'grade' | 'timeLimitSeconds' | 'scoringEnabled' | 'answerText' | 'answerConfirmed' | 'visible' | 'material' | 'createdAt' | 'updatedAt'
->;
+> & { sortOrder?: number };
 
 function toPackProblem(p: ExamProblem): PackProblem {
   return {
@@ -55,6 +61,7 @@ function toPackProblem(p: ExamProblem): PackProblem {
     answerConfirmed: p.answerConfirmed,
     visible: p.visible,
     material: p.material,
+    ...(p.sortOrder !== undefined ? { sortOrder: p.sortOrder } : {}),
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
@@ -203,6 +210,7 @@ export async function planImport(store: ExamProblemStore, pack: PackContents): P
         existing.scoringEnabled === p.scoringEnabled &&
         existing.answerConfirmed === p.answerConfirmed &&
         existing.answerText === p.answerText &&
+        (existing.sortOrder ?? null) === (p.sortOrder ?? null) &&
         (await materialSignature(existing, localSha)) === (await materialSignature(p, packSha));
       out.push({ problem: p, status: same ? 'same' : 'conflict', existing });
     }

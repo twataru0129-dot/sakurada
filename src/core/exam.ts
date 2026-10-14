@@ -57,7 +57,10 @@ export function isTimeOption(v: unknown): v is number | null {
 /** ページの向き（右回りの角度） */
 export type Rotation = 0 | 90 | 180 | 270;
 
-/** お手本（左側に表示するもの） */
+/**
+ * お手本。文書作成モード（v2.0.0）では、見本の文章（answerText）を段落ごとに表示します。
+ * text：文章だけの問題（見本の文章は answerText）。image・pdf：旧検定モードで登録した原本（見本の文章を確認済みなら使えます）
+ */
 export type ExamMaterial =
   | { kind: 'text' }
   | { kind: 'image'; pages: Array<{ fileId: string; rotation: Rotation }> }
@@ -80,6 +83,11 @@ export interface ExamProblem {
   answerConfirmed: boolean;
   /** 生徒向けに表示する（内蔵の問題は常に表示） */
   visible: boolean;
+  /**
+   * 文書作成モードでの並び順（小さいほど先。v2.0.0）。先生の問題だけが持ち、ないときは作成日時の順です。
+   * 内蔵の問題の並び順は src/data/exam/document_order.json で決めます
+   */
+  sortOrder?: number;
   material: ExamMaterial;
   createdAt: string;
   updatedAt: string;

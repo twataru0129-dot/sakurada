@@ -41,8 +41,8 @@ export function Home() {
           </span>
         </button>
         <button type="button" className="card-button home-mode" onClick={() => navigate('/exam')} data-testid="home-exam">
-          <span className="title">③ 検定モード</span>
-          <span className="home-mode-desc">お手本を見ながら、A4の用紙に日本語の文章を入力する練習です。4級相当〜1級相当。</span>
+          <span className="title">③ 文書作成モード</span>
+          <span className="home-mode-desc">見本を見ながら段落ごとに日本語を入力し、改行・見直し・修正をして一つの文書を完成させます。印刷・Word 保存もできます。</span>
           <span className="home-mode-foot">
             <span className="home-mode-arrow" aria-hidden="true">→</span>
           </span>

@@ -4,6 +4,7 @@
 import { countExamChars, gradeInfo, isGrade, isTimeOption, type ExamMaterial, type ExamProblem, type Rotation } from './exam';
 import { MAX_IMAGE_FILES, MAX_PDF_PAGES } from './examFiles';
 import { MAX_ANSWER_CHARS } from './examScoring';
+import { sampleProblems } from './document';
 
 export const MAX_TITLE_CHARS = 60;
 
@@ -61,7 +62,8 @@ function materialErrors(m: unknown): string[] {
     });
     return ok ? [] : ['PDF のページの情報が正しくありません'];
   }
-  return ['お手本は画像または PDF にしてください'];
+  if (x.kind === 'text') return [];
+  return ['お手本は文章・画像・PDF のどれかにしてください'];
 }
 
 /** 先生の問題として正しいか。誤りの説明を返します（空なら正しい） */
@@ -87,7 +89,14 @@ export function validateTeacherProblem(p: unknown): string[] {
     else if (x.answerConfirmed !== true) errors.push('正解文の読み順・タイトル・ページ番号などを確認し、「正解文を確認済み」にしてください');
   }
   if (!isIsoDate(x.createdAt) || !isIsoDate(x.updatedAt)) errors.push('日時の情報が正しくありません');
+  if (x.sortOrder !== undefined && !(Number.isInteger(x.sortOrder) && (x.sortOrder as number) >= 0 && (x.sortOrder as number) <= 9999)) errors.push('並び順は 0〜9999 の整数にしてください');
   errors.push(...materialErrors(x.material));
+  // 文章だけの問題（文書作成モード）：見本の文章が必要で、空の行は入れられません
+  if ((x.material as { kind?: unknown } | null)?.kind === 'text') {
+    if (typeof x.answerText !== 'string') errors.push('見本の文章を入力してください');
+    else errors.push(...sampleProblems(x.answerText));
+    if (x.answerConfirmed !== true) errors.push('段落の区切りを確認して、「段落の区切りを確認しました」にしてください');
+  }
   return errors;
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   adminAction,
+  fetchDocumentResultsOf,
   fetchExamResultsOf,
   fetchResultsOf,
   getStudentDefaults,
@@ -28,6 +29,8 @@ import { GameRecordTable } from '../../ui/game/GameRecordTable';
 import { CloudTableMissingError, fetchGameResultsOf } from '../../data/cloud';
 import type { GameResult } from '../../core/game/result';
 import type { ExamRecord } from '../../core/examResult';
+import type { DocRecord } from '../../core/documentResult';
+import { DocRecordTable } from '../../ui/doc/DocRecordTable';
 
 export function StudentDetail({ studentId }: { studentId: string }) {
   const { account } = useApp();
@@ -39,6 +42,8 @@ export function StudentDetail({ studentId }: { studentId: string }) {
   const [rows, setRows] = useState<HistoryRow[] | null>(null);
   const [examRows, setExamRows] = useState<ExamRecord[] | null>(null);
   const [examError, setExamError] = useState<string | null>(null);
+  const [docRows, setDocRows] = useState<DocRecord[] | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
   const [gameRows, setGameRows] = useState<GameResult[] | null>(null);
   const [gameError, setGameError] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -61,17 +66,21 @@ export function StudentDetail({ studentId }: { studentId: string }) {
       setStudent(null);
       return;
     }
-    // 検定モードの記録（データベースに表がまだないときも、ほかの表示は続けます）
+    // 文書作成モードの記録（v2.0.0。データベースに表がまだないときも、ほかの表示は続けます）
+    try {
+      setDocRows(await fetchDocumentResultsOf(studentId));
+      setDocError(null);
+    } catch (e) {
+      setDocRows([]);
+      setDocError(e instanceof CloudTableMissingError ? '文書作成モードの記録の表が、まだデータベースにありません（v2.0.0 のマイグレーションを適用してください）。' : '文書作成モードの記録を読み込めませんでした。');
+    }
+    // 旧検定モードの記録（当時の成績のまま表示します）
     try {
       setExamRows(await fetchExamResultsOf(studentId));
       setExamError(null);
     } catch (e) {
       setExamRows([]);
-      setExamError(
-        (e as Error)?.message === 'exam_results_missing'
-          ? '検定モードの記録の表が、まだデータベースにありません（v1.1.0 のマイグレーションを適用してください）。'
-          : '検定モードの記録を読み込めませんでした。',
-      );
+      setExamError((e as Error)?.message === 'exam_results_missing' ? null : '旧検定モードの記録を読み込めませんでした。');
     }
     // ゲームの記録（RLS により、担当している生徒の分だけが返ります）
     try {
@@ -129,16 +138,25 @@ export function StudentDetail({ studentId }: { studentId: string }) {
         {rows ? <HistoryPanel records={rows} /> : <p>読み込んでいます…</p>}
       </section>
 
-      <section className="panel" data-testid="teacher-exam-records">
-        <h2>検定モードの記録</h2>
-        <p className="hint">タイピングのランクとは別の記録です。問題の改訂番号と、そのときの成績をそのまま表示します。</p>
-        {examError && <p className="msg msg-ng">{examError}</p>}
-        {examRows ? <ExamRecordTable records={examRows} /> : <p>読み込んでいます…</p>}
+      <section className="panel" data-testid="teacher-doc-records">
+        <h2>文書作成モードの記録</h2>
+        <p className="hint">タイピングのランクとは別の記録です。完成までの時間と、最終確認での誤りの数を表示します（生徒が入力した本文は保存していません）。</p>
+        {docError && <p className="msg msg-ng">{docError}</p>}
+        {docRows ? <DocRecordTable records={docRows} /> : <p>読み込んでいます…</p>}
       </section>
+
+      {(examError || (examRows && examRows.length > 0)) && (
+        <section className="panel" data-testid="teacher-exam-records">
+          <h2>旧検定モードの記録</h2>
+          <p className="hint">v1.9.0 までの検定モードの記録です。当時の成績のまま表示します（文書作成モードの記録には読み替えません）。</p>
+          {examError && <p className="msg msg-ng">{examError}</p>}
+          {examRows && <ExamRecordTable records={examRows} />}
+        </section>
+      )}
 
       <section className="panel" data-testid="teacher-game-records">
         <h2>ゲームの記録</h2>
-        <p className="hint">タイピングのランク・検定モードとは別の記録です（新しい順に100件）。</p>
+        <p className="hint">タイピングのランク・文書作成モードとは別の記録です（新しい順に100件）。</p>
         {gameError && <p className="msg msg-ng">{gameError}</p>}
         {gameRows ? <GameRecordTable records={gameRows} /> : <p>読み込んでいます…</p>}
       </section>

@@ -179,4 +179,36 @@ describe('教材パック', () => {
     const p = problem('tp-1', { scoringEnabled: false, answerText: null, answerConfirmed: false, material: { kind: 'image', pages: [] } });
     await expect(readPack(make({ ...base, problems: [p], files: [] }))).rejects.toThrow('画像');
   });
+
+  it('v2.0.0：見本の文章だけの問題（ファイルなし）と並び順を書き出し、読み込める', async () => {
+    const src = newStore();
+    const text = problem('tp-t', { title: '文章の問題', material: { kind: 'text' }, sortOrder: 3, answerText: '一段落目。\n二段落目。' });
+    expect(validateTeacherProblem(text)).toEqual([]);
+    await src.saveProblem(text, []);
+    const pack = await readPack(await exportPack(src, ['tp-t']));
+    expect(pack.files).toHaveLength(0);
+    expect(pack.problems[0]).toMatchObject({ id: 'tp-t', sortOrder: 3, material: { kind: 'text' }, answerText: '一段落目。\n二段落目。' });
+    const dst = newStore();
+    const plan = await planImport(dst, pack);
+    expect(plan[0]!.status).toBe('new');
+    await applyImport(dst, pack, plan, false);
+    expect((await dst.getProblem('tp-t'))?.sortOrder).toBe(3);
+    // 同じものはもう一度読み込んでも「読み込み済み」。並び順だけ違えば「別の内容」
+    expect((await planImport(dst, pack))[0]!.status).toBe('same');
+    await dst.saveProblem({ ...text, sortOrder: 9 }, []);
+    expect((await planImport(dst, pack))[0]!.status).toBe('conflict');
+  });
+
+  it('版 1（v1.x の検定モード）の教材パックも読み込める（並び順は未設定）', async () => {
+    const magic = new TextEncoder().encode(PACK_MAGIC);
+    const p = problem('tp-old', { material: { kind: 'image', pages: [{ fileId: 'f-img', rotation: 0 }] } });
+    const files = [{ id: 'f-img', name: 'print.png', type: 'image/png', size: PNG.byteLength, offset: 0, sha256: await sha256Hex(PNG.slice().buffer) }];
+    const json = new TextEncoder().encode(JSON.stringify({ format: 'sakura-type-exam-pack', version: 1, appVersion: '1.7.0', exportedAt: '2026-10-06T00:00:00Z', problems: [p], files }));
+    const len = new Uint8Array(4);
+    new DataView(len.buffer).setUint32(0, json.byteLength);
+    const pack = await readPack(new Blob([magic, len, json, PNG]));
+    expect(pack.problems[0]).toMatchObject({ id: 'tp-old', revision: 1, grade: '3' });
+    expect(pack.problems[0]!.sortOrder).toBeUndefined();
+    expect(pack.files[0]!.id).toBe('f-img');
+  });
 });

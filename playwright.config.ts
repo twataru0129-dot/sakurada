@@ -3,7 +3,12 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: 'e2e',
   timeout: 60_000,
-  use: { baseURL: 'http://localhost:5179/typing/', locale: 'ja-JP' },
+  use: {
+    baseURL: 'http://localhost:5179/typing/',
+    locale: 'ja-JP',
+    // ブラウザの文字コードの環境を UTF-8 にします（C ロケールの環境では、日本語のダウンロードのファイル名が「download」になるため）
+    launchOptions: { env: { ...process.env, LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8' } },
+  },
   webServer: { command: 'npx vite build && VITE_SUPABASE_URL=https://mock.supabase.test VITE_SUPABASE_ANON_KEY=mock-anon-key-for-e2e-tests-only npx vite build --outDir dist-mock && node e2e/serve.mjs', url: 'http://localhost:5179/typing/', reuseExistingServer: false, timeout: 120_000 },
   projects: [
     { name: 'pc', use: { browserName: 'chromium', viewport: { width: 1366, height: 820 } } },
