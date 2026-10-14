@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { countExamChars, GRADES, gradeInfo, isScorable, STANDARD_TIME_SECONDS, TIME_OPTIONS, timeLabel, type ExamGrade, type ExamProblem } from '../../core/exam';
-import { BUILTIN_EXAM_DISCLAIMER, BUILTIN_EXAM_PROBLEMS } from '../../data/examBuiltin';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ExamProblem } from '../../core/exam';
+import { docInfo, sortTeacherProblems, type DocProblemInfo } from '../../core/documentProblem';
+import { BUILTIN_DOC_PROBLEMS } from '../../data/documentBuiltin';
 import { examStore, StoreError } from '../../data/examStore';
 import { useApp } from '../../state/AppContext';
 import { canManageExamProblems } from '../../state/examAccess';
@@ -10,15 +11,14 @@ import { ImportPack } from '../../ui/exam/ImportPack';
 
 type Source = 'builtin' | 'teacher';
 
-export const EXAM_NOTICE =
-  '日本語ワープロ検定の速度分野を参考にした、桜打独自の練習です。採点は練習用の独自の規則で、公式の検定の採点とは異なります。公式検定の合格を認定するものではありません。';
-
+/**
+ * 文書作成モードの問題の選択（v2.0.0）。
+ * 問題のタイトル・本文の文字数（改行を除く）・段落数を、やさしい順に表示します（級や時間の設定は表示しません）。
+ */
 export function ExamSelect() {
-  const { account, setExamSession, examSession } = useApp();
-  const [source, setSource] = useState<Source>(examSession?.problem.source ?? 'builtin');
-  const [grade, setGrade] = useState<ExamGrade | 'all'>(examSession?.problem.grade ?? '4');
-  const [selectedId, setSelectedId] = useState<string | null>(examSession?.problem.id ?? null);
-  const [time, setTime] = useState<number | null>(examSession?.timeLimitSeconds ?? STANDARD_TIME_SECONDS);
+  const { account, setDocSession, docSession } = useApp();
+  const [source, setSource] = useState<Source>(docSession?.problem.source ?? 'builtin');
+  const [selectedId, setSelectedId] = useState<string | null>(docSession?.problem.id ?? null);
   const [teacher, setTeacher] = useState<ExamProblem[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const manage = canManageExamProblems(account);
@@ -26,7 +26,7 @@ export function ExamSelect() {
   const loadTeacher = useCallback(async () => {
     setLoadError(null);
     try {
-      setTeacher((await examStore().listProblems()).filter((p) => p.visible));
+      setTeacher(sortTeacherProblems((await examStore().listProblems()).filter((p) => p.visible)));
     } catch (e) {
       setTeacher([]);
       setLoadError(e instanceof StoreError ? e.message : 'この端末の問題を読み込めませんでした。');
@@ -36,75 +36,51 @@ export function ExamSelect() {
     void loadTeacher();
   }, [loadTeacher]);
 
-  const list = (source === 'builtin' ? BUILTIN_EXAM_PROBLEMS : (teacher ?? [])).filter((p) => grade === 'all' || p.grade === grade);
-  const selected = list.find((p) => p.id === selectedId) ?? null;
-
-  const pick = (p: ExamProblem) => {
-    setSelectedId(p.id);
-    setTime(p.timeLimitSeconds);
-  };
+  const builtin = useMemo(() => BUILTIN_DOC_PROBLEMS.map(docInfo).filter((x): x is DocProblemInfo => x !== null), []);
+  // 先生の問題は、見本の文章を確認済みのものだけを出します（画像・PDF だけで見本の文章がない旧検定の問題は選べません）
+  const teacherList = useMemo(() => (teacher ?? []).map(docInfo).filter((x): x is DocProblemInfo => x !== null), [teacher]);
+  const hiddenCount = (teacher ?? []).length - teacherList.length;
+  const list = source === 'builtin' ? builtin : teacherList;
+  const selected = list.find((x) => x.problem.id === selectedId) ?? null;
 
   const start = () => {
     if (!selected) return;
-    setExamSession({ problem: selected, timeLimitSeconds: time, preview: false });
+    setDocSession({ problem: selected.problem, preview: false });
     navigate('/exam/practice');
   };
 
   return (
     <main>
       <BackLink to="/home">ホームにもどる</BackLink>
-      <h1 style={{ marginTop: 12 }}>検定モード（文章入力）</h1>
-      <p>お手本の文章を見ながら、白紙の A4 用紙に日本語の文章を入力します。日本語入力（IME）で漢字に変換しながら入力してください。</p>
+      <h1 style={{ marginTop: 12 }}>文書作成モード</h1>
+      <p>見本の文章を見ながら、段落ごとに日本語を入力して、一つの文書を完成させます。完成した文書は、印刷したり Word で保存したりできます。</p>
       <details className="details-box">
         <summary>この練習について</summary>
         <ul>
-          <li>{EXAM_NOTICE}</li>
-          <li>扱うのは文章の入力・改行・段落だけです。図・表の作成、文字の装飾、中央揃えなどは行いません。</li>
-          <li>本文は目安の文字数より長くしてあります。時間内に、先頭からどこまで正確に入力できるかを測ります。最後まで入力できなくても、それだけでミスにはなりません。</li>
-          <li>入力中は誤りを知らせません。終わったあとに答え合わせをします。</li>
-          <li>{BUILTIN_EXAM_DISCLAIMER}</li>
+          <li>速さを競う練習ではありません。日本語入力（IME）で自分で漢字に変換し、改行・見直し・修正をして、文章を完成させる練習です。</li>
+          <li>見本の段落の終わり（↵ 改行）では、Enter を押して改行します。画面の幅による折り返しは改行しなくてかまいません。</li>
+          <li>入力中は誤りを知らせません。「チェック」を押すと、見本と違うところに赤い波線と印が付きます。間違っていても完成できます。</li>
+          <li>スタートから「完成！」を押すまでの時間を測ります。制限時間はありません。</li>
+          <li>文字の装飾・中央揃え、図・表・地図の作成は行いません。</li>
         </ul>
       </details>
 
       <nav className="tabs" aria-label="問題の種類">
-        <button type="button" className="btn btn-small" aria-current={source === 'builtin' ? 'page' : undefined} onClick={() => { setSource('builtin'); if (grade === 'all') setGrade('4'); }}>
-          収録問題（30問）
+        <button type="button" className="btn btn-small" aria-current={source === 'builtin' ? 'page' : undefined} onClick={() => setSource('builtin')} data-testid="doc-tab-builtin">
+          収録問題（{builtin.length}問）
         </button>
-        <button type="button" className="btn btn-small" aria-current={source === 'teacher' ? 'page' : undefined} onClick={() => setSource('teacher')}>
+        <button type="button" className="btn btn-small" aria-current={source === 'teacher' ? 'page' : undefined} onClick={() => setSource('teacher')} data-testid="doc-tab-teacher">
           先生の追加問題
         </button>
         {manage && (
-          <button type="button" className="btn btn-quiet btn-small" onClick={() => navigate('/exam/manage')}>
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => navigate('/exam/manage')} data-testid="doc-manage">
             先生の追加問題を管理する
           </button>
         )}
       </nav>
 
-      <section className="panel" aria-labelledby="grade-title">
-        <h2 id="grade-title">① 段階をえらぶ</h2>
-        <div className="choice-row" role="radiogroup" aria-label="段階">
-          {source === 'teacher' && (
-            <label className="choice">
-              <input type="radio" name="grade" checked={grade === 'all'} onChange={() => setGrade('all')} />
-              すべて
-            </label>
-          )}
-          {GRADES.map((g) => (
-            <label key={g.grade} className="choice">
-              <input type="radio" name="grade" checked={grade === g.grade} onChange={() => setGrade(g.grade)} />
-              {g.label}
-            </label>
-          ))}
-        </div>
-        {grade !== 'all' && (
-          <p className="hint" style={{ marginTop: 8 }}>
-            {gradeInfo(grade).label}：標準10分・目安 {gradeInfo(grade).targetCharacters}文字・1ミスで {gradeInfo(grade).penaltyPerError}文字を引きます（練習用の段階設定です）。
-          </p>
-        )}
-      </section>
-
       <section className="panel" aria-labelledby="problem-title">
-        <h2 id="problem-title">② 問題をえらぶ</h2>
+        <h2 id="problem-title">問題をえらぶ{source === 'builtin' && <span className="hint">（やさしい順）</span>}</h2>
         {source === 'teacher' && (
           <div className="msg msg-info">
             先生の追加問題は、この端末（ブラウザ）に保存されている問題です。ほかの端末には自動で届きません。先生から教材パックを受け取ったら、ここで読み込んでください。
@@ -119,56 +95,38 @@ export function ExamSelect() {
           </p>
         )}
         {source === 'teacher' && teacher === null && <p>読み込んでいます…</p>}
-        {list.length === 0 && (source === 'builtin' || teacher !== null) && (
-          <p className="hint" data-testid="no-problems">
-            {source === 'teacher' ? 'この端末には、この段階の先生の追加問題がありません。' : '問題がありません。'}
+        {source === 'teacher' && hiddenCount > 0 && manage && (
+          <p className="hint" data-testid="doc-hidden-note">
+            見本の文章が確認されていない問題が{hiddenCount}問あります。管理の画面で見本の文章を登録・確認すると使用できます。
           </p>
         )}
-        <div className="exam-problem-list" role="radiogroup" aria-label="問題">
-          {list.map((p) => {
-            const scored = isScorable(p);
-            return (
-              <label key={p.id} className={`exam-problem ${selectedId === p.id ? 'is-selected' : ''}`} data-testid="exam-problem">
-                <input type="radio" name="problem" checked={selectedId === p.id} onChange={() => pick(p)} />
-                <span className="exam-problem-title">{p.title}</span>
-                <span className="exam-problem-meta">
-                  <span className="badge badge-ref">{gradeInfo(p.grade).label}</span>
-                  <span>制限時間：{timeLabel(p.timeLimitSeconds)}</span>
-                  <span className={`badge ${scored ? 'badge-ok' : 'badge-soon'}`}>{scored ? '自動採点あり' : '採点なし'}</span>
-                  {p.material.kind !== 'text' && <span>お手本：{p.material.kind === 'pdf' ? 'PDF' : '画像'}（{p.material.pages.length}ページ）</span>}
-                  {scored && <span>本文 {countExamChars(p.answerText!)}文字</span>}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="panel" aria-labelledby="time-title">
-        <h2 id="time-title">③ 時間をえらぶ</h2>
-        <div className="choice-row" role="radiogroup" aria-label="時間">
-          {TIME_OPTIONS.map((t) => (
-            <label key={String(t)} className="choice">
-              <input type="radio" name="time" checked={time === t} onChange={() => setTime(t)} />
-              {t === STANDARD_TIME_SECONDS ? '10分（標準）' : timeLabel(t)}
+        {list.length === 0 && (source === 'builtin' || teacher !== null) && (
+          <p className="hint" data-testid="no-problems">
+            {source === 'teacher' ? 'この端末には、使える先生の追加問題がありません。' : '問題がありません。'}
+          </p>
+        )}
+        <div className="exam-problem-list doc-problem-list" role="radiogroup" aria-label="問題">
+          {list.map((x, n) => (
+            <label key={x.problem.id} className={`exam-problem ${selectedId === x.problem.id ? 'is-selected' : ''}`} data-testid="exam-problem" data-problem-id={x.problem.id}>
+              <input type="radio" name="problem" checked={selectedId === x.problem.id} onChange={() => setSelectedId(x.problem.id)} />
+              <span className="doc-problem-no" aria-hidden="true">
+                {n + 1}
+              </span>
+              <span className="exam-problem-title">{x.problem.title}</span>
+              <span className="exam-problem-meta" data-testid="exam-problem-meta">
+                <span>{x.chars}文字</span>
+                <span>{x.paragraphs}段落</span>
+              </span>
             </label>
           ))}
         </div>
-        <p className="hint" style={{ marginTop: 8 }}>
-          「目安達成」の判定は、標準の10分を最後まで計測したときだけ行います。3分・5分・時間制限なしは、入力文字数や正確さを確かめる練習です。
-        </p>
       </section>
 
       <div className="btn-row">
         <button type="button" className="btn btn-primary btn-large" disabled={!selected} onClick={start} data-testid="exam-start">
-          {selected ? `「${selected.title}」をはじめる` : '問題をえらんでください'}
+          {selected ? `「${selected.problem.title}」をはじめる` : '問題をえらんでください'}
         </button>
       </div>
-      {selected && !isScorable(selected) && (
-        <p className="msg msg-info" data-testid="no-scoring-note">
-          この問題は「採点なし」です。終わったあとは、入力文字数・経過時間・入力した文章だけを表示します（ミス数や目安達成は出しません）。
-        </p>
-      )}
     </main>
   );
 }

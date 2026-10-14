@@ -12,8 +12,8 @@ import { MyHistory } from './screens/MyHistory';
 import { TeacherHome } from './screens/teacher/TeacherHome';
 import { StudentDetail } from './screens/teacher/StudentDetail';
 import { ExamSelect } from './screens/exam/ExamSelect';
-import { ExamPractice } from './screens/exam/ExamPractice';
-import { ExamResult } from './screens/exam/ExamResult';
+import { DocPractice } from './screens/exam/DocPractice';
+import { DocResult } from './screens/exam/DocResult';
 import { ExamManage } from './screens/exam/ExamManage';
 import { GameSelect } from './screens/game/GameSelect';
 import { SakuradaIntro } from './screens/game/SakuradaIntro';
@@ -44,9 +44,10 @@ function Screens() {
   else if (path === '/practice') screen = <Practice />;
   else if (path === '/result') screen = <Result />;
   else if (path === '/history') screen = <MyHistory />;
+  // 文書作成モード（v2.0.0。旧検定モード）：URL は既存の #/exam のままです
   else if (path === '/exam') screen = <ExamSelect />;
-  else if (path === '/exam/practice') screen = <ExamPractice />;
-  else if (path === '/exam/result') screen = <ExamResult />;
+  else if (path === '/exam/practice') screen = <DocPractice />;
+  else if (path === '/exam/result') screen = <DocResult />;
   else if (path === '/exam/manage') screen = <ExamManage />;
   else if (path === '/game') screen = <GameSelect />;
   else if (path === '/game/sakurada') screen = <SakuradaIntro />;

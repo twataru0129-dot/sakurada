@@ -58,7 +58,11 @@ const DEL = 2;
 const INS = 3;
 
 /** 先頭を固定し、正解文の末尾だけを未入力として残せる対応付けを求めます */
-export function alignExam(ref: readonly string[], input: readonly string[]): { ops: AlignOp[]; refEnd: number } {
+/**
+ * forceEnd：正解文の最後まで対応させます（未入力の末尾も脱落にします。文書作成モードで段落を終えたときに使います）。
+ * 省略時（検定モード）は、これまでどおり正解文の末尾を未入力として残せます。
+ */
+export function alignExam(ref: readonly string[], input: readonly string[], forceEnd = false): { ops: AlignOp[]; refEnd: number } {
   const n = input.length;
   const m = ref.length;
   const W = m + 1;
@@ -109,8 +113,8 @@ export function alignExam(ref: readonly string[], input: readonly string[]): { o
     [prevMatch, curMatch] = [curMatch, prevMatch];
   }
   // 入力本文をすべて使い切った行（prev）で、最もよい終点 j を選びます
-  let best = 0;
-  for (let j = 1; j <= m; j++) {
+  let best = forceEnd ? m : 0;
+  for (let j = 1; j <= m && !forceEnd; j++) {
     const c = prevCost[j]!;
     const bc = prevCost[best]!;
     if (c < bc || (c === bc && prevMatch[j]! >= prevMatch[best]!)) best = j;

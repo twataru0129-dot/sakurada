@@ -6,13 +6,13 @@ import { formatDate } from '../common';
 
 const PAGE = 20;
 
-/** 検定モードの記録の一覧（タイピングの記録とは別に表示します） */
+/** 旧検定モード（v1.9.0 まで）の記録の一覧。当時の成績のまま表示します（文書作成モードの記録には読み替えません） */
 export function ExamRecordTable({ records, unsaved }: { records: ExamRecord[]; unsaved?: Set<string> }) {
   const [shown, setShown] = useState(PAGE);
   if (records.length === 0) {
     return (
       <p className="hint" data-testid="exam-history-empty">
-        検定モードで練習すると、ここに記録が残ります。
+        旧検定モードの記録はありません。
       </p>
     );
   }

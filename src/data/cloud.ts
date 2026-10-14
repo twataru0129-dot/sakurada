@@ -14,6 +14,7 @@ import type { Question } from '../core/questions';
 import { HISTORY_LIMIT, type HistoryRecord } from '../core/history';
 import { sanitizeSettings, settingsToJson, type LearningSettings } from '../core/settings';
 import { EXAM_HISTORY_LIMIT, parseExamRecord, type ExamRecord } from '../core/examResult';
+import { DOC_HISTORY_LIMIT, parseDocRecord, type DocRecord } from '../core/documentResult';
 import { GAME_HISTORY_LIMIT, parseGameResult, type GameResult } from '../core/game/result';
 import { parseEvent, type GardenEvent } from '../core/garden/state';
 
@@ -700,4 +701,77 @@ export async function saveGardenEvents(userId: string, events: readonly GardenEv
   if (!error) return;
   if (isMissingTable(error)) throw new CloudTableMissingError();
   throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------------
+// 文書作成モードの記録（document_results。v2.0.0。タイピング・旧検定・ゲームの記録とは別の表。ランクの計算には使いません）
+// ---------------------------------------------------------------------
+/**
+ * 文書作成の記録を保存します。本人が入力した本文・見本の文章は送りません（成績の数値と問題の ID・タイトル・改訂番号だけ）。
+ * 表がまだない（マイグレーション未適用）ときは CloudTableMissingError です。
+ */
+export async function saveDocumentResult(r: DocRecord): Promise<void> {
+  const row = {
+    id: r.id,
+    started_at: r.startedAt,
+    finished_at: r.finishedAt,
+    problem_id: r.problemId,
+    problem_title: r.problemTitle,
+    problem_revision: r.problemRevision,
+    problem_source: r.problemSource,
+    status: r.status,
+    elapsed_ms: Math.round(r.elapsedMs),
+    input_chars: r.inputChars,
+    paragraph_count: r.paragraphCount,
+    text_errors: r.textErrors,
+    wrong_chars: r.wrongChars,
+    extra_chars: r.extraChars,
+    missing_chars: r.missingChars,
+    space_errors: r.spaceErrors,
+    break_errors: r.breakErrors,
+    rules_version: r.rulesVersion,
+  };
+  const { error } = await need().from('document_results').insert(row);
+  if (isMissingTable(error)) throw new CloudTableMissingError();
+  // 23505 = 同じ ID がすでに保存済み（再送）
+  if (error && error.code !== '23505') throw new Error(error.message);
+}
+
+const DOC_COLUMNS =
+  'id, started_at, finished_at, problem_id, problem_title, problem_revision, problem_source, status, elapsed_ms, input_chars, paragraph_count, text_errors, wrong_chars, extra_chars, missing_chars, space_errors, break_errors, rules_version';
+
+function mapDoc(r: Record<string, unknown>): DocRecord | null {
+  return parseDocRecord({
+    id: r.id,
+    startedAt: r.started_at,
+    finishedAt: r.finished_at,
+    problemId: r.problem_id,
+    problemTitle: r.problem_title,
+    problemRevision: r.problem_revision,
+    problemSource: r.problem_source,
+    status: r.status,
+    elapsedMs: r.elapsed_ms,
+    inputChars: r.input_chars,
+    paragraphCount: r.paragraph_count,
+    textErrors: r.text_errors,
+    wrongChars: r.wrong_chars,
+    extraChars: r.extra_chars,
+    missingChars: r.missing_chars,
+    spaceErrors: r.space_errors,
+    breakErrors: r.break_errors,
+    rulesVersion: r.rules_version,
+  });
+}
+
+/** ある利用者の文書作成の記録（新しい順・既定は直近 100 件。RLS により本人か担当の先生だけが読めます） */
+export async function fetchDocumentResultsOf(userId: string, limit = DOC_HISTORY_LIMIT): Promise<DocRecord[]> {
+  const { data, error } = await need()
+    .from('document_results')
+    .select(DOC_COLUMNS)
+    .eq('user_id', userId)
+    .order('started_at', { ascending: false })
+    .limit(limit);
+  if (isMissingTable(error)) throw new CloudTableMissingError();
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as Record<string, unknown>[]).map(mapDoc).filter((x): x is DocRecord => x !== null);
 }

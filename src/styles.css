@@ -638,6 +638,138 @@ body:has(.entry-main) {
   .exam-ready { position: static; transform: none; width: auto; margin-top: 12px; }
 }
 
+/* ---------- 文書作成モード（v2.0.0） ---------- */
+.doc-problem-list .exam-problem { grid-template-columns: auto auto 1fr; }
+.doc-problem-no { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1.6em; text-align: right; }
+.doc-problem-list .exam-problem-meta { grid-column: 3; }
+
+.doc-main {
+  --doc-font: 1.1rem; --doc-lh: 1.9;
+  max-width: none; padding: 0 12px 40px; overflow-x: clip;
+}
+.doc-bar {
+  position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+  margin: 0 -12px 10px; padding: 6px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(80, 30, 45, 0.06);
+}
+.doc-bar-title { font-weight: 800; color: var(--accent-dark); min-width: 0; max-width: 22em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-bar-title .badge { margin-left: 6px; }
+.doc-bar .timer { font-size: 1.3rem; }
+.doc-bar-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.doc-msg { max-width: calc(210mm + 4px); margin: 0 auto 10px; }
+
+/* A4 の紙のような中央の用紙（横幅は A4 を上限に、狭い画面では画面に合わせます） */
+.doc-sheet {
+  width: min(100%, 210mm); margin: 0 auto; padding: 18mm 16mm 22mm; box-sizing: border-box;
+  background: #fff; color: #111; border: 1px solid #e3d3d9; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(80, 30, 45, 0.08);
+  font-size: var(--doc-font);
+}
+.doc-sheet-title { font-size: 1.35em; text-align: center; margin: 0 0 6px; color: #111; }
+.doc-sheet-hint { text-align: center; margin: 0 0 18px; }
+.doc-para { padding: 10px 0 14px; border-top: 1px dashed #ead9df; }
+.doc-para:first-of-type { border-top: none; }
+.doc-para.is-current .doc-para-no { color: var(--accent); }
+.doc-para-no { font-size: 0.8rem; margin: 0 0 4px; color: var(--muted); font-weight: 700; }
+.doc-para-no .hint { font-size: 0.75rem; margin-left: 4px; }
+.doc-sample {
+  margin: 0 0 8px; padding: 8px 12px; background: var(--sakura-50); border-left: 4px solid var(--sakura-300); border-radius: 6px;
+  line-height: var(--doc-lh); white-space: pre-wrap; overflow-wrap: anywhere; line-break: strict;
+}
+.doc-break-mark { display: inline-block; margin-left: 6px; padding: 0 6px; font-size: 0.75em; font-weight: 700; color: var(--sakura-500); border: 1px solid var(--sakura-300); border-radius: 999px; line-height: 1.5; vertical-align: 0.1em; white-space: nowrap; }
+
+/* 入力欄と、チェックの印の写し（同じ文字・余白・行の高さ・折り返しで重ねます） */
+.doc-input-wrap { position: relative; }
+.doc-input, .doc-mirror {
+  display: block; width: 100%; box-sizing: border-box; margin: 0;
+  font: inherit; font-size: 1em; line-height: var(--doc-lh); letter-spacing: 0; line-break: strict;
+  padding: 8px 12px; border: 2px solid #cdb7bf; border-radius: 8px;
+  white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; tab-size: 4;
+}
+.doc-input { resize: none; overflow: hidden; min-height: calc(var(--doc-lh) * 2em + 20px); background: #fff; color: #111; }
+.doc-input:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px rgba(31, 95, 191, 0.18); }
+.doc-input[readonly] { background: #faf7f8; cursor: default; }
+.doc-mirror { position: absolute; inset: 0; pointer-events: none; color: transparent; border-color: transparent; background: transparent; overflow: hidden; }
+.doc-wavy { text-decoration: underline wavy #d32f2f; text-decoration-thickness: 1.5px; text-underline-offset: 0.22em; text-decoration-skip-ink: none; }
+.doc-mirror .doc-wavy { background: rgba(211, 47, 47, 0.07); }
+.doc-wavy.doc-mk-space { text-decoration-color: #b26a00; background: rgba(255, 179, 0, 0.12); }
+.doc-pin { position: relative; display: inline; }
+.doc-pin::after {
+  content: attr(data-sym); position: absolute; left: -0.35em; top: -0.95em; font-size: 0.7em; line-height: 1; font-weight: 800;
+  color: #d32f2f; background: #fff; border-radius: 3px; padding: 0 1px; pointer-events: none; white-space: nowrap;
+}
+.doc-pin.doc-mk-space::after { color: #b26a00; }
+.doc-pin.doc-mk-missingBreak::after, .doc-pin.doc-mk-extraBreak::after { color: #6a1b9a; }
+.doc-mirror .doc-pin::after { color: #d32f2f; }
+.doc-mirror .doc-pin.doc-mk-space::after { color: #b26a00; }
+.doc-mirror .doc-pin.doc-mk-missingBreak::after, .doc-mirror .doc-pin.doc-mk-extraBreak::after { color: #6a1b9a; }
+
+.doc-para-foot { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 12px; margin-top: 4px; font-size: 0.85rem; min-height: 0; }
+.doc-break-done { color: var(--ok); font-weight: 700; }
+.doc-check-ok { color: var(--ok); font-weight: 700; }
+.doc-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; flex-basis: 100%; }
+.doc-note { color: #b71c1c; }
+.doc-note::before { content: '● '; font-size: 0.7em; vertical-align: 0.15em; }
+.doc-note.doc-mk-space { color: #8a5200; }
+.doc-note.doc-mk-missingBreak, .doc-note.doc-mk-extraBreak { color: #6a1b9a; }
+.doc-stale { flex-basis: 100%; }
+.doc-hint { margin: 0; padding: 4px 10px; flex-basis: 100%; }
+
+/* 全文を確認 */
+.doc-full { position: fixed; inset: 0; z-index: 40; background: #ece6e8; overflow: auto; padding: 0 12px 40px; }
+.doc-full-bar { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0 -12px 12px; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.doc-full-bar h2 { margin: 0; font-size: 1.1rem; }
+.doc-full-bar .timer { font-size: 1.2rem; }
+.doc-full > .hint { text-align: center; }
+.spacer { flex: 1; }
+
+/* 文書（本人の全文）。A4 の紙のように見せます */
+.doc-paper {
+  width: min(100%, 210mm); min-height: min(297mm, 80vh); margin: 0 auto 24px; padding: 25mm 25mm 25mm; box-sizing: border-box;
+  background: #fff; color: #111; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 8px 24px rgba(0, 0, 0, 0.08);
+  font-family: 'Yu Mincho', 'YuMincho', '游明朝', 'Hiragino Mincho ProN', 'Noto Serif JP', serif; font-size: 10.5pt; line-height: 1.8;
+}
+.doc-paper-title { font-size: 14pt; text-align: center; margin: 0 0 1.2em; color: #111; font-weight: 700; }
+.doc-paper-body { white-space: pre-wrap; overflow-wrap: anywhere; line-break: strict; tab-size: 4; }
+
+/* 完成画面 */
+.doc-result { max-width: none; }
+.doc-result-head { max-width: 210mm; margin: 0 auto 16px; }
+.doc-result-head h1 { margin: 8px 0 4px; }
+.doc-result-time { font-size: 1.15rem; margin: 0 0 6px; }
+.doc-result-time strong { font-size: 1.5rem; color: var(--accent-dark); margin: 0 6px; font-variant-numeric: tabular-nums; }
+.doc-review { max-width: 210mm; margin: 0 auto 16px; }
+.doc-review-para { padding: 10px 0; border-top: 1px dashed var(--border); }
+.doc-review-para h3 { font-size: 0.9rem; margin: 0 0 4px; color: var(--muted); }
+.doc-review-input { margin: 0 0 4px; padding: 8px 12px; background: #fff; border: 1px solid var(--border); border-radius: 8px; line-height: 2.1; white-space: pre-wrap; overflow-wrap: anywhere; }
+.print-only { display: none; }
+
+/* 先生の問題管理：段落のプレビュー */
+.doc-para-preview { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--sakura-50); }
+.doc-para-preview li { display: grid; grid-template-columns: 4.5em 1fr; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #f1e3e8; }
+.doc-para-preview li.is-blank { background: var(--ng-bg); }
+.doc-para-preview-no { color: var(--muted); font-size: 0.85rem; font-weight: 700; }
+.doc-para-preview-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.doc-para-preview .doc-break-mark { grid-column: 2; justify-self: start; margin-left: 0; }
+.inline-msg { display: inline-block; padding: 2px 8px; margin: 0; font-size: 0.85rem; }
+
+@media (max-width: 900px) {
+  .doc-sheet { padding: 16px 14px 24px; }
+  .doc-paper { padding: 18px 16px; min-height: 0; }
+  .doc-bar-title { max-width: 100%; flex-basis: 100%; }
+  .doc-bar-actions { margin-left: 0; }
+}
+
+/* 印刷：A4 縦。タイトルと本人の全文だけ（ボタン・見本・時間・印は印刷しません） */
+@media print {
+  @page { size: A4 portrait; margin: 25mm; }
+  body { background: #fff !important; }
+  .app-header, .no-print, .modal-back { display: none !important; }
+  main.doc-result { padding: 0; margin: 0; max-width: none; }
+  .print-only { display: block !important; }
+  .doc-paper.doc-print { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; border: none; }
+  .doc-paper-body { orphans: 2; widows: 2; }
+}
+
 /* ---------- ゲームモード ---------- */
 .game-card { align-items: stretch; }
 .game-card-img { width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: contain; background: #e9eef6; border-radius: 10px; }

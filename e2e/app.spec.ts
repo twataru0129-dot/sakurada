@@ -59,7 +59,7 @@ test.describe('入口・アイコン・サブディレクトリ', () => {
       expect(overlap, sel).toBe(false);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-    await expect(page.locator('.app-header .version')).toHaveText('v1.9.0');
+    await expect(page.locator('.app-header .version')).toHaveText('v2.0.0');
   });
 
   test('3つのモードが使える（v1.2.0：② ゲームモード）', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('入口・アイコン・サブディレクトリ', () => {
     await page.getByRole('button', { name: 'ゲストで練習' }).click();
     await expect(page.getByRole('button', { name: /タイピングモード/ })).toBeEnabled();
     await expect(page.getByRole('button', { name: /ゲームモード/ })).toBeEnabled();
-    await expect(page.getByRole('button', { name: /検定モード/ })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /文書作成モード/ })).toBeEnabled();
     await expect(page.getByText('準備中')).toHaveCount(0);
   });
 });

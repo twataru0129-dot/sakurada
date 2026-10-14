@@ -50,7 +50,7 @@ test.describe('ゲームモード', () => {
   test('ホームの「② ゲームモード」→ ゲームの選択（遊べるゲームだけ）→ 紹介（完成イメージとルール）', async ({ page }) => {
     await guest(page);
     await expect(page.getByTestId('home-game')).toContainText('② ゲームモード');
-    await expect(page.getByRole('button', { name: /検定モード/ })).toBeEnabled();
+    await expect(page.getByRole('button', { name: /文書作成モード/ })).toBeEnabled();
     await expect(page.getByRole('button', { name: /タイピングモード/ })).toBeEnabled();
     await page.getByTestId('home-game').click();
     // 遊べるゲーム：サグラダファミリアを完成させよ（v1.2.0）・桜ガーデン（v1.4.0）・ボウイの爆弾遊戯（v1.5.0）

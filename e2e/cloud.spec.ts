@@ -31,6 +31,10 @@ interface MockState {
   /** 検定モードの記録（exam_results） */
   examBodies?: Record<string, unknown>[];
   examRows?: Map<string, Record<string, unknown>[]>;
+  /** 文書作成モードの記録（document_results・v2.0.0） */
+  docBodies?: Record<string, unknown>[];
+  docRows?: Map<string, Record<string, unknown>[]>;
+  docMode?: 'ok' | 'missing';
   /** ゲームの記録（game_results） */
   gameBodies?: Record<string, unknown>[];
   gameRows?: Map<string, Record<string, unknown>[]>;
@@ -114,6 +118,22 @@ async function mockSupabase(page: Page, opts: { failFirstSave?: boolean; state?:
         return json(route, null, 201);
       }
       return json(route, [...(st.examRows.get(st.current) ?? [])]);
+    }
+    if (url.pathname === '/rest/v1/document_results') {
+      st.docBodies ??= [];
+      st.docRows ??= new Map();
+      // マイグレーション 20261014000000_document_results.sql を適用する前（表がない）を再現
+      if (st.docMode === 'missing') return json(route, { code: 'PGRST205', message: "Could not find the table 'public.document_results' in the schema cache" }, 404);
+      if (req.method() === 'POST') {
+        const b = req.postDataJSON() as Record<string, unknown>;
+        st.docBodies.push(b);
+        const list = st.docRows.get(st.current) ?? [];
+        if (list.some((r) => r.id === b.id)) return json(route, { code: '23505', message: 'duplicate key' }, 409);
+        list.push({ ...b, user_id: USERS[st.current]!.id, saved_at: new Date().toISOString() });
+        st.docRows.set(st.current, list);
+        return json(route, null, 201);
+      }
+      return json(route, [...(st.docRows.get(st.current) ?? [])]);
     }
     if (url.pathname === '/rest/v1/game_results' || url.pathname === '/rest/v1/rpc/game_bests') {
       st.gameBodies ??= [];
@@ -318,40 +338,72 @@ test('v1.0.3 のマイグレーション前（romaji_style 列なし）でも、
   expect(st.rows.get('stu01')).toHaveLength(1);
 });
 
-test('検定モード：ログイン利用者の記録はアカウントに保存し、端末やゲストの記録には書き込まない', async ({ page }, info) => {
+/** 文書作成モード：収録問題の1問目（やさしい順）を、段落ごとに短く入力して完成させます */
+async function completeDocument(page: Page) {
+  await page.getByTestId('home-exam').click();
+  await page.getByTestId('exam-problem').first().click();
+  await page.getByTestId('exam-start').click();
+  await page.getByTestId('doc-go').click();
+  const n = await page.getByTestId('doc-input').count();
+  for (let i = 0; i < n; i++) {
+    await expect(page.getByTestId('doc-input').nth(i)).toBeFocused();
+    await page.keyboard.insertText(`段落${i + 1}の文章`);
+    if (i < n - 1) await page.keyboard.press('Enter');
+  }
+  await page.getByTestId('doc-done').click();
+  await page.getByTestId('doc-done-confirm').click();
+  await expect(page.getByTestId('doc-result-title')).toHaveText('文書が完成しました');
+}
+
+test('文書作成モード：ログイン利用者の記録はアカウントに保存し（本文は送らない）、端末やゲストの記録には書き込まない', async ({ page }, info) => {
   test.skip(info.project.name !== 'pc');
   const st = await mockSupabase(page);
   await login(page);
   await expect(page.getByRole('heading', { name: 'さくらさん、こんにちは' })).toBeVisible();
-  await page.getByTestId('home-exam').click();
-  await page.getByTestId('exam-problem').first().click();
-  await page.getByTestId('exam-start').click();
-  await page.getByTestId('exam-go').click();
-  await page.getByTestId('exam-input').pressSequentially('朝、学校に着いたら');
-  await page.getByTestId('exam-end').click();
-  await page.getByTestId('exam-end-confirm').click();
-  await expect(page.getByTestId('exam-save-state')).toContainText('✓ 記録を保存しました（検定モードの記録）');
-  expect(st.examBodies).toHaveLength(1);
-  const body = st.examBodies![0]!;
-  // 入力した文章・正解文は送らない。タイピングの記録の表にも送らない
-  expect(JSON.stringify(body)).not.toContain('朝、学校に着いたら');
-  expect(body).toMatchObject({ problem_id: 'exam-original-4-01', problem_revision: 1, grade: '4', input_chars: 9, miss_count: 0, end_reason: 'user_end' });
+  await completeDocument(page);
+  await expect(page.getByTestId('doc-save-state')).toContainText('✓ 記録を保存しました（アカウントの文書作成の記録');
+  expect(st.docBodies).toHaveLength(1);
+  const body = st.docBodies![0]!;
+  // 入力した文章・見本は送らない。タイピング・旧検定の記録の表にも送らない
+  expect(JSON.stringify(body)).not.toContain('段落1の文章');
+  expect(body).toMatchObject({ problem_id: 'exam-original-4-04', problem_revision: 1, status: 'completed', paragraph_count: 4, rules_version: 'doc-v1' });
+  expect(Object.keys(body)).not.toContain('text');
   expect(st.resultPosts).toBe(0);
+  expect(st.examBodies ?? []).toHaveLength(0);
   const keys = await page.evaluate(() => Object.keys(localStorage));
-  expect(keys).not.toContain('sakura-type:guest-exam-history');
-  await page.getByRole('button', { name: '検定モードの記録' }).click();
+  expect(keys).not.toContain('sakura-type:guest-document-history');
+  await page.getByTestId('doc-back').click();
+  await page.evaluate(() => (location.hash = '#/history'));
+  await page.getByTestId('tab-exam').click();
   await expect(page.getByTestId('exam-history-source')).toContainText('アカウント');
-  await expect(page.getByTestId('exam-history-row')).toHaveCount(1);
+  await expect(page.getByTestId('doc-history-row')).toHaveCount(1);
   // 別のアカウントに切り替えると、前の人の記録は見えない
   await page.getByRole('button', { name: '終了してログアウト' }).click();
   await login(page, 'pass1234', 'stu02');
   await expect(page.getByRole('heading', { name: 'もみじさん、こんにちは' })).toBeVisible();
   await page.getByRole('button', { name: '練習の記録' }).click();
   await page.getByTestId('tab-exam').click();
-  await expect(page.getByTestId('exam-history-empty')).toBeVisible();
+  await expect(page.getByTestId('doc-history-empty')).toBeVisible();
 });
 
-test('検定モード：ログイン機能が設定済みのとき、生徒は先生の追加問題を管理できない（画面の表示）', async ({ page }, info) => {
+test('文書作成モード：クラウドに記録の表がまだない（マイグレーション前）ときは「未保存」と表示し、印刷・Word の保存はできる', async ({ page }, info) => {
+  test.skip(info.project.name !== 'pc');
+  const st = await mockSupabase(page);
+  st.docMode = 'missing';
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'さくらさん、こんにちは' })).toBeVisible();
+  await completeDocument(page);
+  await expect(page.getByTestId('doc-save-state')).toContainText('記録は未保存です：クラウドの記録の表がまだありません');
+  await expect(page.getByTestId('doc-print')).toBeEnabled();
+  await expect(page.getByTestId('doc-word')).toBeEnabled();
+  await expect(page.getByTestId('doc-result-paper')).toContainText('段落1の文章');
+  // 記録の画面でも、表がないことを知らせる（アプリは止まらない）
+  await page.evaluate(() => (location.hash = '#/history'));
+  await page.getByTestId('tab-exam').click();
+  await expect(page.locator('main')).toContainText('まだデータベースにありません');
+});
+
+test('文書作成モード：ログイン機能が設定済みのとき、生徒は先生の追加問題を管理できない（画面の表示）', async ({ page }, info) => {
   test.skip(info.project.name !== 'pc');
   await mockSupabase(page);
   await login(page);

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { countExamChars, GRADES, gradeInfo, isScorable, TIME_OPTIONS, timeLabel, type ExamGrade, type ExamMaterial, type ExamProblem, type Rotation } from '../../core/exam';
-import { checkMaterialFile, formatBytes, MAX_FILE_BYTES, MAX_IMAGE_FILES, MAX_PDF_PAGES, sha256Hex } from '../../core/examFiles';
-import { MAX_TITLE_CHARS, newFileId, newTeacherProblemId, shortAnswerNotice, validateTeacherProblem } from '../../core/examProblem';
-import { MAX_ANSWER_CHARS } from '../../core/examScoring';
+import type { ExamProblem } from '../../core/exam';
+import { countDocChars, MAX_SAMPLE_CHARS, normalizeText, removeBlankLines, sampleParagraphs, sampleProblems } from '../../core/document';
+import { docUnavailableReason, sortTeacherProblems } from '../../core/documentProblem';
+import { formatBytes } from '../../core/examFiles';
+import { MAX_TITLE_CHARS, newTeacherProblemId, validateTeacherProblem } from '../../core/examProblem';
 import { exportPack, packFileName } from '../../data/examPack';
-import { examStore, StoreError, type StoredFile } from '../../data/examStore';
+import { examStore, StoreError } from '../../data/examStore';
 import { extractPdfText, openPdf, PdfError } from '../../data/pdf';
 import { useApp } from '../../state/AppContext';
 import { canManageExamProblems } from '../../state/examAccess';
@@ -14,12 +15,17 @@ import { ImportPack } from '../../ui/exam/ImportPack';
 import { MaterialViewer, type BlobResolver } from '../../ui/exam/MaterialViewer';
 import { isCloudConfigured } from '../../config';
 
+/**
+ * 先生の追加問題の管理（文書作成モード・v2.0.0）。
+ * 新しい問題は「タイトル＋見本の文章」で作ります。級と制限時間の設定はありません（内部の値は残します）。
+ * 旧検定モードの画像・PDF の問題は、原本のファイル・ID・改訂番号を消さずに残し、見本の文章を登録・確認すると使えます。
+ */
 export function ExamManage() {
   const { account } = useApp();
   if (!canManageExamProblems(account)) {
     return (
       <main>
-        <BackLink to="/exam">検定モードにもどる</BackLink>
+        <BackLink to="/exam">文書作成モードにもどる</BackLink>
         <p className="msg msg-ng" style={{ marginTop: 12 }}>
           この画面は先生のアカウントでログインしたときだけ使えます。
         </p>
@@ -32,7 +38,7 @@ export function ExamManage() {
 type Editing = { problem: ExamProblem | null } | null;
 
 function Manage() {
-  const { setExamSession } = useApp();
+  const { setDocSession } = useApp();
   const [items, setItems] = useState<ExamProblem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -43,7 +49,7 @@ function Manage() {
 
   const load = useCallback(async () => {
     try {
-      setItems(await examStore().listProblems());
+      setItems(sortTeacherProblems(await examStore().listProblems()));
       setError(null);
     } catch (e) {
       setItems([]);
@@ -61,7 +67,7 @@ function Manage() {
   }, [load]);
 
   const preview = (p: ExamProblem) => {
-    setExamSession({ problem: p, timeLimitSeconds: p.timeLimitSeconds, preview: true });
+    setDocSession({ problem: p, preview: true });
     navigate('/exam/practice');
   };
 
@@ -89,20 +95,20 @@ function Manage() {
       a.click();
       a.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    }, `${ids.length}問を教材パックに書き出しました（${packFileName()}）。生徒の端末の「検定モード → 先生の追加問題 → 教材パックを読み込む」で読み込んでください。`);
+    }, `${ids.length}問を教材パックに書き出しました（${packFileName()}）。生徒の端末の「文書作成モード → 先生の追加問題 → 教材パックを読み込む」で読み込んでください。`);
   };
 
   return (
     <main>
-      <BackLink to="/exam">検定モードにもどる</BackLink>
-      <h1 style={{ marginTop: 12 }}>先生の追加問題（検定モード）</h1>
+      <BackLink to="/exam">文書作成モードにもどる</BackLink>
+      <h1 style={{ marginTop: 12 }}>先生の追加問題（文書作成モード）</h1>
       <div className="grid grid-2 store-explain">
         <div className="msg msg-info">
-          <strong>この端末に保存</strong>：追加した問題は、この端末のこのブラウザだけに保存されます（画像・PDF のファイルごと保存し、再読み込みしても使えます）。ほかの端末やほかのブラウザには届きません。
+          <strong>この端末に保存</strong>：追加した問題は、この端末のこのブラウザだけに保存されます。ほかの端末やほかのブラウザには届きません。
           {isCloudConfigured && ' ログインしていても、クラウドには保存されません。'}
         </div>
         <div className="msg msg-info">
-          <strong>教材パックで配布</strong>：問題を選んで「教材パックで書き出す」と、問題の設定・採点用の正解文・お手本のファイルを1つのファイルにまとめます。生徒の端末で読み込むと使えるようになります。成績やログイン情報は入りません。
+          <strong>教材パックで配布</strong>：問題を選んで「教材パックで書き出す」と、問題のタイトル・見本の文章（旧検定の問題は原本のファイルも）を1つのファイルにまとめます。生徒の端末で読み込むと使えるようになります。成績やログイン情報は入りません。
         </div>
       </div>
       {!isCloudConfigured && (
@@ -127,6 +133,7 @@ function Manage() {
         <Editor
           key={editing.problem?.id ?? 'new'}
           initial={editing.problem}
+          nextOrder={(items ?? []).reduce((n, p) => Math.max(n, (p.sortOrder ?? 0) + 10), 10)}
           onCancel={() => setEditing(null)}
           onSaved={async (p) => {
             setEditing(null);
@@ -145,7 +152,7 @@ function Manage() {
               setEditing({ problem: null });
             }}
           >
-            ＋ 問題を追加する
+            ＋ 問題を追加する（タイトル＋見本の文章）
           </button>
         </div>
       )}
@@ -153,7 +160,7 @@ function Manage() {
       <section className="panel" style={{ marginTop: 20 }}>
         <h2>この端末の追加問題</h2>
         {items === null && <p>読み込んでいます…</p>}
-        {items && items.length === 0 && <p className="hint">まだ問題はありません。「問題を追加する」から、画像や PDF のお手本で問題を作れます。</p>}
+        {items && items.length === 0 && <p className="hint">まだ問題はありません。「問題を追加する」から、タイトルと見本の文章で問題を作れます。</p>}
         {items && items.length > 0 && (
           <div className="table-wrap">
             <table className="manage-table">
@@ -162,98 +169,108 @@ function Manage() {
                   <th>
                     <span className="sr-only">書き出す問題として選ぶ</span>
                   </th>
-                  <th>問題名</th>
-                  <th>段階</th>
-                  <th>制限時間</th>
-                  <th>自動採点</th>
-                  <th>お手本</th>
+                  <th>並び順</th>
+                  <th>タイトル</th>
+                  <th>見本の文章</th>
+                  <th>種類</th>
                   <th>生徒向け</th>
                   <th>改訂</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((p) => (
-                  <tr key={p.id} data-testid="manage-row">
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={`${p.title} を書き出す`}
-                        checked={checked.has(p.id)}
-                        onChange={(e) => {
-                          const next = new Set(checked);
-                          if (e.target.checked) next.add(p.id);
-                          else next.delete(p.id);
-                          setChecked(next);
-                        }}
-                      />
-                    </td>
-                    <td>{p.title}</td>
-                    <td>{gradeInfo(p.grade).label}</td>
-                    <td>{timeLabel(p.timeLimitSeconds)}</td>
-                    <td>{isScorable(p) ? `あり（${countExamChars(p.answerText!)}文字）` : '採点なし'}</td>
-                    <td>
-                      {p.material.kind === 'pdf' ? 'PDF' : '画像'} {p.material.kind !== 'text' && `${p.material.pages.length}ページ`}
-                    </td>
-                    <td>
-                      <label className="switch">
+                {items.map((p) => {
+                  const reason = docUnavailableReason(p);
+                  return (
+                    <tr key={p.id} data-testid="manage-row" data-problem-id={p.id}>
+                      <td>
                         <input
                           type="checkbox"
-                          checked={p.visible}
-                          onChange={(e) =>
-                            void run(
-                              () => examStore().saveProblem({ ...p, visible: e.target.checked, updatedAt: new Date().toISOString() }, []),
-                              e.target.checked ? `「${p.title}」を生徒向けに表示します` : `「${p.title}」を生徒向けに表示しません`,
-                            )
-                          }
+                          aria-label={`${p.title} を書き出す`}
+                          checked={checked.has(p.id)}
+                          onChange={(e) => {
+                            const next = new Set(checked);
+                            if (e.target.checked) next.add(p.id);
+                            else next.delete(p.id);
+                            setChecked(next);
+                          }}
                         />
-                        {p.visible ? '表示' : '非表示'}
-                      </label>
-                    </td>
-                    <td>
-                      {p.revision}
-                      <div className="hint">{formatDate(p.updatedAt)}</div>
-                    </td>
-                    <td>
-                      <div className="btn-row">
-                        <button type="button" className="btn btn-small" onClick={() => preview(p)}>
-                          生徒用プレビュー
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-small"
-                          onClick={() => {
-                            setEditing({ problem: p });
-                            editorTop.current?.scrollIntoView({ block: 'start' });
-                          }}
-                        >
-                          編集
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-small"
-                          onClick={() => {
-                            const now = new Date().toISOString();
-                            const title = [...`${p.title}（コピー）`].slice(0, MAX_TITLE_CHARS).join('');
-                            void run(() => examStore().saveProblem({ ...p, id: newTeacherProblemId(), title, revision: 1, createdAt: now, updatedAt: now }, []), `「${p.title}」を複製しました`);
-                          }}
-                        >
-                          複製
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-small"
-                          onClick={() => {
-                            if (!window.confirm(`「${p.title}」をこの端末から削除しますか？ お手本のファイルも削除されます（ほかの端末に配布した教材パックや、これまでの記録は消えません）。`)) return;
-                            void run(() => examStore().deleteProblem(p.id), `「${p.title}」を削除しました`);
-                          }}
-                        >
-                          削除
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="num">{p.sortOrder ?? '—'}</td>
+                      <td>{p.title}</td>
+                      <td data-testid="manage-sample-state">
+                        {reason ? (
+                          <span className="msg msg-ng inline-msg">{reason}</span>
+                        ) : (
+                          `${countDocChars(p.answerText!)}文字・${sampleParagraphs(p.answerText!).length}段落`
+                        )}
+                      </td>
+                      <td>{p.material.kind === 'text' ? '文章' : `${p.material.kind === 'pdf' ? 'PDF' : '画像'}（旧検定の原本あり）`}</td>
+                      <td>
+                        <label className="switch">
+                          <input
+                            type="checkbox"
+                            checked={p.visible}
+                            onChange={(e) =>
+                              void run(
+                                () => examStore().saveProblem({ ...p, visible: e.target.checked, updatedAt: new Date().toISOString() }, []),
+                                e.target.checked ? `「${p.title}」を生徒向けに表示します` : `「${p.title}」を生徒向けに表示しません`,
+                              )
+                            }
+                            data-testid="manage-visible"
+                          />
+                          {p.visible ? '表示' : '非表示'}
+                        </label>
+                      </td>
+                      <td>
+                        {p.revision}
+                        <div className="hint">{formatDate(p.updatedAt)}</div>
+                      </td>
+                      <td>
+                        <div className="btn-row">
+                          <button type="button" className="btn btn-small" onClick={() => preview(p)} disabled={!!reason} data-testid="manage-preview">
+                            生徒用プレビュー
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-small"
+                            onClick={() => {
+                              setEditing({ problem: p });
+                              editorTop.current?.scrollIntoView({ block: 'start' });
+                            }}
+                            data-testid="manage-edit"
+                          >
+                            編集
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-small"
+                            onClick={() => {
+                              const now = new Date().toISOString();
+                              const title = [...`${p.title}（コピー）`].slice(0, MAX_TITLE_CHARS).join('');
+                              // 原本のファイルは同じものを共有します（どちらかを削除しても、使われているファイルは残ります）
+                              void run(() => examStore().saveProblem({ ...p, id: newTeacherProblemId(), title, revision: 1, createdAt: now, updatedAt: now }, []), `「${p.title}」を複製しました`);
+                            }}
+                            data-testid="manage-copy"
+                          >
+                            複製
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-small"
+                            onClick={() => {
+                              if (!window.confirm(`「${p.title}」をこの端末から削除しますか？（ほかの端末に配布した教材パックや、これまでの記録は消えません）`)) return;
+                              void run(() => examStore().deleteProblem(p.id), `「${p.title}」を削除しました`);
+                            }}
+                            data-testid="manage-delete"
+                          >
+                            削除
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -269,118 +286,59 @@ function Manage() {
   );
 }
 
-type DraftFile = StoredFile;
-type PdfInfo = { fileId: string; numPages: number };
-
 interface Draft {
   title: string;
-  grade: ExamGrade;
-  timeLimitSeconds: number | null;
-  scoringEnabled: boolean;
-  answerText: string;
-  answerConfirmed: boolean;
+  sample: string;
+  confirmed: boolean;
   visible: boolean;
-  material: ExamMaterial | null;
+  sortOrder: string;
 }
 
-function Editor({ initial, onCancel, onSaved }: { initial: ExamProblem | null; onCancel: () => void; onSaved: (p: ExamProblem) => void }) {
+function Editor({ initial, nextOrder, onCancel, onSaved }: { initial: ExamProblem | null; nextOrder: number; onCancel: () => void; onSaved: (p: ExamProblem) => void }) {
   const [d, setD] = useState<Draft>(() => ({
     title: initial?.title ?? '',
-    grade: initial?.grade ?? '3',
-    timeLimitSeconds: initial ? initial.timeLimitSeconds : 600,
-    scoringEnabled: initial?.scoringEnabled ?? true,
-    answerText: initial?.answerText ?? '',
-    answerConfirmed: initial?.answerConfirmed ?? false,
+    sample: initial?.answerText ?? '',
+    confirmed: initial?.answerConfirmed ?? false,
     visible: initial?.visible ?? true,
-    material: initial?.material ?? null,
+    sortOrder: String(initial?.sortOrder ?? nextOrder),
   }));
-  const [newFiles, setNewFiles] = useState<Map<string, DraftFile>>(new Map());
-  const [pdfInfo, setPdfInfo] = useState<PdfInfo | null>(null);
-  const [fileMsg, setFileMsg] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [extractNote, setExtractNote] = useState<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const legacy = initial && initial.material.kind !== 'text' ? initial : null;
+  const resolve = useCallback<BlobResolver>(async (id) => (await examStore().getFile(id))?.blob ?? null, []);
+  // 見本の文章を変えたら、段落の区切りの確認はやり直します
+  const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch, ...('sample' in patch && patch.sample !== x.sample ? { confirmed: false } : {}) }));
 
-  const resolve = useCallback<BlobResolver>(
-    async (id) => newFiles.get(id)?.blob ?? (await examStore().getFile(id))?.blob ?? null,
-    [newFiles],
-  );
+  const text = normalizeText(d.sample);
+  const paras = text.trim() ? sampleParagraphs(text) : [];
+  const issues = text.trim() ? sampleProblems(text) : [];
+  const hasBlank = paras.some((l) => l.trim() === '');
 
-  // 編集のとき：PDF のページ数を調べます
-  useEffect(() => {
-    const m = d.material;
-    if (m?.kind !== 'pdf' || pdfInfo?.fileId === m.fileId) return;
-    let cancelled = false;
-    void (async () => {
-      const blob = await resolve(m.fileId);
-      if (!blob || cancelled) return;
-      try {
-        const doc = await openPdf(blob);
-        if (!cancelled) setPdfInfo({ fileId: m.fileId, numPages: doc.numPages });
-        void doc.loadingTask.destroy();
-      } catch (e) {
-        if (!cancelled) setFileMsg(e instanceof PdfError ? e.message : 'PDF を読み込めませんでした。');
-      }
-    })();
-    return () => {
-      cancelled = true;
+  const problem = useMemo<ExamProblem>(() => {
+    const now = new Date().toISOString();
+    const order = d.sortOrder.trim() === '' ? undefined : Number(d.sortOrder);
+    return {
+      id: initial?.id ?? 'draft',
+      revision: initial ? initial.revision + 1 : 1,
+      title: d.title.trim(),
+      // 級・制限時間は文書作成モードでは使いません（旧検定の問題は元の値のまま、新しい問題は内部の既定値）
+      grade: initial?.grade ?? '4',
+      source: 'teacher',
+      timeLimitSeconds: initial ? initial.timeLimitSeconds : null,
+      scoringEnabled: true,
+      answerText: text,
+      answerConfirmed: d.confirmed,
+      visible: d.visible,
+      sortOrder: order,
+      material: initial?.material ?? { kind: 'text' },
+      createdAt: initial?.createdAt ?? now,
+      updatedAt: now,
     };
-  }, [d.material, pdfInfo?.fileId, resolve]);
-
-  const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
-
-  const chooseFiles = async (list: FileList | null) => {
-    setFileMsg(null);
-    if (!list || list.length === 0) return;
-    const files = [...list];
-    setBusy(true);
-    try {
-      const checks = await Promise.all(files.map((f) => checkMaterialFile(f)));
-      const bad = checks.find((c): c is { ok: false; message: string } => !c.ok);
-      if (bad) return setFileMsg(bad.message);
-      const types = checks.map((c) => (c.ok ? c.type : null));
-      const pdfCount = types.filter((t) => t === 'application/pdf').length;
-      if (pdfCount > 0 && files.length > 1) return setFileMsg('PDF は1つだけ選んでください（画像と PDF を一緒には使えません）。');
-      const stored: DraftFile[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i]!;
-        const buf = await f.arrayBuffer();
-        stored.push({ id: newFileId(), name: f.name.slice(0, 120), type: types[i]!, size: f.size, blob: new Blob([buf], { type: types[i]! }), sha256: await sha256Hex(buf) });
-      }
-      if (pdfCount === 1) {
-        const f = stored[0]!;
-        let numPages = 0;
-        try {
-          const doc = await openPdf(f.blob);
-          numPages = doc.numPages;
-          void doc.loadingTask.destroy();
-        } catch (e) {
-          return setFileMsg(e instanceof PdfError ? e.message : 'PDF を読み込めませんでした。');
-        }
-        if (numPages > MAX_PDF_PAGES) return setFileMsg(`この PDF は${numPages}ページあります。1つの問題で使える PDF は${MAX_PDF_PAGES}ページまでです。必要なページだけの PDF に分けてください。`);
-        setNewFiles(new Map([[f.id, f]]));
-        setPdfInfo({ fileId: f.id, numPages });
-        set({ material: { kind: 'pdf', fileId: f.id, pages: Array.from({ length: numPages }, (_, i) => ({ page: i + 1, rotation: 0 as Rotation })) } });
-      } else {
-        const current = d.material?.kind === 'image' ? d.material.pages : [];
-        if (current.length + stored.length > MAX_IMAGE_FILES) return setFileMsg(`画像は1つの問題で${MAX_IMAGE_FILES}枚までです。`);
-        const map = new Map(d.material?.kind === 'image' ? newFiles : []);
-        for (const f of stored) map.set(f.id, f);
-        setNewFiles(map);
-        setPdfInfo(null);
-        set({ material: { kind: 'image', pages: [...current, ...stored.map((f) => ({ fileId: f.id, rotation: 0 as Rotation }))] } });
-      }
-    } catch {
-      setFileMsg('ファイルを読み込めませんでした。もう一度選んでください。');
-    } finally {
-      setBusy(false);
-      if (fileInput.current) fileInput.current.value = '';
-    }
-  };
+  }, [d, initial, text]);
 
   const extract = async () => {
-    const m = d.material;
+    const m = legacy?.material;
     if (m?.kind !== 'pdf') return;
     setBusy(true);
     setExtractNote(null);
@@ -388,13 +346,12 @@ function Editor({ initial, onCancel, onSaved }: { initial: ExamProblem | null; o
       const blob = await resolve(m.fileId);
       if (!blob) throw new Error();
       const doc = await openPdf(blob);
-      const text = await extractPdfText(doc, m.pages.map((p) => p.page));
+      const t = await extractPdfText(doc, m.pages.map((p) => p.page));
       void doc.loadingTask.destroy();
-      if (!text.trim()) {
-        setExtractNote('この PDF からは文字を取り出せませんでした（スキャンした PDF など、文字の情報がない PDF です）。正解文を入力するか、貼り付けてください。');
-      } else {
-        set({ answerText: text, answerConfirmed: false });
-        setExtractNote('PDF から文字を取り出しました（補助機能）。読み順・改行・タイトル・ページ番号・余分な空白などを、お手本と見比べて確認・修正してから「正解文を確認済み」にしてください。');
+      if (!t.trim()) setExtractNote('この PDF からは文字を取り出せませんでした（スキャンした PDF など）。見本の文章を入力するか、貼り付けてください。');
+      else {
+        set({ sample: t });
+        setExtractNote('PDF から文字を取り出しました（補助機能）。読み順・改行・段落・余分な空白などを、原本と見比べて確認・修正してください。');
       }
     } catch (e) {
       setExtractNote(e instanceof PdfError ? e.message : '文字を取り出せませんでした。');
@@ -403,67 +360,16 @@ function Editor({ initial, onCancel, onSaved }: { initial: ExamProblem | null; o
     }
   };
 
-  const movePage = (i: number, dir: -1 | 1) => {
-    const m = d.material;
-    if (!m || m.kind === 'text') return;
-    const pages = [...m.pages] as typeof m.pages;
-    const j = i + dir;
-    if (j < 0 || j >= pages.length) return;
-    [pages[i], pages[j]] = [pages[j]!, pages[i]!];
-    set({ material: { ...m, pages } as ExamMaterial });
-  };
-  const rotatePage = (i: number) => {
-    const m = d.material;
-    if (!m || m.kind === 'text') return;
-    const pages = m.pages.map((p, k) => (k === i ? { ...p, rotation: ((p.rotation + 90) % 360) as Rotation } : p));
-    set({ material: { ...m, pages } as ExamMaterial });
-  };
-  const removePage = (i: number) => {
-    const m = d.material;
-    if (!m || m.kind === 'text') return;
-    const pages = m.pages.filter((_, k) => k !== i);
-    set({ material: pages.length === 0 && m.kind === 'image' ? null : ({ ...m, pages } as ExamMaterial) });
-  };
-  const togglePdfPage = (page: number, on: boolean) => {
-    const m = d.material;
-    if (m?.kind !== 'pdf') return;
-    const pages = on ? [...m.pages, { page, rotation: 0 as Rotation }] : m.pages.filter((p) => p.page !== page);
-    set({ material: { ...m, pages } });
-  };
-
-  const problem = useMemo<ExamProblem | null>(() => {
-    if (!d.material) return null;
-    const now = new Date().toISOString();
-    const text = d.answerText.replace(/\r\n?/g, '\n');
-    return {
-      id: initial?.id ?? 'draft',
-      revision: initial ? initial.revision + 1 : 1,
-      title: d.title.trim(),
-      grade: d.grade,
-      source: 'teacher',
-      timeLimitSeconds: d.timeLimitSeconds,
-      scoringEnabled: d.scoringEnabled,
-      answerText: d.scoringEnabled ? text : text.trim() ? text : null,
-      answerConfirmed: d.scoringEnabled ? d.answerConfirmed : false,
-      visible: d.visible,
-      material: d.material,
-      createdAt: initial?.createdAt ?? now,
-      updatedAt: now,
-    };
-  }, [d, initial]);
-
   const save = async () => {
-    if (!problem) return setErrors(['お手本の画像または PDF を選んでください']);
     const p: ExamProblem = { ...problem, id: initial?.id ?? newTeacherProblemId() };
+    if (p.sortOrder !== undefined && !Number.isInteger(p.sortOrder)) return setErrors(['並び順は 0〜9999 の整数にしてください']);
     const errs = validateTeacherProblem(p);
+    if (!d.confirmed && !errs.some((e) => e.includes('段落の区切り'))) errs.push('段落の区切りを確認して、「段落の区切りを確認しました」にしてください');
     setErrors(errs);
     if (errs.length > 0) return;
-    // 使われているファイルのうち、まだ保存していないものだけを保存します
-    const used = new Set(p.material.kind === 'pdf' ? [p.material.fileId] : p.material.kind === 'image' ? p.material.pages.map((x) => x.fileId) : []);
-    const files = [...newFiles.values()].filter((f) => used.has(f.id));
     setBusy(true);
     try {
-      await examStore().saveProblem(p, files);
+      await examStore().saveProblem(p, []);
       onSaved(p);
     } catch (e) {
       setErrors([e instanceof StoreError ? e.message : '保存できませんでした。']);
@@ -472,136 +378,24 @@ function Editor({ initial, onCancel, onSaved }: { initial: ExamProblem | null; o
     }
   };
 
-  const answerChars = countExamChars(d.answerText);
-  const shortNote = d.scoringEnabled && answerChars > 0 ? shortAnswerNotice({ grade: d.grade, answerText: d.answerText }) : null;
-  const m = d.material;
-
   return (
     <section className="panel editor" aria-labelledby="editor-title" data-testid="exam-editor">
       <h2 id="editor-title">{initial ? `問題を編集（改訂 ${initial.revision} → ${initial.revision + 1}）` : '問題を追加'}</h2>
-      {initial && <p className="hint">保存すると改訂番号が1つ上がります。これまでの記録は、記録したときの改訂番号と成績のまま残し、あとから再採点しません。</p>}
 
-      <h3>1. 問題名</h3>
+      <h3>1. タイトル</h3>
       <div className="field">
-        <label htmlFor="ep-title">問題名</label>
-        <input id="ep-title" type="text" maxLength={MAX_TITLE_CHARS} value={d.title} onChange={(e) => set({ title: e.target.value })} placeholder="例：職場実習の報告（プリント）" />
+        <label htmlFor="ep-title">タイトル</label>
+        <input id="ep-title" type="text" value={d.title} maxLength={MAX_TITLE_CHARS} onChange={(e) => set({ title: e.target.value })} data-testid="ep-title" />
       </div>
 
-      <h3>2. 段階と制限時間</h3>
-      <div className="grid grid-2">
-        <div className="field">
-          <label htmlFor="ep-grade">級相当の段階</label>
-          <select id="ep-grade" value={d.grade} onChange={(e) => set({ grade: e.target.value as ExamGrade })}>
-            {GRADES.map((g) => (
-              <option key={g.grade} value={g.grade}>
-                {g.label}（目安 {g.targetCharacters}文字・1ミス {g.penaltyPerError}文字減点）
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="ep-time">制限時間（生徒が開始前に変えることもできます）</label>
-          <select id="ep-time" value={String(d.timeLimitSeconds)} onChange={(e) => set({ timeLimitSeconds: e.target.value === 'null' ? null : Number(e.target.value) })}>
-            {TIME_OPTIONS.map((t) => (
-              <option key={String(t)} value={String(t)}>
-                {t === 600 ? '10分（標準）' : timeLabel(t)}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <h3>3. お手本（画像または PDF）</h3>
-      <p className="hint">
-        使えるのは PNG・JPEG・WebP の画像（スマートフォンで撮影したプリントの写真も可）と PDF です。1ファイル {formatBytes(MAX_FILE_BYTES)}・PDF は{MAX_PDF_PAGES}ページ・画像は{MAX_IMAGE_FILES}枚までです。
-      </p>
-      <label className="btn file-btn">
-        {m ? 'お手本を選び直す／画像を追加する' : '画像または PDF を選ぶ'}
-        <input
-          ref={fileInput}
-          type="file"
-          className="sr-only"
-          data-testid="material-input"
-          accept="image/png,image/jpeg,image/webp,application/pdf,.png,.jpg,.jpeg,.webp,.pdf,.heic,.heif"
-          multiple
-          disabled={busy}
-          onChange={(e) => void chooseFiles(e.target.files)}
-        />
-      </label>
-      {busy && <span className="hint">　処理しています…</span>}
-      {fileMsg && (
-        <p className="msg msg-ng" role="alert" data-testid="file-msg">
-          {fileMsg}
-        </p>
-      )}
-
-      {m && m.kind === 'pdf' && pdfInfo && (
-        <div className="page-picker" data-testid="pdf-pages">
-          <h4>使うページと順番</h4>
-          <p className="hint">PDF は全{pdfInfo.numPages}ページです。使うページに印を付け、下の一覧で順番と向きを決めてください。</p>
-          <div className="choice-row">
-            {Array.from({ length: pdfInfo.numPages }, (_, i) => i + 1).map((n) => (
-              <label key={n} className="choice">
-                <input type="checkbox" checked={m.pages.some((p) => p.page === n)} onChange={(e) => togglePdfPage(n, e.target.checked)} />
-                {n}ページ
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-      {m && m.kind !== 'text' && m.pages.length > 0 && (
-        <ol className="page-order" data-testid="page-order">
-          {m.pages.map((p, i) => (
-            <li key={`${'page' in p ? p.page : p.fileId}-${i}`}>
-              <span>{'page' in p ? `PDF の ${p.page}ページ` : `画像：${newFiles.get(p.fileId)?.name ?? '保存済みの画像'}`}</span>
-              <span className="hint">　向き {p.rotation}°</span>
-              <span className="btn-row inline">
-                <button type="button" className="btn btn-small" onClick={() => movePage(i, -1)} disabled={i === 0} aria-label={`${i + 1}番目を前へ`}>
-                  ↑
-                </button>
-                <button type="button" className="btn btn-small" onClick={() => movePage(i, 1)} disabled={i === m.pages.length - 1} aria-label={`${i + 1}番目を後ろへ`}>
-                  ↓
-                </button>
-                <button type="button" className="btn btn-small" onClick={() => rotatePage(i)}>
-                  ↻ 回転
-                </button>
-                <button type="button" className="btn btn-small btn-quiet" onClick={() => removePage(i)}>
-                  外す
-                </button>
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
-
-      <h3>4. お手本のプレビュー</h3>
-      {problem && problem.material.kind !== 'text' && problem.material.pages.length > 0 ? (
-        <div className="editor-preview" data-testid="editor-preview">
-          <MaterialViewer problem={problem} resolve={resolve} fontScale={1} />
-        </div>
-      ) : (
-        <p className="hint">お手本を選ぶと、ここに表示されます。</p>
-      )}
-
-      <h3>5. 採点用の正解文</h3>
-      <div className="choice-row">
-        <label className="choice">
-          <input type="radio" name="ep-scoring" checked={d.scoringEnabled} onChange={() => set({ scoringEnabled: true })} />
-          正解文を登録して自動採点する
-        </label>
-        <label className="choice">
-          <input type="radio" name="ep-scoring" checked={!d.scoringEnabled} onChange={() => set({ scoringEnabled: false })} data-testid="no-scoring" />
-          採点なし
-        </label>
-      </div>
-      {!d.scoringEnabled && <p className="hint">採点なしの問題は、入力文字数・経過時間・入力した文章だけを表示します。ミス数や目安達成は出しません。開始前に「採点なし」と表示します。</p>}
-      {d.scoringEnabled && (
+      {legacy && (
         <>
-          <p className="hint">
-            お手本の画像・PDF とは別に、採点に使う正しい文章を登録します。直接入力・貼り付け・修正ができます。段落の終わりは改行してください（採点では改行・空白は比べません）。
-            {m?.kind === 'image' && ' 画像の文字は自動では読み取りません。お手本を見ながら入力するか、貼り付けてください。'}
-          </p>
-          {m?.kind === 'pdf' && (
+          <h3>旧検定モードの原本（{legacy.material.kind === 'pdf' ? 'PDF' : '画像'}）</h3>
+          <p className="hint">原本のファイルは消さずに残しています。文書作成モードでは、下の「見本の文章」を段落ごとに表示します（画像・PDF は生徒の画面には出しません）。</p>
+          <div className="editor-preview" data-testid="legacy-original">
+            <MaterialViewer problem={legacy} resolve={resolve} fontScale={1} />
+          </div>
+          {legacy.material.kind === 'pdf' && (
             <button type="button" className="btn btn-small" onClick={() => void extract()} disabled={busy} data-testid="extract-text">
               PDF から文字を取り出す（補助）
             </button>
@@ -611,39 +405,59 @@ function Editor({ initial, onCancel, onSaved }: { initial: ExamProblem | null; o
               {extractNote}
             </p>
           )}
-          <div className="field">
-            <label htmlFor="ep-answer">採点用の正解文</label>
-            <textarea
-              id="ep-answer"
-              rows={10}
-              value={d.answerText}
-              onChange={(e) => set({ answerText: e.target.value, answerConfirmed: false })}
-              data-testid="answer-text"
-              lang="ja"
-            />
-            <span className="hint" data-testid="answer-count">
-              {answerChars}文字（改行・空白を除く）・{gradeInfo(d.grade).label}の目安 {gradeInfo(d.grade).targetCharacters}文字
-              {answerChars > MAX_ANSWER_CHARS && <span className="error-text">　{MAX_ANSWER_CHARS}文字までです</span>}
-            </span>
-          </div>
-          {shortNote && (
-            <p className="msg msg-info" data-testid="short-note">
-              {shortNote}
-            </p>
-          )}
-          <label className="switch">
-            <input type="checkbox" checked={d.answerConfirmed} onChange={(e) => set({ answerConfirmed: e.target.checked })} data-testid="answer-confirmed" />
-            正解文を確認済み（お手本と見比べ、読み順・タイトル・ページ番号・誤字などを確認しました）
-          </label>
-          {!d.answerConfirmed && <p className="hint">確認済みにするまで、自動採点の問題としては保存できません。正解文を書き換えると、確認済みの印は外れます。</p>}
         </>
       )}
 
-      <h3>6. 保存</h3>
+      <h3>2. 見本の文章</h3>
+      <p className="hint">文章を入力するか、貼り付けてください。改行したところが段落の区切りになります（改行を勝手に消したり、句点ごとに改行したりはしません）。空の行は入れられません。</p>
+      <div className="field">
+        <label htmlFor="ep-sample">見本の文章</label>
+        <textarea id="ep-sample" className="answer-input" rows={12} value={d.sample} onChange={(e) => set({ sample: e.target.value })} data-testid="ep-sample" lang="ja" />
+        <span className="hint" data-testid="ep-count">
+          {countDocChars(text)}文字（改行を除く）・{paras.length}段落（{MAX_SAMPLE_CHARS}文字まで）
+        </span>
+      </div>
+      {issues.length > 0 && (
+        <div className="msg msg-ng" role="alert" data-testid="ep-issues">
+          <ul>
+            {issues.map((e) => (
+              <li key={e}>{e}</li>
+            ))}
+          </ul>
+          {hasBlank && (
+            <button type="button" className="btn btn-small" onClick={() => set({ sample: removeBlankLines(d.sample) })} data-testid="ep-remove-blank">
+              空の行を取り除く
+            </button>
+          )}
+        </div>
+      )}
+
+      <h3>3. 段落の確認</h3>
+      <p className="hint">生徒の画面では、この段落ごとに見本と入力欄を表示します。段落の区切りが意図どおりか確認してください。</p>
+      <ol className="doc-para-preview" data-testid="ep-paragraphs">
+        {paras.map((p, i) => (
+          <li key={i} className={p.trim() === '' ? 'is-blank' : ''}>
+            <span className="doc-para-preview-no">段落 {i + 1}</span>
+            <span className="doc-para-preview-text">{p.trim() === '' ? '（空の行）' : p}</span>
+            {i < paras.length - 1 && <span className="doc-break-mark">↵ 改行</span>}
+          </li>
+        ))}
+      </ol>
       <label className="switch">
-        <input type="checkbox" checked={d.visible} onChange={(e) => set({ visible: e.target.checked })} />
-        生徒向けに表示する（「検定モード → 先生の追加問題」に出します）
+        <input type="checkbox" checked={d.confirmed} onChange={(e) => set({ confirmed: e.target.checked })} data-testid="ep-confirmed" />
+        段落の区切りを確認しました
       </label>
+
+      <h3>4. 並び順と表示</h3>
+      <div className="field">
+        <label htmlFor="ep-order">並び順（小さいほど先に表示します。0〜9999）</label>
+        <input id="ep-order" type="number" min={0} max={9999} step={1} value={d.sortOrder} onChange={(e) => set({ sortOrder: e.target.value })} data-testid="ep-order" />
+      </div>
+      <label className="switch">
+        <input type="checkbox" checked={d.visible} onChange={(e) => set({ visible: e.target.checked })} data-testid="ep-visible" />
+        生徒向けに表示する
+      </label>
+
       {errors.length > 0 && (
         <ul className="msg msg-ng" role="alert" data-testid="editor-errors">
           {errors.map((e) => (
@@ -653,7 +467,7 @@ function Editor({ initial, onCancel, onSaved }: { initial: ExamProblem | null; o
       )}
       <div className="btn-row" style={{ marginTop: 12 }}>
         <button type="button" className="btn btn-primary" onClick={() => void save()} disabled={busy} data-testid="save-problem">
-          この端末に保存する
+          保存する
         </button>
         <button type="button" className="btn btn-quiet" onClick={onCancel}>
           やめる

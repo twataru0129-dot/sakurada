@@ -385,6 +385,54 @@ export async function runRlsTests(db) {
     });
   }
 
+  console.log('文書作成モードの記録（document_results・v2.0.0）');
+  {
+    const docr = (user, extra = {}) => ({
+      id: id(), user_id: user, started_at: new Date(Date.now() - 900000).toISOString(), finished_at: new Date().toISOString(),
+      problem_id: 'exam-original-4-04', problem_title: '雨の日の通学', problem_revision: 1, problem_source: 'builtin',
+      status: 'completed', elapsed_ms: 900000, input_chars: 402, paragraph_count: 4,
+      text_errors: 3, wrong_chars: 1, extra_chars: 1, missing_chars: 1, space_errors: 0, break_errors: 1, rules_version: 'doc-v1', ...extra,
+    });
+    const insD = (r) => {
+      const cols = Object.keys(r);
+      return [`insert into public.document_results (${cols.join(',')}) values (${cols.map((_, i) => `$${i + 1}`).join(',')})`, cols.map((c) => r[c])];
+    };
+    for (const u of [S_A1, S_B1]) await db.query(...insD(docr(u)));
+    await as(S_A1, 'aal1', async () => {
+      const r = await rows('select user_id from public.document_results');
+      check('生徒A1は自分の文書作成の記録だけ見える', r.length === 1 && r[0].user_id === S_A1, JSON.stringify(r));
+      check('生徒A1が生徒B1の文書作成の記録をIDで指定しても見えない', (await rows('select * from public.document_results where user_id = $1', [S_B1])).length === 0);
+      check('生徒A1は生徒B1として文書作成の記録を追加できない', !!(await fails(...insD(docr(S_B1)))));
+      const mine = docr(S_A1, { status: 'quit', elapsed_ms: 3_600_000 * 3 });
+      await db.query(...insD(mine));
+      check('制限時間のない長い時間（3時間）の記録・途中終了の記録を保存できる', (await rows('select status from public.document_results where id = $1', [mine.id]))[0]?.status === 'quit');
+      check('同じIDの文書作成の記録の再送は重複しない', (await fails(...insD(mine))) === '23505');
+      check('誤りの合計と内訳が合わない記録は拒否', !!(await fails(...insD(docr(S_A1, { text_errors: 9 })))));
+      check('知らない判定規則の版は拒否', !!(await fails(...insD(docr(S_A1, { rules_version: 'exam-v1' })))));
+      check('知らない状態は拒否', !!(await fails(...insD(docr(S_A1, { status: 'achieved' })))));
+      check('完成が開始より前の記録は拒否', !!(await fails(...insD(docr(S_A1, { finished_at: new Date(Date.now() - 3_600_000).toISOString() })))));
+      check('問題名にタグを含む記録は拒否', !!(await fails(...insD(docr(S_A1, { problem_title: '<b>x</b>' })))));
+      check('文書作成の記録を書き換えられない', !!(await fails('update public.document_results set text_errors = 0 where user_id = $1', [S_A1])));
+      check('文書作成の記録を削除できない', !!(await fails('delete from public.document_results where user_id = $1', [S_A1])));
+      check('文書作成の記録はタイピング・旧検定の記録に混ざらない', (await rows('select id from public.practice_results where id = $1 union all select id from public.exam_results where id = $1', [mine.id])).length === 0);
+      check('文書作成の記録の表に本文を保存する列はない', (await rows("select column_name from information_schema.columns where table_name = 'document_results' and column_name ~ 'text$|body|content'")).length === 0);
+    });
+    await as(S_SUSP, 'aal1', async () => {
+      check('停止中の生徒は文書作成の記録を追加できない', !!(await fails(...insD(docr(S_SUSP)))));
+    });
+    await as(T_A, 'aal2', async () => {
+      const r = await rows('select distinct user_id from public.document_results');
+      check('教員A（二段階認証済み）は担当の生徒の文書作成の記録だけ見える', r.length === 1 && r[0].user_id === S_A1, JSON.stringify(r));
+      check('教員は生徒の文書作成の記録を書き換えられない', !!(await fails('update public.document_results set text_errors = 0 where user_id = $1', [S_A1])));
+    });
+    await as(T_A, 'aal1', async () => {
+      check('教員Aは二段階認証なしでは生徒の文書作成の記録を見られない', (await rows('select * from public.document_results where user_id = $1', [S_A1])).length === 0);
+    });
+    await as('anon', null, async () => {
+      check('未ログインでは文書作成の記録を読めない', !!(await fails('select * from public.document_results')));
+    });
+  }
+
   console.log('ゲームの記録（game_results）');
   {
     const gm = (user, extra = {}) => ({
