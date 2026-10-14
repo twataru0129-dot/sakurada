@@ -229,7 +229,6 @@ test.describe('ボウイの爆弾遊戯：敗北の演出と敗北の戦績', ()
     await page.getByTestId('bowie-retry').click();
     const c = await solve(page, 1);
     await expect(result).toBeVisible({ timeout: 20_000 });
-    await skipMovie(page);
     for (let i = 0; i < 4 && (await result.getAttribute('data-step')) !== 'stats'; i++) {
       await page.getByTestId('bowie-skip').click();
       await page.waitForTimeout(150);
@@ -379,7 +378,6 @@ test.describe('ボウイの爆弾遊戯：戦績の画面の大きさ', () => {
     // 敗北の戦績
     await page.getByTestId('bowie-retry').click();
     await expect(result).toBeVisible({ timeout: 20_000 });
-    await skipMovie(page);
     for (let i = 0; i < 4 && (await result.getAttribute('data-step')) !== 'stats'; i++) {
       await page.getByTestId('bowie-skip').click();
       await page.waitForTimeout(150);
